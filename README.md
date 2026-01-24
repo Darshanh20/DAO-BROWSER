@@ -17,3 +17,13 @@
 ## 📖 About D.A.O.
 
 **D.A.O. (Distraction-free, Ad-free, Optimized)** is an intelligent web browser designed to enhance your browsing experience through advanced privacy features, AI-powered ad-blocking, and productivity-focused tools. Built with modern web technologies, D.A.O. combines the reliability of Chromium with cutting-edge machine learning capabilities.
+
+### Why D.A.O.?
+
+- 🛡️ **Privacy-First**: Advanced tracking protection and intelligent ad-blocking
+- 📖 **Enhanced Reading**: Distraction-free reading mode with IDE-inspired themes
+- 🎯 **Stay Focused**: Productivity tools to minimize distractions
+- 🤖 **AI-Powered**: Machine learning for intelligent content filtering
+- ⚡ **Fast & Lightweight**: Optimized performance with minimal resource usage
+
+---
