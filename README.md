@@ -27,3 +27,41 @@
 - ⚡ **Fast & Lightweight**: Optimized performance with minimal resource usage
 
 ---
+
+## ✨ Features
+
+### 🛡️ Intelligent Ad-Blocking
+- **ML-Powered Detection**: Uses machine learning algorithms to identify and block intrusive ads
+- **Filter Lists**: Integrates industry-standard EasyList and EasyPrivacy (100,000+ rules)
+- **Real-time Statistics**: Live dashboard showing blocked ads, trackers, and scripts
+- **Custom Rules**: Create your own blocking rules or whitelist trusted sites
+- **Performance Optimized**: <50ms blocking latency for seamless browsing
+
+### 📖 Enhanced Reading Mode
+- **Smart Extraction**: Automatically extracts article content from web pages
+- **IDE-Inspired Themes**: 5 professional themes including:
+  - VS Code Dark
+  - VS Code Light
+  - Monokai
+  - Solarized Dark/Light
+  - High Contrast
+- **Typography Controls**: Customize font size, family, line height, and content width
+- **Auto-Detection**: Intelligently suggests reading mode for article pages
+- **Keyboard Shortcuts**: Quick activation with Ctrl+R
+
+### 🎯 Focus Mode
+- **Website Blocking**: Block distracting sites during work sessions
+- **Flexible Scheduling**: One-time or recurring focus sessions
+- **Productivity Tracking**: Monitor focus time and blocked access attempts
+- **Session Timer**: Visual countdown with break reminders
+- **Categorized Lists**: Pre-built categories (Social Media, Entertainment, News)
+
+### 🌐 Core Browser Features
+- **Multi-Tab Support**: Efficient tab management with drag-and-drop
+- **Fast Navigation**: Smooth back/forward/refresh controls
+- **Bookmarks**: Organize and manage your favorite sites
+- **History**: Browse your browsing history with search
+- **Downloads**: Built-in download manager
+- **Security**: HTTPS enforcement and certificate validation
+
+---
