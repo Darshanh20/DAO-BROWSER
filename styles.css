@@ -1,0 +1,56 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: #f0f0f0;
+  align-items: center;
+}
+
+button {
+  padding: 8px 15px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+button:hover {
+  background: #e0e0e0;
+}
+
+button:active {
+  background: #d0d0d0;
+}
+
+#urlBar {
+  flex: 1;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+#urlBar:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+webview {
+  flex: 1;
+  width: 100%;
+  border: none;
+}
