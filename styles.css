@@ -8,45 +8,145 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  font-family: Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: #121212;
+  color: #e8e8e8;
 }
 
+/* ======== TOOLBAR MAIN ======== */
 .toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  height: 52px;
+  background: #1e1e1e;
+  border-bottom: 1px solid #2a2a2a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ======== NAVIGATION BUTTONS ======== */
+.nav-buttons {
   display: flex;
-  gap: 10px;
-  padding: 10px;
-  background: #f0f0f0;
+  gap: 4px;
+  align-items: center;
+  justify-self: start;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #b3b3b3;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8e8e8;
+}
+
+.nav-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.nav-btn:disabled {
+  color: #545454;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.nav-btn svg {
+  display: block;
+}
+
+/* ======== ADDRESS BAR ======== */
+.address-bar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 600px;
+  width: 100%;
+  justify-self: center;
+}
+
+.address-bar {
+  width: 100%;
+  padding: 10px 16px;
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 24px;
+  color: #e8e8e8;
+  font-size: 14px;
+  outline: none;
+  transition: all 150ms ease;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.address-bar::placeholder {
+  color: #7a7a7a;
+}
+
+.address-bar:hover {
+  background: #333333;
+  border-color: #454545;
+}
+
+.address-bar:focus {
+  background: #2a2a2a;
+  border-color: #6366f1;
+  box-shadow: 
+    inset 0 1px 3px rgba(0, 0, 0, 0.2),
+    0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* ======== ACTION BUTTONS ======== */
+.action-buttons {
+  display: flex;
+  gap: 4px;
   align-items: center;
 }
 
-button {
-  padding: 8px 15px;
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #b3b3b3;
   cursor: pointer;
-  border: 1px solid #ccc;
-  background: white;
-  border-radius: 4px;
-  font-size: 14px;
+  transition: all 150ms ease;
 }
 
-button:hover {
-  background: #e0e0e0;
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8e8e8;
 }
 
-button:active {
-  background: #d0d0d0;
+.action-btn:active {
+  background: rgba(255, 255, 255, 0.15);
 }
 
-#urlBar {
+.action-btn svg {
+  display: block;
+}
+
+/* ======== WEBVIEW ======== */
+#browserView {
   flex: 1;
-  padding: 8px;
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-#urlBar:focus {
-  outline: none;
-  border-color: #4CAF50;
+  border: none;
 }
 
 webview {
