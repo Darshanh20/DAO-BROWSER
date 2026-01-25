@@ -1,10 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>AI Privacy Browser</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<!-- Tabs Bar -->
+<div class="tabs-bar">
+  <div class="tabs-container" id="tabsContainer">
+    <!-- Tabs will be added here dynamically -->
+  </div>
+  <button id="newTabBtn" class="new-tab-btn" title="New Tab (Ctrl+T)">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+      <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+    </svg>
+  </button>
+</div>
 
 <div class="toolbar">
   <!-- Navigation Buttons -->
@@ -36,6 +49,11 @@
       spellcheck="false"
     />
   </div>
+</div>
+
+<!-- Browser Views Container -->
+<div class="browser-container" id="browserContainer">
+  <!-- Webviews will be added here dynamically -->
 </div>
 
 <script src="renderer.js"></script>
