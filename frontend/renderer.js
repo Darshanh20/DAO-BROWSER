@@ -6,6 +6,9 @@ const reloadBtn = document.getElementById("reloadBtn");
 const newTabBtn = document.getElementById("newTabBtn");
 const tabsContainer = document.getElementById("tabsContainer");
 const browserContainer = document.getElementById("browserContainer");
+const blockerStats = document.getElementById("blockerStats");
+const blockerCount = document.getElementById("blockerCount");
+const blockerToggle = document.getElementById("blockerToggle");
 
 // Tabs state
 let tabs = [];
@@ -14,11 +17,37 @@ let tabIdCounter = 0;
 
 // State to track if we're programmatically updating the URL bar
 let isUpdatingUrl = false;
+let currentFullUrl = ""; // Store the full URL
+
+// Function to simplify URL for display (e.g., https://www.google.com -> google.com)
+function simplifyUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    let hostname = urlObj.hostname;
+    
+    // Remove 'www.' prefix if present
+    if (hostname.startsWith("www.")) {
+      hostname = hostname.substring(4);
+    }
+    
+    return hostname;
+  } catch {
+    return url;
+  }
+}
 
 // Function to update URL bar with current page URL
 function updateUrlBar(url) {
   isUpdatingUrl = true;
-  urlBar.value = url;
+  currentFullUrl = url;
+  
+  // Show simplified URL if not focused
+  if (document.activeElement !== urlBar) {
+    urlBar.value = simplifyUrl(url);
+  } else {
+    urlBar.value = url;
+  }
+  
   isUpdatingUrl = false;
 }
 
@@ -32,14 +61,21 @@ function getCurrentWebview() {
 function createNewTab(url = "https://www.google.com") {
   const tabId = tabIdCounter++;
   
-  // Create webview element
+  // Create webview element with proper attributes
   const webview = document.createElement("webview");
   webview.id = `browserView-${tabId}`;
   webview.src = url;
   webview.classList.add("active");
+  
+  // Essential attributes for new-window handling
+  webview.setAttribute('allowpopups', 'true');
+  webview.setAttribute('nodeintegration', 'false');
+  webview.setAttribute('enableremotemodule', 'false');
+  webview.setAttribute('preload', '');  // Empty preload to enable webview features
+  
   browserContainer.appendChild(webview);
   
-  // Setup webview event listeners
+  // Setup webview event listeners immediately
   setupWebviewListeners(webview);
   
   // Create tab object
@@ -98,6 +134,87 @@ function setupWebviewListeners(webview) {
       renderTabs();
     }
   });
+
+  // ============================================
+  // HANDLE NEW WINDOW/TAB REQUESTS FROM WEBVIEW
+  // ============================================
+  
+  /**
+   * Intercept new-window events from webview
+   * Fires for target="_blank" links, window.open(), etc.
+   */
+  webview.addEventListener('new-window', (event) => {
+    console.log(`[WEBVIEW] new-window event fired`);
+    console.log(`[WEBVIEW] URL: ${event.url}`);
+    
+    // Prevent opening an external window
+    event.preventDefault();
+    
+    // Create a new tab instead
+    if (event.url) {
+      console.log(`[NEW-TAB] Creating tab for: ${event.url}`);
+      createNewTab(event.url);
+    }
+  });
+  
+  /**
+   * Use JavaScript injection to capture window.open and target="_blank" clicks
+   * This ensures we catch all new-window requests even if the event doesn't fire
+   */
+  webview.addEventListener('did-finish-load', () => {
+    // Inject a script that forwards new-window attempts to the renderer
+    const script = `
+      (function interceptNewWindow() {
+        // Override window.open
+        const originalOpen = window.open;
+        window.open = function(url, target, features) {
+          if (target === '_blank' || target === '_new') {
+            console.log('Intercepted window.open: ' + url);
+            // Send message to parent (renderer process via new-window event)
+            return null;
+          }
+          return originalOpen.apply(window, arguments);
+        };
+        
+        // Override link target="_blank" behavior
+        document.addEventListener('click', function(e) {
+          const el = e.target.closest('a[href]');
+          if (el && el.getAttribute('target') === '_blank') {
+            console.log('Intercepted target="_blank" click: ' + el.href);
+            // The new-window event should fire for this
+          }
+        }, true);
+        
+        console.log('New window interceptor installed');
+      })();
+    `;
+    
+    webview.executeJavaScript(script).catch(err => {
+      console.error(`[INJECT] Error: ${err.message}`);
+    });
+  });
+
+
+
+
+  webview.addEventListener("did-fail-load", (event) => {
+    if (event.isMainFrame) {
+      const tab = tabs.find(t => t.webview === webview);
+      if (tab) {
+        tab.title = "Error";
+        const errorHtml = `
+          <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1e1e1e;color:#e8e8e8;font-family:system-ui;flex-direction:column;gap:20px;">
+            <h1 style="font-size:32px;margin:0;">Failed to Load Page</h1>
+            <p style="color:#b3b3b3;margin:0;">Error Code: ${event.errorCode}</p>
+            <p style="color:#b3b3b3;margin:0;max-width:400px;text-align:center;">${event.errorDescription}</p>
+            <button onclick="history.back()" style="padding:10px 20px;background:#0066ff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">Go Back</button>
+          </div>
+        `;
+        webview.loadURL(`data:text/html,${encodeURIComponent(errorHtml)}`);
+        renderTabs();
+      }
+    }
+  });
 }
 
 // Function to switch to a specific tab
@@ -118,9 +235,10 @@ function switchTab(tabId) {
 
 // Function to update current tab UI (URL bar and buttons)
 function updateCurrentTabUI() {
-  const currentWebview = getCurrentWebview();
-  if (currentWebview) {
-    updateUrlBar(currentWebview.src);
+  const currentTab = tabs.find(tab => tab.id === currentTabId);
+  if (currentTab) {
+    // Use the tracked URL from navigation events, not webview.src
+    updateUrlBar(currentTab.url);
   }
   renderTabs();
 }
@@ -130,7 +248,18 @@ function closeTab(tabId) {
   const tabIndex = tabs.findIndex(tab => tab.id === tabId);
   if (tabIndex !== -1) {
     const tab = tabs[tabIndex];
-    tab.webview.remove();
+    
+    // Properly dispose of webview
+    try {
+      if (tab.webview) {
+        tab.webview.stop();  // Stop any loading in progress
+        tab.webview.remove();  // Remove from DOM
+        tab.webview = null;  // Clear reference to allow garbage collection
+      }
+    } catch (e) {
+      console.warn("Error disposing webview:", e);
+    }
+    
     tabs.splice(tabIndex, 1);
     
     // If closed tab was active, switch to another tab
@@ -155,28 +284,33 @@ function renderTabs() {
   tabs.forEach(tab => {
     const tabEl = document.createElement("div");
     tabEl.className = `tab ${tab.id === currentTabId ? "active" : ""}`;
+    tabEl.dataset.tabId = tab.id;  // Store tab ID for event delegation
     tabEl.innerHTML = `
       <span class="tab-title" title="${tab.title}">${tab.title}</span>
       <button class="tab-close">×</button>
     `;
     
-    // Tab click to switch
-    tabEl.addEventListener("click", (e) => {
-      if (!e.target.classList.contains("tab-close")) {
-        switchTab(tab.id);
-      }
-    });
-    
-    // Close button click
-    const closeBtn = tabEl.querySelector(".tab-close");
-    closeBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      closeTab(tab.id);
-    });
-    
     tabsContainer.appendChild(tabEl);
   });
+  
+  // Use event delegation instead of attaching listeners to each tab
+  // This prevents memory leaks from multiple listener accumulation
 }
+
+// Single event listener for all tab interactions using event delegation
+tabsContainer.addEventListener("click", (e) => {
+  const tabEl = e.target.closest(".tab");
+  if (!tabEl) return;
+  
+  const tabId = parseInt(tabEl.dataset.tabId);
+  
+  if (e.target.classList.contains("tab-close")) {
+    e.stopPropagation();
+    closeTab(tabId);
+  } else {
+    switchTab(tabId);
+  }
+});
 
 // Handle URL input when user presses Enter
 urlBar.addEventListener("keydown", (e) => {
@@ -263,6 +397,18 @@ window.addEventListener("keyboard-focus-address", () => {
   urlBar.select();
 });
 
+// Address bar focus/blur handlers for URL display toggling
+urlBar.addEventListener("focus", () => {
+  // When focused, show full URL and select all
+  urlBar.value = currentFullUrl;
+  urlBar.select();
+});
+
+urlBar.addEventListener("blur", () => {
+  // When blurred, show simplified URL
+  urlBar.value = simplifyUrl(currentFullUrl);
+});
+
 window.addEventListener("keyboard-next-tab", () => {
   const currentIndex = tabs.findIndex(tab => tab.id === currentTabId);
   if (currentIndex !== -1 && currentIndex < tabs.length - 1) {
@@ -289,9 +435,170 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     createNewTab();
   }
+  
+  // Standard browser shortcuts: Ctrl+Tab for next tab
+  if ((e.ctrlKey || e.metaKey) && e.key === "Tab") {
+    e.preventDefault();
+    const currentIndex = tabs.findIndex(tab => tab.id === currentTabId);
+    if (currentIndex !== -1 && currentIndex < tabs.length - 1) {
+      switchTab(tabs[currentIndex + 1].id);
+    } else if (currentIndex !== -1 && currentIndex === tabs.length - 1) {
+      // Wrap around to first tab
+      switchTab(tabs[0].id);
+    }
+  }
+  
+  // Standard browser shortcuts: Ctrl+Shift+Tab for previous tab
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "Tab") {
+    e.preventDefault();
+    const currentIndex = tabs.findIndex(tab => tab.id === currentTabId);
+    if (currentIndex > 0) {
+      switchTab(tabs[currentIndex - 1].id);
+    } else if (currentIndex === 0 && tabs.length > 0) {
+      // Wrap around to last tab
+      switchTab(tabs[tabs.length - 1].id);
+    }
+  }
+  
+  // Ctrl+W for close tab (standard browser shortcut)
+  if ((e.ctrlKey || e.metaKey) && e.key === "w") {
+    e.preventDefault();
+    if (currentTabId !== null) {
+      closeTab(currentTabId);
+    }
+  }
 });
 
-// Initialize: Create first tab
-window.addEventListener("DOMContentLoaded", () => {
+// ============================================
+// AD-BLOCKER STATISTICS
+// ============================================
+
+/**
+ * Update ad-blocker stats display
+ */
+async function updateBlockerStats() {
+  try {
+    if (!window.adBlocker) return; // API not available yet
+    
+    // Get stats from main process
+    const stats = await window.adBlocker.getStats();
+    
+    // Update UI
+    if (blockerStats && blockerCount) {
+      const count = stats ? stats.count : 0;
+      blockerCount.textContent = count;
+      
+      // Show indicator when ads/trackers are blocked
+      if (count > 0) {
+        blockerStats.classList.add('active');
+      } else {
+        blockerStats.classList.remove('active');
+      }
+    }
+  } catch (error) {
+    console.warn('[AD-BLOCKER] Error updating stats:', error);
+  }
+}
+
+/**
+ * Show ad-blocker statistics in console
+ */
+async function showBlockerStats() {
+  try {
+    if (window.adBlocker) {
+      await window.adBlocker.logStats();
+    }
+  } catch (error) {
+    console.warn('[AD-BLOCKER] Error logging stats:', error);
+  }
+}
+
+// Update stats display periodically (only after setup)
+const statsInterval = setInterval(() => {
+  if (window.adBlocker) {
+    updateBlockerStats();
+  }
+}, 500); // Update every 500ms for real-time feedback
+
+/**
+ * Toggle ad-blocking on/off
+ */
+async function toggleAdBlocking() {
+  try {
+    if (!window.adBlocker) {
+      console.warn('[AD-BLOCKER] API not available');
+      return;
+    }
+    
+    // Get current state
+    const currentState = await window.adBlocker.isEnabled();
+    const newState = !currentState.enabled;
+    
+    // Toggle blocking
+    const result = await window.adBlocker.toggleBlocking(newState);
+    
+    // Update UI
+    if (blockerToggle) {
+      if (result.enabled) {
+        blockerToggle.classList.remove('disabled');
+        blockerToggle.title = 'Ad-blocker is ON - click to disable';
+      } else {
+        blockerToggle.classList.add('disabled');
+        blockerToggle.title = 'Ad-blocker is OFF - click to enable';
+      }
+    }
+    
+    console.log(`[AD-BLOCKER] ${result.enabled ? 'ENABLED' : 'DISABLED'}`);
+  } catch (error) {
+    console.warn('[AD-BLOCKER] Error toggling:', error);
+  }
+}
+
+// Initialize blocker state on DOM ready
+window.addEventListener("DOMContentLoaded", async () => {
   createNewTab("https://www.google.com");
+  
+  // ============================================
+  // LISTEN FOR NEW TAB CREATION REQUESTS
+  // ============================================
+  
+  /**
+   * Listen for create-new-tab messages from the main process
+   * Fired when:
+   * - A link with target="_blank" is clicked
+   * - window.open() is called from a webview
+   * - setWindowOpenHandler intercepts a new window request
+   */
+  if (window.ipcRenderer) {
+    window.ipcRenderer.on('create-new-tab', (event, details) => {
+      const url = details.url || "https://www.google.com";
+      console.log(`[NEW-TAB] Creating new tab from IPC message: ${url}`);
+      createNewTab(url);
+    });
+  }
+  
+  // Setup blocker stats click handler
+  if (blockerStats) {
+    blockerStats.addEventListener('click', async () => {
+      await showBlockerStats();
+    });
+  }
+  
+  // Setup blocker toggle click handler
+  if (blockerToggle) {
+    blockerToggle.addEventListener('click', async () => {
+      await toggleAdBlocking();
+    });
+    
+    // Initialize toggle state
+    if (window.adBlocker) {
+      const state = await window.adBlocker.isEnabled();
+      if (!state.enabled) {
+        blockerToggle.classList.add('disabled');
+      }
+    }
+  }
+  
+  // Initial stats update
+  setTimeout(updateBlockerStats, 1000);
 });
