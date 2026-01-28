@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu } = require("electron");
+const path = require("path");
 
 try {
   require("electron-reloader")(module);
@@ -12,13 +13,13 @@ app.whenReady().then(() => {
     height: 800,
     show: false,
     webPreferences: {
-      preload: __dirname + "/preload.js",
+      preload: path.join(__dirname, "preload.js"),
       webviewTag: true,
       contextIsolation: false
     }
   });
 
-  win.loadFile("index.html");
+  win.loadFile(path.join(__dirname, "../frontend/index.html"));
   win.show();
   win.maximize();
 });
