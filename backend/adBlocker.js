@@ -262,6 +262,22 @@ function getDomainFromUrl(url) {
 }
 
 /**
+ * Check if request is first-party (same domain as page)
+ * @param {string} requestUrl - The request URL
+ * @param {string} pageUrl - The page/referrer URL
+ * @returns {boolean} - True if first-party request
+ */
+function isFirstPartyRequest(requestUrl, pageUrl) {
+  try {
+    const requestDomain = new URL(requestUrl).hostname;
+    const pageDomain = new URL(pageUrl).hostname;
+    return requestDomain === pageDomain;
+  } catch {
+    return true; // Assume first-party on parse error
+  }
+}
+
+/**
  * Initialize stats tracking for a session
  * @param {number} webContentsId - Electron webContents ID
  */
@@ -348,7 +364,44 @@ function setupNetworkInterception(electronSession, webContentsId) {
         return;
       }
       
-      // Check if request should be blocked
+      // ============================================
+      // RULE 1: Never block main document
+      // ============================================
+      if (resourceType === 'mainFrame') {
+        callback({ cancel: false });
+        return;
+      }
+      
+      // Get page URL for first-party check
+      const pageUrl = details.url.split('?')[0]; // Current page context
+      const referrer = details.referrer || '';
+      const contextUrl = referrer || pageUrl;
+      
+      // ============================================
+      // RULE 2: Allow all first-party requests
+      // ============================================
+      if (isFirstPartyRequest(url, contextUrl)) {
+        // RULE 3: Essential resources from first-party always allowed
+        if (['script', 'stylesheet', 'font', 'xmlhttprequest'].includes(resourceType)) {
+          callback({ cancel: false });
+          return;
+        }
+      }
+      
+      // ============================================
+      // RULE 4: Check whitelist BEFORE patterns
+      // ============================================
+      const urlLower = url.toLowerCase();
+      for (const whitelistDomain of WHITELIST) {
+        if (urlLower.includes(whitelistDomain.toLowerCase())) {
+          callback({ cancel: false });
+          return;
+        }
+      }
+      
+      // ============================================
+      // Check if request should be blocked (third-party ads/trackers only)
+      // ============================================
       if (shouldBlockUrl(url)) {
         // Categorize the blocked request
         const category = categorizeBlockedRequest(url);
@@ -356,7 +409,7 @@ function setupNetworkInterception(electronSession, webContentsId) {
         // Record the blocked request with category
         recordBlockedRequest(webContentsId, url, category);
         
-        // Log to console with clear label
+        // RULE 5: Log cancelled requests with domain + resourceType
         const domain = getDomainFromUrl(url);
         const stats = getBlockedStats(webContentsId);
         console.log(
