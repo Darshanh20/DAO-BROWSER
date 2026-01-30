@@ -2,7 +2,7 @@
   "name": "ai-privacy-browser",
   "version": "1.0.0",
   "description": "AI-Powered Privacy Browser",
-  "main": "main.js",
+  "main": "backend/main.js",
   "scripts": {
     "start": "electron ."
   },
