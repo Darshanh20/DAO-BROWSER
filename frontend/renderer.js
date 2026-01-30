@@ -602,3 +602,63 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Initial stats update
   setTimeout(updateBlockerStats, 1000);
 });
+
+// ============================================
+// THEME TOGGLE
+// ============================================
+
+/**
+ * Get saved theme from localStorage or return default
+ */
+function getSavedTheme() {
+  const saved = localStorage.getItem('theme');
+  return saved || 'dark-theme';
+}
+
+/**
+ * Apply theme to document
+ */
+function applyTheme(theme) {
+  document.body.classList.remove('dark-theme', 'light-theme');
+  document.body.classList.add(theme);
+  
+  // Update icon based on theme
+  const themeIcon = document.getElementById('themeIcon');
+  if (themeIcon) {
+    if (theme === 'dark-theme') {
+      // Moon icon for dark theme
+      themeIcon.setAttribute('d', 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z');
+    } else {
+      // Sun icon for light theme
+      themeIcon.setAttribute('d', 'M12 2a10 10 0 1 0 20 0 10 10 0 0 0-20 0zm0-3a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0V2a1 1 0 0 1 1-1zm9 1a1 1 0 0 1 0 2h-2a1 1 0 0 1 0-2h2zM12 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12z');
+    }
+  }
+}
+
+/**
+ * Toggle theme between dark and light
+ */
+function toggleTheme() {
+  const currentTheme = getSavedTheme();
+  const newTheme = currentTheme === 'dark-theme' ? 'light-theme' : 'dark-theme';
+  
+  // Save to localStorage
+  localStorage.setItem('theme', newTheme);
+  
+  // Apply theme
+  applyTheme(newTheme);
+}
+
+// Initialize theme on DOM ready
+window.addEventListener('DOMContentLoaded', () => {
+  // Apply saved theme
+  const savedTheme = getSavedTheme();
+  applyTheme(savedTheme);
+  
+  // Setup theme toggle button
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
+}, { once: true });
+
