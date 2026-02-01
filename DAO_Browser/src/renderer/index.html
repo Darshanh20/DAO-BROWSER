@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>D.A.O. Browser</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="browser-container">
+        <div id="tab-bar">
+            <div id="tabs-container">
+                <!-- Tabs will be dynamically created by JavaScript -->
+            </div>
+            <button id="new-tab-btn">+</button>
+        </div>
+        <header id="toolbar">
+            <div class="nav-controls">
+                <button id="back-btn">←</button>
+                <button id="forward-btn">→</button>
+                <button id="reload-btn">⟳</button>
+            </div>
+            <input type="text" id="address-bar" placeholder="Search or enter URL">
+            <button id="go-btn">Go</button>
+            <button id="shield-btn" title="Ad-Blocker Stats">🛡️</button>
+        </header>
+        
+        <!-- Ad-Blocker Stats Popup -->
+        <div id="stats-popup" class="stats-popup hidden">
+            <div class="stats-content">
+                <div class="stats-header">
+                    <h3>Ad-Blocker Stats</h3>
+                    <button class="close-popup">×</button>
+                </div>
+                <div class="stats-body">
+                    <div class="stat-row">
+                        <span class="stat-label">This Session:</span>
+                        <span id="session-blocked" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Blocked:</span>
+                        <span id="total-blocked" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Status:</span>
+                        <span id="blocker-status" class="stat-value enabled">Enabled</span>
+                    </div>
+                </div>
+                <div class="stats-footer">
+                    <button id="toggle-blocker-btn" class="btn-toggle">Disable Blocker</button>
+                    <button id="reset-stats-btn" class="btn-reset">Reset Session</button>
+                </div>
+            </div>
+        </div>
+        
+        <main id="content-area">
+            <!-- Webviews will be dynamically created here -->
+            <div id="welcome-screen">
+                <h1>Welcome to D.A.O.</h1>
+                <p>Distraction-free, Ad-free, Optimized.</p>
+            </div>
+        </main>
+    </div>
+    <script src="renderer.js"></script>
+</body>`
+</html>
