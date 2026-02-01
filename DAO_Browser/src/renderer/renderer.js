@@ -5,11 +5,13 @@ const addressBar = document.getElementById('address-bar');
 const backBtn = document.getElementById('back-btn');
 const forwardBtn = document.getElementById('forward-btn');
 const reloadBtn = document.getElementById('reload-btn');
-const goBtn = document.getElementById('go-btn');
 const tabsContainer = document.getElementById('tabs-container');
 const newTabBtn = document.getElementById('new-tab-btn');
 const contentArea = document.getElementById('content-area');
 const welcomeScreen = document.getElementById('welcome-screen');
+const loadingBar = document.getElementById('loading-bar');
+const blockedCountEl = document.getElementById('blocked-count');
+const adblockerBtn = document.getElementById('adblocker-btn');
 
 // Debug: Check if elements exist
 console.log('addressBar:', addressBar);
@@ -19,6 +21,57 @@ console.log('contentArea:', contentArea);
 let tabs = [];
 let activeTabId = null;
 let nextTabId = 1;
+
+// ==================== URL SIMPLIFICATION ====================
+function simplifyURL(url) {
+    try {
+        const urlObj = new URL(url);
+        let simplified = urlObj.hostname;
+        
+        // Add path if not just root
+        if (urlObj.pathname && urlObj.pathname !== '/') {
+            simplified += urlObj.pathname;
+        }
+        
+        // Add search params if important (skip tracking params)
+        const importantParams = new URLSearchParams();
+        const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'fbclid', 'gclid', 'usegapi', 'jsh'];
+        
+        for (const [key, value] of urlObj.searchParams) {
+            if (!trackingParams.includes(key)) {
+                importantParams.append(key, value);
+            }
+        }
+        
+        if (importantParams.toString()) {
+            simplified += '?' + importantParams.toString();
+        }
+        
+        return simplified;
+    } catch (e) {
+        return url;
+    }
+}
+
+// Update address bar with simplified URL
+function updateAddressBar(url) {
+    addressBar.value = simplifyURL(url);
+    addressBar.dataset.fullUrl = url;
+}
+
+// Show full URL on focus, simplify on blur
+addressBar.addEventListener('focus', function() {
+    if (this.dataset.fullUrl) {
+        this.value = this.dataset.fullUrl;
+    }
+    this.select();
+});
+
+addressBar.addEventListener('blur', function() {
+    if (this.dataset.fullUrl) {
+        this.value = simplifyURL(this.dataset.fullUrl);
+    }
+});
 
 // Tab Class - handles creation of webview and tab button
 class Tab {
@@ -76,7 +129,7 @@ class Tab {
         this.webview.addEventListener('did-navigate', (e) => {
             this.url = e.url;
             if (this.id === activeTabId) {
-                addressBar.value = e.url;
+                updateAddressBar(e.url);
                 updateNavigationButtons();
             }
         });
@@ -84,7 +137,7 @@ class Tab {
         this.webview.addEventListener('did-navigate-in-page', (e) => {
             this.url = e.url;
             if (this.id === activeTabId) {
-                addressBar.value = e.url;
+                updateAddressBar(e.url);
             }
         });
         
@@ -94,16 +147,18 @@ class Tab {
             this.tabTitleElement.textContent = this.title;
         });
         
-        // Loading states
+        // Loading states with loading bar
         this.webview.addEventListener('did-start-loading', () => {
             if (this.id === activeTabId) {
                 console.log('Loading...');
+                loadingBar.classList.add('loading');
             }
         });
         
         this.webview.addEventListener('did-stop-loading', () => {
             if (this.id === activeTabId) {
                 console.log('Finished loading.');
+                loadingBar.classList.remove('loading');
                 updateNavigationButtons();
             }
         });
@@ -141,17 +196,18 @@ class Tab {
 function switchToTab(tabId) {
     // Hide all webviews and deactivate all tabs
     tabs.forEach(tab => {
-        tab.webview.style.display = 'none';
+        tab.webview.classList.remove('active');
         tab.tabElement.classList.remove('active');
     });
     
     // Show and activate the selected tab
     const tab = tabs.find(t => t.id === tabId);
     if (tab) {
-        tab.webview.style.display = 'block';
+        tab.webview.classList.add('active');
         tab.tabElement.classList.add('active');
         activeTabId = tabId;
-        addressBar.value = tab.url === 'about:blank' ? '' : tab.url;
+        const displayUrl = tab.url === 'about:blank' ? '' : tab.url;
+        updateAddressBar(displayUrl);
         welcomeScreen.style.display = tab.url === 'about:blank' ? 'flex' : 'none';
         updateNavigationButtons();
     }
@@ -210,8 +266,6 @@ function updateNavigationButtons() {
 }
 
 // Event Listeners for navigation
-goBtn.addEventListener('click', () => navigate(addressBar.value));
-
 addressBar.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') navigate(addressBar.value);
 });
@@ -367,6 +421,7 @@ async function updateStatsDisplay() {
         
         sessionBlockedEl.textContent = stats.sessionBlocked;
         totalBlockedEl.textContent = stats.totalBlocked;
+        blockedCountEl.textContent = stats.sessionBlocked;
         
         // Update status indicator
         blockerStatusEl.textContent = stats.enabled ? 'Enabled' : 'Disabled';
@@ -376,9 +431,10 @@ async function updateStatsDisplay() {
         toggleBlockerBtn.textContent = stats.enabled ? 'Disable Blocker' : 'Enable Blocker';
         toggleBlockerBtn.className = stats.enabled ? 'btn-toggle' : 'btn-toggle disabled';
         
-        // Update shield button appearance
+        // Update ad-blocker button badge
         if (stats.sessionBlocked > 0) {
-            shieldBtn.classList.add('active');
+            adblockerBtn.classList.add('active');
+            blockedCountEl.style.display = 'block';
         }
     } catch (error) {
         console.error('Error fetching stats:', error);
