@@ -1,0 +1,381 @@
+html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#browser-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+#tab-bar {
+    display: flex;
+    align-items: center;
+    background: #252525;
+    border-bottom: 1px solid #3d3d3d;
+    padding: 4px 8px;
+    gap: 8px;
+    flex-shrink: 0;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+#tabs-container {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 100%;
+    align-items: center;
+}
+
+#tabs-container::-webkit-scrollbar {
+    height: 4px;
+}
+
+#tabs-container::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 2px;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 6px 6px 0 0;
+    padding: 6px 12px;
+    min-width: 150px;
+    max-width: 200px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.tab:hover {
+    background: #353535;
+}
+
+.tab.active {
+    background: #1e1e1e;
+    border-bottom-color: #1e1e1e;
+}
+
+.tab-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    color: #ccc;
+}
+
+.tab.active .tab-title {
+    color: #fff;
+}
+
+.close-tab {
+    background: transparent;
+    border: none;
+    color: #888;
+    padding: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-tab:hover {
+    background: #444;
+    color: #fff;
+}
+
+#new-tab-btn {
+    background: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+#new-tab-btn:hover {
+    background: #353535;
+}
+
+#toolbar {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #3d3d3d;
+    gap: 10px;
+    flex-shrink: 0;
+    position: relative;
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+}
+
+#shield-btn {
+    font-size: 18px;
+    padding: 6px 10px;
+    background: #3d3d3d;
+    border: 1px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+#shield-btn:hover {
+    background: #4d4d4d;
+    border-color: #555;
+}
+
+#shield-btn.active {
+    background: #0ea5e9;
+    border-color: #06b6d4;
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+}
+
+/* Stats Popup */
+.stats-popup {
+    position: fixed;
+    top: 60px;
+    right: 10px;
+    background: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    min-width: 280px;
+    max-width: 350px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.stats-popup.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+}
+
+.stats-content {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #3d3d3d;
+}
+
+.stats-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.close-popup {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-popup:hover {
+    color: #fff;
+}
+
+.stats-body {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #3d3d3d;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    color: #aaa;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.stat-value {
+    color: #0ea5e9;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 2px 6px;
+    background: rgba(14, 165, 233, 0.1);
+    border-radius: 3px;
+}
+
+.stat-value.enabled {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.stat-value.disabled {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.stats-footer {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid #3d3d3d;
+}
+
+.btn-toggle,
+.btn-reset {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 12px;
+    border: 1px solid #3d3d3d;
+    border-radius: 4px;
+    background: #1e1e1e;
+    color: #0ea5e9;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-toggle:hover,
+.btn-reset:hover {
+    background: #252525;
+    border-color: #0ea5e9;
+}
+
+.btn-toggle.disabled {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+.btn-reset {
+    color: #f59e0b;
+}
+
+.btn-reset:hover {
+    border-color: #f59e0b;
+}
+
+#address-bar {
+    flex: 1;
+    padding: 8px 12px;
+    background: #1e1e1e;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 4px;
+}
+
+button {
+    background: #444;
+    border: none;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover { background: #555; }
+
+#content-area {
+    flex: 1 1 auto;
+    position: relative;
+    min-height: 0;
+    background: #1e1e1e;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+}
+
+.webview-tab {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    flex: 1 1 100%;
+}
+
+#webview {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+}
+
+#welcome-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
