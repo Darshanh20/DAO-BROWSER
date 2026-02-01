@@ -1,4 +1,6 @@
 // Multi-Tab Browser System
+console.log('Renderer.js loading...');
+
 const addressBar = document.getElementById('address-bar');
 const backBtn = document.getElementById('back-btn');
 const forwardBtn = document.getElementById('forward-btn');
@@ -8,6 +10,11 @@ const tabsContainer = document.getElementById('tabs-container');
 const newTabBtn = document.getElementById('new-tab-btn');
 const contentArea = document.getElementById('content-area');
 const welcomeScreen = document.getElementById('welcome-screen');
+
+// Debug: Check if elements exist
+console.log('addressBar:', addressBar);
+console.log('tabsContainer:', tabsContainer);
+console.log('contentArea:', contentArea);
 
 let tabs = [];
 let activeTabId = null;
@@ -19,6 +26,8 @@ class Tab {
         this.id = id;
         this.url = url || 'about:blank';
         this.title = 'New Tab';
+        
+        console.log(`Creating tab ${id}...`);
         
         // Create webview element
         this.webview = document.createElement('webview');
@@ -48,6 +57,9 @@ class Tab {
         
         this.tabElement.appendChild(tabTitle);
         this.tabElement.appendChild(closeBtn);
+        tabsContainer.appendChild(this.tabElement);
+        
+        console.log(`Tab ${id} created, appended to DOM`);
         tabsContainer.appendChild(this.tabElement);
         
         // Tab click to switch
@@ -160,7 +172,11 @@ function getActiveTab() {
 
 // Navigation Function
 function navigate(url) {
-    if (!url.trim()) return;
+    console.log('Navigate called with:', url);
+    if (!url.trim()) {
+        console.log('URL is empty, returning');
+        return;
+    }
     
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
         // If it's not a URL, treat it as a search query
@@ -171,10 +187,16 @@ function navigate(url) {
         }
     }
     
+    console.log('Final URL:', url);
     const activeTab = getActiveTab();
+    console.log('Active tab:', activeTab);
+    
     if (activeTab) {
         activeTab.webview.src = url;
         welcomeScreen.style.display = 'none';
+        console.log('Navigation successful');
+    } else {
+        console.log('No active tab found');
     }
 }
 
@@ -371,4 +393,10 @@ setInterval(() => {
 }, 2000);
 
 // Initialize with first tab
-createNewTab();
+console.log('About to create first tab...');
+try {
+    createNewTab();
+    console.log('First tab created successfully');
+} catch (error) {
+    console.error('Error creating first tab:', error);
+}

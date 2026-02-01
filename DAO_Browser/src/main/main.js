@@ -103,7 +103,7 @@ function createWindow() {
     mainWindow.maximize();
     
     // Open DevTools for debugging (Optional - uncomment to enable)
-    // mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
     
     // Setup ad-blocker for all webview instances
     setupAdBlocker();
