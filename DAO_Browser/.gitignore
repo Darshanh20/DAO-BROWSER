@@ -60,3 +60,5 @@ logs/
 temp/
 tmp/
 *.bak
+
+.env

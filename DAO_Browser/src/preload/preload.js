@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
     // Health check for Python backend
     checkHealth: () => ipcRenderer.invoke('api:health'),
-    
+
     // Ad-Blocker API
     adBlocker: {
         getStats: () => ipcRenderer.invoke('adBlocker:getStats'),
