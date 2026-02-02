@@ -1,25 +1,30 @@
 /* Global RESET & Base Styles */
 :root {
-    --bg-dark: #09090b; /* Deepest black/grey */
-    --bg-panel: #14141a; /* Toolbar/Tab background */
-    --bg-element: #1e1e26; /* Input/Button background */
+    --bg-dark: #09090b;
+    /* Deepest black/grey */
+    --bg-panel: #14141a;
+    /* Toolbar/Tab background */
+    --bg-element: #1e1e26;
+    /* Input/Button background */
     --bg-hover: #2a2a35;
-    
-    --accent-blue: #60a5fa; /* Light blue accent */
+
+    --accent-blue: #60a5fa;
+    /* Light blue accent */
     --accent-glow: rgba(96, 165, 250, 0.2);
-    
+
     --text-primary: #ffffff;
     --text-secondary: #9ca3af;
     --text-dim: #6b7280;
-    
+
     --border-subtle: #27272a;
-    
+
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 20px;
 }
 
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -27,7 +32,8 @@ html, body {
     background-color: var(--bg-dark);
     color: var(--text-primary);
     overflow: hidden;
-    user-select: none; /* UI feel */
+    user-select: none;
+    /* UI feel */
 }
 
 /* Layout Containers */
@@ -41,12 +47,14 @@ html, body {
 /* ==================== TAB BAR ==================== */
 #tab-bar {
     display: flex;
-    align-items: flex-end; /* Tabs sit on bottom */
+    align-items: flex-end;
+    /* Tabs sit on bottom */
     background-color: var(--bg-dark);
     height: 48px;
     padding: 0 16px;
     gap: 8px;
-    -webkit-app-region: drag; /* Draggable titlebar area */
+    -webkit-app-region: drag;
+    /* Draggable titlebar area */
 }
 
 #tabs-container {
@@ -56,12 +64,15 @@ html, body {
     align-items: flex-end;
     gap: 6px;
     overflow-x: auto;
-    -webkit-app-region: no-drag; /* Tabs need to be clickable */
-    padding-bottom: 0; 
+    -webkit-app-region: no-drag;
+    /* Tabs need to be clickable */
+    padding-bottom: 0;
 }
 
 /* Hide scrollbar but allow scroll */
-#tabs-container::-webkit-scrollbar { display: none; }
+#tabs-container::-webkit-scrollbar {
+    display: none;
+}
 
 .tab {
     display: flex;
@@ -87,7 +98,7 @@ html, body {
 .tab.active {
     background: var(--bg-panel);
     color: var(--text-primary);
-    box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .tab-icon {
@@ -95,7 +106,11 @@ html, body {
     height: 16px;
     opacity: 0.7;
 }
-.tab.active .tab-icon { opacity: 1; fill: var(--accent-blue); }
+
+.tab.active .tab-icon {
+    opacity: 1;
+    fill: var(--accent-blue);
+}
 
 .tab-title {
     flex: 1;
@@ -115,12 +130,19 @@ html, body {
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    opacity: 0; /* Hidden by default */
+    opacity: 0;
+    /* Hidden by default */
     transition: all 0.2s;
 }
 
-.tab:hover .close-tab { opacity: 1; }
-.close-tab:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.tab:hover .close-tab {
+    opacity: 1;
+}
+
+.close-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
 
 #new-tab-btn {
     -webkit-app-region: no-drag;
@@ -131,13 +153,19 @@ html, body {
     border: none;
     color: var(--text-secondary);
     font-size: 20px;
-    display: flex; 
-    align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    margin-bottom: 6px; /* Align with input */
+    margin-bottom: 6px;
+    /* Align with input */
     transition: background 0.2s;
 }
-#new-tab-btn:hover { background: var(--bg-element); color: #fff; }
+
+#new-tab-btn:hover {
+    background: var(--bg-element);
+    color: #fff;
+}
 
 /* ==================== TOOLBAR ==================== */
 #toolbar {
@@ -148,7 +176,7 @@ html, body {
     padding: 0 16px;
     gap: 16px;
     border-bottom: 1px solid var(--border-subtle);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 10;
 }
 
@@ -173,16 +201,37 @@ html, body {
     cursor: pointer;
     transition: all 0.2s;
 }
-.icon-btn:hover { background: var(--bg-element); color: #fff; }
-.icon-btn:disabled { opacity: 0.3; cursor: default; }
-.icon-btn:disabled:hover { background: transparent; }
+
+.icon-btn:hover {
+    background: var(--bg-element);
+    color: #fff;
+}
+
+.icon-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.icon-btn:disabled:hover {
+    background: transparent;
+}
 
 /* High-tech shield logo on far left */
 .shield-toggle-btn {
+    color: #ef4444;
+    /* Brave color when active usually orange, but keeping blue/red for theme */
     color: var(--accent-blue);
     font-size: 18px;
     background: rgba(96, 165, 250, 0.1);
 }
+
+.shield-toggle-btn.active {
+    background: rgba(96, 165, 250, 0.2);
+    color: #fb923c;
+    /* Orange like Brave */
+    box-shadow: 0 0 8px rgba(251, 146, 60, 0.3);
+}
+
 .shield-toggle-btn:hover {
     background: rgba(96, 165, 250, 0.2);
     box-shadow: 0 0 8px var(--accent-glow);
@@ -194,7 +243,8 @@ html, body {
     max-width: 800px;
     height: 38px;
     background-color: var(--bg-dark);
-    border-radius: var(--radius-lg); /* Pill shape */
+    border-radius: var(--radius-lg);
+    /* Pill shape */
     display: flex;
     align-items: center;
     padding: 0 4px;
@@ -209,7 +259,8 @@ html, body {
 
 .lock-icon {
     margin-left: 12px;
-    color: #10b981; /* Green lock */
+    color: #10b981;
+    /* Green lock */
     font-size: 12px;
 }
 
@@ -224,7 +275,8 @@ html, body {
 }
 
 .url-badge {
-    background: #1e3a8a; /* Dark blue badge */
+    background: #1e3a8a;
+    /* Dark blue badge */
     color: #93c5fd;
     font-size: 10px;
     font-weight: 700;
@@ -242,7 +294,10 @@ html, body {
     color: var(--text-dim);
     cursor: pointer;
 }
-.bookmark-star:hover { color: #facc15; }
+
+.bookmark-star:hover {
+    color: #facc15;
+}
 
 /* Right Toolbar Tools */
 .window-controls {
@@ -272,7 +327,8 @@ html, body {
     width: 100%;
     height: 100%;
     border: none;
-    background: #fff; /* Webviews are white by default */
+    background: #fff;
+    /* Webviews are white by default */
 }
 
 /* ==================== WELCOME / NEW TAB PAGE ==================== */
@@ -302,9 +358,20 @@ html, body {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.8; }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 .brand-title {
@@ -336,7 +403,8 @@ html, body {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-subtle);
     border-radius: 28px;
-    padding: 0 140px 0 52px; /* Space for icon and button */
+    padding: 0 140px 0 52px;
+    /* Space for icon and button */
     font-size: 16px;
     color: #fff;
     outline: none;
@@ -375,8 +443,14 @@ html, body {
     cursor: pointer;
     transition: transform 0.1s;
 }
-.search-btn-large:hover { filter: brightness(1.1); }
-.search-btn-large:active { transform: scale(0.96); }
+
+.search-btn-large:hover {
+    filter: brightness(1.1);
+}
+
+.search-btn-large:active {
+    transform: scale(0.96);
+}
 
 .features-grid {
     display: flex;
@@ -391,13 +465,182 @@ html, body {
     font-size: 12px;
     font-weight: 500;
 }
-.feature-item i { font-size: 14px; }
 
-/* Stats Popup matching new theme */
-.stats-popup {
-    background: var(--bg-panel);
-    border: 1px solid var(--border-subtle);
+.feature-item i {
+    font-size: 14px;
 }
-.stat-row { border-color: var(--border-subtle); }
-.stats-header { border-color: var(--border-subtle); }
-.stats-footer { border-color: var(--border-subtle); }
+
+/* ==================== BRAVE STYLE SHIELD POPUP ==================== */
+.shield-popup {
+    position: absolute;
+    top: 60px;
+    left: 16px;
+    width: 360px;
+    background: #1f2023;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid #36373b;
+    z-index: 1000;
+    font-family: 'Poppins', sans-serif;
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.popup-header {
+    background: #2b2c31;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brave-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.site-domain {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.popup-hero {
+    padding: 24px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #36373b;
+}
+
+.stats-text {
+    font-size: 14px;
+    color: #fff;
+    max-width: 60%;
+    line-height: 1.4;
+}
+
+.learn-more {
+    display: block;
+    color: #8b9bb4;
+    text-decoration: none;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.stats-number {
+    font-size: 48px;
+    font-weight: 300;
+    color: #fb923c;
+    /* Brave Orange */
+}
+
+.popup-controls {
+    padding: 16px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #2b2c31;
+    padding: 16px;
+    border-radius: 12px;
+}
+
+.control-icon {
+    font-size: 20px;
+    color: #fff;
+}
+
+.control-info {
+    flex: 1;
+}
+
+.control-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.control-desc {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Switch Toggle */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4b5563;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked+.slider {
+    background-color: #6366f1;
+    /* Indigo toggle color */
+}
+
+input:focus+.slider {
+    box-shadow: 0 0 1px #6366f1;
+}
+
+input:checked+.slider:before {
+    transform: translateX(20px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.popup-footer {
+    background: #191a1d;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #fff;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ml-auto {
+    margin-left: auto;
+}

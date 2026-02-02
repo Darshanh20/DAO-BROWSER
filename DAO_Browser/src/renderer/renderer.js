@@ -380,8 +380,109 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// ==================== AD-BLOCKER UI INTEGRATION ====================
-// Stats popup removed per user request
+// ==================== BRAVE-STYLE SHIELD MENU LOGIC ====================
+
+// DOM elements for new shield popup
+const shieldBtn = document.getElementById('shield-btn');
+const shieldPopup = document.getElementById('shield-popup');
+const shieldToggle = document.getElementById('shield-toggle');
+const popupBlockedCount = document.getElementById('popup-blocked-count');
+const currentSiteEl = document.getElementById('current-site');
+
+let popupOpen = false;
+
+// 1. Toggle Popup
+if (shieldBtn) {
+    shieldBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popupOpen = !popupOpen;
+        shieldPopup.classList.toggle('hidden', !popupOpen);
+        shieldBtn.classList.toggle('active', popupOpen);
+
+        if (popupOpen) {
+            updateShieldStats();
+        }
+    });
+}
+
+// 2. Click Outside to Close
+document.addEventListener('click', (e) => {
+    if (popupOpen && shieldPopup && !shieldPopup.contains(e.target) && e.target !== shieldBtn) {
+        popupOpen = false;
+        shieldPopup.classList.add('hidden');
+        shieldBtn.classList.remove('active');
+    }
+});
+
+// Prevent closing when clicking inside popup
+if (shieldPopup) {
+    shieldPopup.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+}
+
+// 3. Toggle Blocker
+if (shieldToggle) {
+    shieldToggle.addEventListener('change', async (e) => {
+        const isEnabled = e.target.checked;
+        // In a real app we might pass enabled state, 
+        // but current backend just toggles. So we sync them.
+
+        // Let's assume toggle returns the NEW state
+        const newState = await window.electronAPI.adBlocker.toggle();
+
+        // Sync UI if backend mismatch (unlikely but safe)
+        if (newState !== isEnabled) {
+            shieldToggle.checked = newState;
+        }
+
+        console.log(`Shields ${newState ? 'UP' : 'DOWN'}`);
+        updateShieldStats();
+    });
+}
+
+// 4. Update Stats UI
+async function updateShieldStats() {
+    try {
+        const stats = await window.electronAPI.adBlocker.getStats();
+
+        // Update number
+        if (popupBlockedCount) {
+            popupBlockedCount.textContent = stats.sessionBlocked;
+        }
+
+        // Update Toggle Switch
+        if (shieldToggle) {
+            shieldToggle.checked = stats.enabled;
+        }
+
+        // Update Current Site Label
+        const activeTab = getActiveTab();
+        if (activeTab && currentSiteEl) {
+            try {
+                const urlObj = new URL(activeTab.url);
+                currentSiteEl.textContent = urlObj.hostname;
+            } catch (e) {
+                currentSiteEl.textContent = 'New Tab';
+            }
+        }
+
+        // Icon Badge Logic
+        if (stats.sessionBlocked > 0) {
+            shieldBtn.classList.add('has-blocks');
+        }
+
+    } catch (error) {
+        console.error('Error fetching shield stats:', error);
+    }
+}
+
+// Auto-update stats when popup is visible
+setInterval(() => {
+    if (popupOpen) {
+        updateShieldStats();
+    }
+}, 2000);
 
 // Initialize with first tab
 console.log('About to create first tab...');

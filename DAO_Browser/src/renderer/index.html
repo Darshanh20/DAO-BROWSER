@@ -61,7 +61,41 @@
         </header>
 
         <!-- Ad-Blocker Stats Popup -->
-        <!-- Ad-Blocker Stats Popup Removed -->
+        <!-- Brave-Style Shield Popup -->
+        <div id="shield-popup" class="shield-popup hidden">
+            <div class="popup-header">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Brave_icon_lionface.svg/1200px-Brave_icon_lionface.svg.png"
+                    class="brave-icon" alt="Shield">
+                <span id="current-site" class="site-domain">example.com</span>
+            </div>
+
+            <div class="popup-hero">
+                <div class="stats-text">
+                    Trackers, ads, and more blocked
+                    <a href="#" class="learn-more">Learn more</a>
+                </div>
+                <div class="stats-number" id="popup-blocked-count">0</div>
+            </div>
+
+            <div class="popup-controls">
+                <div class="control-row">
+                    <div class="control-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="control-info">
+                        <div class="control-title">Shields are UP for this site</div>
+                        <div class="control-desc">If this site seems broken, try Shields down.</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="shield-toggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="popup-footer">
+                <i class="fa-solid fa-list-ul"></i> Advanced controls
+                <i class="fa-solid fa-chevron-down ml-auto"></i>
+            </div>
+        </div>
 
         <!-- Main Content Area -->
         <main id="content-area">
