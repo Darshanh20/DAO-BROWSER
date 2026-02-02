@@ -1,65 +1,96 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>D.A.O. Browser</title>
+    <!-- Use Font Awesome for icons if available, or fallbacks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div id="browser-container">
+        <!-- Tab Bar -->
         <div id="tab-bar">
+            <!-- App Title/Logo Area could go here -->
             <div id="tabs-container">
-                <!-- Tabs will be dynamically created by JavaScript -->
-                <button id="new-tab-btn">+</button>
+                <!-- Javascript will insert tabs here -->
+                <button id="new-tab-btn" title="New Tab">+</button>
             </div>
         </div>
+
+        <!-- Toolbar -->
         <header id="toolbar">
+            <button id="shield-btn" class="icon-btn shield-toggle-btn" title="Shield Status">
+                <i class="fa-solid fa-shield-halved"></i>
+            </button>
+
             <div class="nav-controls">
-                <button id="back-btn">←</button>
-                <button id="forward-btn">→</button>
-                <button id="reload-btn">⟳</button>
+                <button id="back-btn" class="icon-btn" title="Go Back">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <button id="forward-btn" class="icon-btn" title="Go Forward">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button id="reload-btn" class="icon-btn" title="Reload">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
             </div>
-            <input type="text" id="address-bar" placeholder="Search or enter URL">
-            <button id="go-btn">Go</button>
-            <button id="shield-btn" title="Ad-Blocker Stats">🛡️</button>
+
+            <!-- Address Bar Pill -->
+            <div class="url-container">
+                <i class="fa-solid fa-lock lock-icon"></i>
+                <input type="text" id="address-bar" placeholder="Search or enter URL">
+                <span class="url-badge">
+                    <i class="fa-solid fa-shield-cat"></i> PROTECTED
+                </span>
+                <i class="fa-regular fa-star bookmark-star"></i>
+            </div>
+
+            <!-- Go Button (Hidden visually, triggered by Enter, kept for logic) -->
+            <button id="go-btn" style="display: none;"></button>
+
+            <!-- Window Controls / Extras -->
+            <div class="window-controls">
+                <button class="icon-btn"><i class="fa-solid fa-puzzle-piece"></i></button>
+                <button class="icon-btn"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                <button class="icon-btn"><i class="fa-solid fa-gear"></i></button>
+                <div class="profile-pic"></div>
+            </div>
         </header>
-        
+
         <!-- Ad-Blocker Stats Popup -->
-        <div id="stats-popup" class="stats-popup hidden">
-            <div class="stats-content">
-                <div class="stats-header">
-                    <h3>Ad-Blocker Stats</h3>
-                    <button class="close-popup">×</button>
-                </div>
-                <div class="stats-body">
-                    <div class="stat-row">
-                        <span class="stat-label">This Session:</span>
-                        <span id="session-blocked" class="stat-value">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Total Blocked:</span>
-                        <span id="total-blocked" class="stat-value">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Status:</span>
-                        <span id="blocker-status" class="stat-value enabled">Enabled</span>
-                    </div>
-                </div>
-                <div class="stats-footer">
-                    <button id="toggle-blocker-btn" class="btn-toggle">Disable Blocker</button>
-                    <button id="reset-stats-btn" class="btn-reset">Reset Session</button>
-                </div>
-            </div>
-        </div>
-        
+        <!-- Ad-Blocker Stats Popup Removed -->
+
+        <!-- Main Content Area -->
         <main id="content-area">
-            <!-- Webviews will be dynamically created here -->
+            <!-- Webviews created dynamically here -->
+
+            <!-- New Landing Page -->
             <div id="welcome-screen">
-                <h1>Welcome to D.A.O.</h1>
-                <p>Distraction-free, Ad-free, Optimized.</p>
+                <div class="logo-section">
+                    <i class="fa-solid fa-shield-halved logo-shield"></i>
+                    <h1 class="brand-title">D.A.O. Search</h1>
+                    <div class="brand-subtitle">Private • Decentralized • Secure</div>
+                </div>
+
+                <div class="search-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon-large"></i>
+                    <input type="text" id="home-search-input" class="search-input-large"
+                        placeholder="Search the decentralized web...">
+                    <button id="home-search-btn" class="search-btn-large">SEARCH</button>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-item"><i class="fa-solid fa-user-secret"></i> Anonymous Mode</div>
+                    <div class="feature-item"><i class="fa-solid fa-shield-virus"></i> Ad-Shield Active</div>
+                    <div class="feature-item"><i class="fa-solid fa-link"></i> On-Chain Search</div>
+                </div>
             </div>
         </main>
     </div>
     <script src="renderer.js"></script>
 </body>
+
 </html>

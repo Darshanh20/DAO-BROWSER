@@ -13,6 +13,8 @@ const loadingBar = document.getElementById('loading-bar');
 const blockedCountEl = document.getElementById('blocked-count');
 const adblockerBtn = document.getElementById('adblocker-btn');
 const goBtn = document.getElementById('go-btn');
+const homeSearchInput = document.getElementById('home-search-input');
+const homeSearchBtn = document.getElementById('home-search-btn');
 
 // Debug: Check if elements exist
 console.log('addressBar:', addressBar);
@@ -277,6 +279,19 @@ goBtn.addEventListener('click', () => {
     navigate(addressBar.value);
 });
 
+// Home Page Search Logic
+if (homeSearchInput) {
+    homeSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') navigate(homeSearchInput.value);
+    });
+}
+
+if (homeSearchBtn) {
+    homeSearchBtn.addEventListener('click', () => {
+        navigate(homeSearchInput.value);
+    });
+}
+
 backBtn.addEventListener('click', () => {
     const activeTab = getActiveTab();
     if (activeTab && activeTab.webview.canGoBack()) {
@@ -366,94 +381,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ==================== AD-BLOCKER UI INTEGRATION ====================
-
-// DOM elements for stats popup
-const shieldBtn = document.getElementById('shield-btn');
-const statsPopup = document.getElementById('stats-popup');
-const closePopupBtn = document.querySelector('.close-popup');
-const toggleBlockerBtn = document.getElementById('toggle-blocker-btn');
-const resetStatsBtn = document.getElementById('reset-stats-btn');
-const sessionBlockedEl = document.getElementById('session-blocked');
-const totalBlockedEl = document.getElementById('total-blocked');
-const blockerStatusEl = document.getElementById('blocker-status');
-
-let popupOpen = false;
-
-// Toggle stats popup
-shieldBtn.addEventListener('click', () => {
-    popupOpen = !popupOpen;
-    statsPopup.classList.toggle('hidden', !popupOpen);
-    shieldBtn.classList.toggle('active', popupOpen);
-
-    if (popupOpen) {
-        updateStatsDisplay();
-    }
-});
-
-// Close popup
-closePopupBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    popupOpen = false;
-    statsPopup.classList.add('hidden');
-    shieldBtn.classList.remove('active');
-});
-
-// Close popup when clicking outside
-document.addEventListener('click', (e) => {
-    if (popupOpen && !statsPopup.contains(e.target) && e.target !== shieldBtn) {
-        popupOpen = false;
-        statsPopup.classList.add('hidden');
-        shieldBtn.classList.remove('active');
-    }
-});
-
-// Toggle ad-blocker on/off
-toggleBlockerBtn.addEventListener('click', async () => {
-    const newStatus = await window.electronAPI.adBlocker.toggle();
-    console.log(`Ad-Blocker toggled: ${newStatus ? 'Enabled' : 'Disabled'}`);
-    updateStatsDisplay();
-});
-
-// Reset session stats
-resetStatsBtn.addEventListener('click', async () => {
-    await window.electronAPI.adBlocker.resetSession();
-    console.log('Session stats reset');
-    updateStatsDisplay();
-});
-
-// Update stats display
-async function updateStatsDisplay() {
-    try {
-        const stats = await window.electronAPI.adBlocker.getStats();
-
-        sessionBlockedEl.textContent = stats.sessionBlocked;
-        totalBlockedEl.textContent = stats.totalBlocked;
-        blockedCountEl.textContent = stats.sessionBlocked;
-
-        // Update status indicator
-        blockerStatusEl.textContent = stats.enabled ? 'Enabled' : 'Disabled';
-        blockerStatusEl.className = `stat-value ${stats.enabled ? 'enabled' : 'disabled'}`;
-
-        // Update toggle button text
-        toggleBlockerBtn.textContent = stats.enabled ? 'Disable Blocker' : 'Enable Blocker';
-        toggleBlockerBtn.className = stats.enabled ? 'btn-toggle' : 'btn-toggle disabled';
-
-        // Update ad-blocker button badge
-        if (stats.sessionBlocked > 0) {
-            adblockerBtn.classList.add('active');
-            blockedCountEl.style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error fetching stats:', error);
-    }
-}
-
-// Update stats periodically (every 2 seconds) when popup is open
-setInterval(() => {
-    if (popupOpen) {
-        updateStatsDisplay();
-    }
-}, 2000);
+// Stats popup removed per user request
 
 // Initialize with first tab
 console.log('About to create first tab...');

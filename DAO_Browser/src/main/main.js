@@ -87,6 +87,7 @@ function createWindow() {
         height: 900,
         minWidth: 800,
         minHeight: 600,
+        autoHideMenuBar: true,
         webPreferences: {
             // This links our UI to our system securely
             preload: path.join(__dirname, '../preload/preload.js'),
@@ -98,20 +99,20 @@ function createWindow() {
 
     // Load our UI file
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-    
+
     // Maximize the window
     mainWindow.maximize();
-    
+
     // Open DevTools for debugging (Optional - uncomment to enable)
     mainWindow.webContents.openDevTools();
-    
+
     // Setup ad-blocker for all webview instances
     setupAdBlocker();
 }
 
 function setupAdBlocker() {
     const { session } = require('electron');
-    
+
     // Apply to default session
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
         if (!adBlockerEnabled) {
