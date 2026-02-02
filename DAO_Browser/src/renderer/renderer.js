@@ -12,6 +12,7 @@ const welcomeScreen = document.getElementById('welcome-screen');
 const loadingBar = document.getElementById('loading-bar');
 const blockedCountEl = document.getElementById('blocked-count');
 const adblockerBtn = document.getElementById('adblocker-btn');
+const goBtn = document.getElementById('go-btn');
 
 // Debug: Check if elements exist
 console.log('addressBar:', addressBar);
@@ -27,26 +28,26 @@ function simplifyURL(url) {
     try {
         const urlObj = new URL(url);
         let simplified = urlObj.hostname;
-        
+
         // Add path if not just root
         if (urlObj.pathname && urlObj.pathname !== '/') {
             simplified += urlObj.pathname;
         }
-        
+
         // Add search params if important (skip tracking params)
         const importantParams = new URLSearchParams();
         const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'fbclid', 'gclid', 'usegapi', 'jsh'];
-        
+
         for (const [key, value] of urlObj.searchParams) {
             if (!trackingParams.includes(key)) {
                 importantParams.append(key, value);
             }
         }
-        
+
         if (importantParams.toString()) {
             simplified += '?' + importantParams.toString();
         }
-        
+
         return simplified;
     } catch (e) {
         return url;
@@ -60,14 +61,14 @@ function updateAddressBar(url) {
 }
 
 // Show full URL on focus, simplify on blur
-addressBar.addEventListener('focus', function() {
+addressBar.addEventListener('focus', function () {
     if (this.dataset.fullUrl) {
         this.value = this.dataset.fullUrl;
     }
     this.select();
 });
 
-addressBar.addEventListener('blur', function() {
+addressBar.addEventListener('blur', function () {
     if (this.dataset.fullUrl) {
         this.value = simplifyURL(this.dataset.fullUrl);
     }
@@ -79,9 +80,9 @@ class Tab {
         this.id = id;
         this.url = url || 'about:blank';
         this.title = 'New Tab';
-        
+
         console.log(`Creating tab ${id}...`);
-        
+
         // Create webview element
         this.webview = document.createElement('webview');
         this.webview.id = `webview-${id}`;
@@ -89,17 +90,17 @@ class Tab {
         this.webview.style.display = 'none';
         this.webview.src = this.url;
         contentArea.appendChild(this.webview);
-        
+
         // Create tab button in UI
         this.tabElement = document.createElement('div');
         this.tabElement.classList.add('tab');
         this.tabElement.dataset.tabId = id;
-        
+
         const tabTitle = document.createElement('span');
         tabTitle.classList.add('tab-title');
         tabTitle.textContent = this.title;
         this.tabTitleElement = tabTitle;
-        
+
         const closeBtn = document.createElement('button');
         closeBtn.classList.add('close-tab');
         closeBtn.textContent = '×';
@@ -107,23 +108,23 @@ class Tab {
             e.stopPropagation();
             this.close();
         });
-        
+
         this.tabElement.appendChild(tabTitle);
         this.tabElement.appendChild(closeBtn);
-        tabsContainer.appendChild(this.tabElement);
-        
-        console.log(`Tab ${id} created, appended to DOM`);
-        tabsContainer.appendChild(this.tabElement);
-        
+        // Insert before the new tab button
+        tabsContainer.insertBefore(this.tabElement, newTabBtn);
+
+        console.log(`Tab ${id} created, inserted into DOM`);
+
         // Tab click to switch
         this.tabElement.addEventListener('click', () => {
             switchToTab(this.id);
         });
-        
+
         // Setup webview event listeners
         this.setupWebviewListeners();
     }
-    
+
     setupWebviewListeners() {
         // Update address bar and title on navigation
         this.webview.addEventListener('did-navigate', (e) => {
@@ -133,20 +134,20 @@ class Tab {
                 updateNavigationButtons();
             }
         });
-        
+
         this.webview.addEventListener('did-navigate-in-page', (e) => {
             this.url = e.url;
             if (this.id === activeTabId) {
                 updateAddressBar(e.url);
             }
         });
-        
+
         // Update tab title
         this.webview.addEventListener('page-title-updated', (e) => {
             this.title = e.title || 'New Tab';
             this.tabTitleElement.textContent = this.title;
         });
-        
+
         // Loading states with loading bar
         this.webview.addEventListener('did-start-loading', () => {
             if (this.id === activeTabId) {
@@ -154,7 +155,7 @@ class Tab {
                 loadingBar.classList.add('loading');
             }
         });
-        
+
         this.webview.addEventListener('did-stop-loading', () => {
             if (this.id === activeTabId) {
                 console.log('Finished loading.');
@@ -163,7 +164,7 @@ class Tab {
             }
         });
     }
-    
+
     close() {
         if (tabs.length === 1) {
             // Don't close the last tab, just reset it
@@ -173,17 +174,17 @@ class Tab {
             addressBar.value = '';
             return;
         }
-        
+
         // Remove from DOM
         this.webview.remove();
         this.tabElement.remove();
-        
+
         // Remove from tabs array
         const index = tabs.findIndex(t => t.id === this.id);
         if (index > -1) {
             tabs.splice(index, 1);
         }
-        
+
         // Switch to another tab if this was active
         if (this.id === activeTabId) {
             const newActiveTab = tabs[Math.max(0, index - 1)];
@@ -197,13 +198,15 @@ function switchToTab(tabId) {
     // Hide all webviews and deactivate all tabs
     tabs.forEach(tab => {
         tab.webview.classList.remove('active');
+        tab.webview.style.display = 'none'; // Ensure hidden
         tab.tabElement.classList.remove('active');
     });
-    
+
     // Show and activate the selected tab
     const tab = tabs.find(t => t.id === tabId);
     if (tab) {
         tab.webview.classList.add('active');
+        tab.webview.style.display = 'flex'; // Make visible
         tab.tabElement.classList.add('active');
         activeTabId = tabId;
         const displayUrl = tab.url === 'about:blank' ? '' : tab.url;
@@ -233,7 +236,7 @@ function navigate(url) {
         console.log('URL is empty, returning');
         return;
     }
-    
+
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
         // If it's not a URL, treat it as a search query
         if (url.includes('.') && !url.includes(' ')) {
@@ -242,11 +245,11 @@ function navigate(url) {
             url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
         }
     }
-    
+
     console.log('Final URL:', url);
     const activeTab = getActiveTab();
     console.log('Active tab:', activeTab);
-    
+
     if (activeTab) {
         activeTab.webview.src = url;
         welcomeScreen.style.display = 'none';
@@ -268,6 +271,10 @@ function updateNavigationButtons() {
 // Event Listeners for navigation
 addressBar.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') navigate(addressBar.value);
+});
+
+goBtn.addEventListener('click', () => {
+    navigate(addressBar.value);
 });
 
 backBtn.addEventListener('click', () => {
@@ -299,20 +306,20 @@ newTabBtn.addEventListener('click', () => {
 // Global Keyboard Shortcuts
 document.addEventListener('keydown', (e) => {
     const activeTab = getActiveTab();
-    
+
     // Ctrl+R - Reload page
     if (e.ctrlKey && e.key === 'r') {
         e.preventDefault();
         if (activeTab) activeTab.webview.reload();
     }
-    
+
     // Ctrl+L - Focus address bar
     if (e.ctrlKey && e.key === 'l') {
         e.preventDefault();
         addressBar.focus();
         addressBar.select();
     }
-    
+
     // Alt+ArrowLeft - Go back
     if (e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault();
@@ -320,7 +327,7 @@ document.addEventListener('keydown', (e) => {
             activeTab.webview.goBack();
         }
     }
-    
+
     // Alt+ArrowRight - Go forward
     if (e.altKey && e.key === 'ArrowRight') {
         e.preventDefault();
@@ -328,19 +335,19 @@ document.addEventListener('keydown', (e) => {
             activeTab.webview.goForward();
         }
     }
-    
+
     // Ctrl+T - New tab
     if (e.ctrlKey && e.key === 't') {
         e.preventDefault();
         createNewTab();
     }
-    
+
     // Ctrl+W - Close tab
     if (e.ctrlKey && e.key === 'w') {
         e.preventDefault();
         if (activeTab) activeTab.close();
     }
-    
+
     // Ctrl+Tab - Next tab
     if (e.ctrlKey && e.key === 'Tab' && !e.shiftKey) {
         e.preventDefault();
@@ -348,7 +355,7 @@ document.addEventListener('keydown', (e) => {
         const nextIndex = (currentIndex + 1) % tabs.length;
         switchToTab(tabs[nextIndex].id);
     }
-    
+
     // Ctrl+Shift+Tab - Previous tab
     if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
         e.preventDefault();
@@ -377,7 +384,7 @@ shieldBtn.addEventListener('click', () => {
     popupOpen = !popupOpen;
     statsPopup.classList.toggle('hidden', !popupOpen);
     shieldBtn.classList.toggle('active', popupOpen);
-    
+
     if (popupOpen) {
         updateStatsDisplay();
     }
@@ -418,19 +425,19 @@ resetStatsBtn.addEventListener('click', async () => {
 async function updateStatsDisplay() {
     try {
         const stats = await window.electronAPI.adBlocker.getStats();
-        
+
         sessionBlockedEl.textContent = stats.sessionBlocked;
         totalBlockedEl.textContent = stats.totalBlocked;
         blockedCountEl.textContent = stats.sessionBlocked;
-        
+
         // Update status indicator
         blockerStatusEl.textContent = stats.enabled ? 'Enabled' : 'Disabled';
         blockerStatusEl.className = `stat-value ${stats.enabled ? 'enabled' : 'disabled'}`;
-        
+
         // Update toggle button text
         toggleBlockerBtn.textContent = stats.enabled ? 'Disable Blocker' : 'Enable Blocker';
         toggleBlockerBtn.className = stats.enabled ? 'btn-toggle' : 'btn-toggle disabled';
-        
+
         // Update ad-blocker button badge
         if (stats.sessionBlocked > 0) {
             adblockerBtn.classList.add('active');
