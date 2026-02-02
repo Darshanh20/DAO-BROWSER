@@ -27,6 +27,7 @@ let nextTabId = 1;
 
 // ==================== URL SIMPLIFICATION ====================
 function simplifyURL(url) {
+    if (url === 'about:blank') return '';
     try {
         const urlObj = new URL(url);
         let simplified = urlObj.hostname;
