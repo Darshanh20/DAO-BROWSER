@@ -65,8 +65,10 @@ function updateAddressBar(url) {
 
 // Show full URL on focus, simplify on blur
 addressBar.addEventListener('focus', function () {
-    if (this.dataset.fullUrl) {
+    if (this.dataset.fullUrl && this.dataset.fullUrl !== 'about:blank') {
         this.value = this.dataset.fullUrl;
+    } else {
+        this.value = '';
     }
     this.select();
 });
