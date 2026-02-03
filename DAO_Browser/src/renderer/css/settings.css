@@ -1,0 +1,225 @@
+/* ==================== SETTINGS DIALOG STYLES ==================== */
+
+.settings-modal {
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex !important;
+}
+
+.settings-modal-body {
+    display: flex !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.settings-menu {
+    width: 200px;
+    background: var(--bg-element);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.settings-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.settings-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.settings-menu::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: 3px;
+}
+
+.settings-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--border-subtle);
+}
+
+.settings-menu-item {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 12px 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    border-left: 3px solid transparent;
+}
+
+.settings-menu-item i {
+    font-size: 16px;
+    width: 20px;
+}
+
+.settings-menu-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.settings-menu-item.active {
+    background: var(--bg-dark);
+    color: var(--accent-blue);
+    border-left-color: var(--accent-blue);
+}
+
+.settings-content {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.settings-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+    background: var(--bg-element);
+    border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+    background: var(--bg-hover);
+}
+
+.settings-page {
+    display: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.settings-page.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.settings-page h3 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.page-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.setting-item {
+    margin-bottom: 16px;
+}
+
+.setting-item label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.setting-item label:hover {
+    color: var(--text-primary);
+}
+
+.setting-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--accent-blue);
+}
+
+.btn-primary {
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary:hover {
+    background: #3b82f6;
+    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.about-content {
+    background: var(--bg-element);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.about-content p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.about-content strong {
+    color: var(--text-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+    .settings-modal {
+        max-width: 95%;
+        flex-direction: column;
+    }
+
+    .settings-menu {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: auto;
+    }
+
+    .settings-menu-item {
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+
+    .settings-content {
+        min-height: 300px;
+    }
+}

@@ -1,0 +1,207 @@
+/* ==================== SHORTCUTS PAGE STYLES ==================== */
+
+.shortcuts-page-body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-panel) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.shortcuts-container {
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 24px;
+}
+
+.shortcuts-header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 32px 0;
+}
+
+.shortcuts-title-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.shortcuts-title-section i {
+    font-size: 32px;
+    color: var(--accent-blue);
+}
+
+.shortcuts-header h1 {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.shortcuts-subtitle {
+    margin: 12px 0 0 0;
+    font-size: 16px;
+    color: var(--text-secondary);
+}
+
+.shortcuts-main {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+
+.shortcuts-section {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.shortcuts-section h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.shortcuts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.shortcut-card {
+    background: var(--bg-element);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.shortcut-card:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-blue);
+    box-shadow: 0 8px 24px rgba(96, 165, 250, 0.1);
+    transform: translateY(-4px);
+}
+
+.shortcut-keys {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    min-width: 40px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+kbd:hover {
+    background: var(--bg-element);
+    border-color: var(--accent-blue);
+    box-shadow: 0 2px 8px rgba(96, 165, 250, 0.2);
+}
+
+.key-separator {
+    color: var(--text-dim);
+    font-size: 11px;
+}
+
+.shortcut-description {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Tips Section */
+.shortcuts-tips {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(96, 165, 250, 0.05) 100%);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 24px;
+}
+
+.shortcuts-tips h2 {
+    border-bottom-color: var(--accent-blue);
+}
+
+.tips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tips-list li {
+    padding: 12px 16px;
+    background: var(--bg-element);
+    border-left: 3px solid var(--accent-blue);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.tips-list strong {
+    color: var(--text-primary);
+}
+
+.shortcuts-footer {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--text-dim);
+    font-size: 14px;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .shortcuts-header {
+        margin-bottom: 32px;
+        padding: 24px 0;
+    }
+
+    .shortcuts-header h1 {
+        font-size: 28px;
+    }
+
+    .shortcuts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .shortcuts-container {
+        padding: 0 16px;
+    }
+}

@@ -163,6 +163,14 @@ ipcMain.handle('adBlocker:resetSession', () => {
     return sessionBlocked;
 });
 
+// IPC Handler to get the app path for internal pages
+ipcMain.handle('app:getPath', (event, pathType) => {
+    if (pathType === 'renderer') {
+        return path.join(__dirname, '../renderer');
+    }
+    return path.join(__dirname, '../');
+});
+
 // Log app info
 console.log(`D.A.O. Browser v1.0 - Privacy & Distraction-Free`);
 console.log(`Total Ads Blocked: ${totalBlocked}`);

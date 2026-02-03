@@ -10,5 +10,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getStats: () => ipcRenderer.invoke('adBlocker:getStats'),
         toggle: () => ipcRenderer.invoke('adBlocker:toggle'),
         resetSession: () => ipcRenderer.invoke('adBlocker:resetSession')
+    },
+
+    // Path utilities
+    paths: {
+        getPath: (pathType) => ipcRenderer.invoke('app:getPath', pathType)
     }
 });

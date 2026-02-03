@@ -15,6 +15,7 @@ const adblockerBtn = document.getElementById('adblocker-btn');
 const goBtn = document.getElementById('go-btn');
 const homeSearchInput = document.getElementById('home-search-input');
 const homeSearchBtn = document.getElementById('home-search-btn');
+const settingsBtn = document.getElementById('settings-btn');
 
 // Debug: Check if elements exist
 console.log('addressBar:', addressBar);
@@ -547,6 +548,61 @@ setInterval(() => {
         updateShieldStats();
     }
 }, 2000);
+
+// ==================== PAGE LOADING IN NEW TABS ====================
+
+// Function to open internal pages in a new tab
+async function openPageInNewTab(pageUrl, pageTitle = 'New Page') {
+    const tab = createNewTab();
+    
+    try {
+        // Get the renderer path from main process
+        const rendererPath = await window.electronAPI.paths.getPath('renderer');
+        
+        // Construct the absolute file path
+        const fullPath = `file://${rendererPath.replace(/\\/g, '/')}/${pageUrl}`;
+        
+        console.log(`📖 Opening page in new tab`);
+        console.log(`   Title: ${pageTitle}`);
+        console.log(`   URL: ${fullPath}`);
+        
+        // Navigate the webview to the page
+        tab.webview.src = fullPath;
+        tab.title = pageTitle;
+        tab.tabTitleElement.textContent = pageTitle;
+        
+        // Update address bar to show the page is loaded
+        updateAddressBar(`dao://internal/${pageUrl}`);
+    } catch (error) {
+        console.error('Error opening page in new tab:', error);
+        // Fallback: create a blank tab
+        tab.webview.src = 'about:blank';
+    }
+}
+
+// ==================== KEYBOARD SHORTCUTS DIALOG LOGIC ====================
+
+// Open settings dialog
+if (settingsBtn) {
+    settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.settingsDialog) {
+            window.settingsDialog.open();
+        }
+    });
+}
+
+// Close when pressing Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const settingsDialog = document.getElementById('settings-dialog');
+        if (settingsDialog && !settingsDialog.classList.contains('hidden')) {
+            if (window.settingsDialog) {
+                window.settingsDialog.close();
+            }
+        }
+    }
+});
 
 // Initialize with first tab
 console.log('About to create first tab...');
