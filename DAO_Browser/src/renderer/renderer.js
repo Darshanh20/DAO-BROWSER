@@ -137,6 +137,8 @@ class Tab {
             if (this.id === activeTabId) {
                 updateAddressBar(e.url);
                 updateNavigationButtons();
+                // Show welcome screen if navigated to blank page
+                welcomeScreen.style.display = (e.url === 'about:blank') ? 'flex' : 'none';
             }
         });
 
@@ -144,6 +146,9 @@ class Tab {
             this.url = e.url;
             if (this.id === activeTabId) {
                 updateAddressBar(e.url);
+                updateNavigationButtons();
+                // Show welcome screen if navigated to blank page
+                welcomeScreen.style.display = (e.url === 'about:blank') ? 'flex' : 'none';
             }
         });
 
@@ -165,8 +170,22 @@ class Tab {
             if (this.id === activeTabId) {
                 console.log('Finished loading.');
                 loadingBar.classList.remove('loading');
-                updateNavigationButtons();
+                // Check if current URL is blank and show welcome screen
+                if (this.url === 'about:blank') {
+                    welcomeScreen.style.display = 'flex';
+                } else {
+                    welcomeScreen.style.display = 'none';
+                }
+                // Add a small delay to ensure webview history is updated
+                setTimeout(() => {
+                    updateNavigationButtons();
+                }, 100);
             }
+        });
+
+        // Update navigation buttons when history changes
+        this.webview.addEventListener('dom-ready', () => {
+            updateNavigationButtons();
         });
     }
 
@@ -265,11 +284,25 @@ function navigate(url) {
 }
 
 // Update navigation button states
-function updateNavigationButtons() {
+async function updateNavigationButtons() {
     const activeTab = getActiveTab();
-    if (activeTab) {
-        backBtn.disabled = !activeTab.webview.canGoBack();
-        forwardBtn.disabled = !activeTab.webview.canGoForward();
+    if (activeTab && activeTab.webview) {
+        try {
+            const canGoBack = await activeTab.webview.canGoBack();
+            const canGoForward = await activeTab.webview.canGoForward();
+            backBtn.disabled = !canGoBack;
+            forwardBtn.disabled = !canGoForward;
+            console.log(`Navigation buttons updated - Back: ${canGoBack}, Forward: ${canGoForward}`);
+        } catch (error) {
+            console.error('Error updating navigation buttons:', error);
+            // Fallback: disable buttons if there's an error
+            backBtn.disabled = true;
+            forwardBtn.disabled = true;
+        }
+    } else {
+        // No active tab, disable both buttons
+        backBtn.disabled = true;
+        forwardBtn.disabled = true;
     }
 }
 
@@ -295,17 +328,31 @@ if (homeSearchBtn) {
     });
 }
 
-backBtn.addEventListener('click', () => {
+backBtn.addEventListener('click', async () => {
     const activeTab = getActiveTab();
-    if (activeTab && activeTab.webview.canGoBack()) {
-        activeTab.webview.goBack();
+    if (activeTab) {
+        try {
+            const canGoBack = await activeTab.webview.canGoBack();
+            if (canGoBack) {
+                activeTab.webview.goBack();
+            }
+        } catch (error) {
+            console.error('Error going back:', error);
+        }
     }
 });
 
-forwardBtn.addEventListener('click', () => {
+forwardBtn.addEventListener('click', async () => {
     const activeTab = getActiveTab();
-    if (activeTab && activeTab.webview.canGoForward()) {
-        activeTab.webview.goForward();
+    if (activeTab) {
+        try {
+            const canGoForward = await activeTab.webview.canGoForward();
+            if (canGoForward) {
+                activeTab.webview.goForward();
+            }
+        } catch (error) {
+            console.error('Error going forward:', error);
+        }
     }
 });
 
@@ -322,7 +369,7 @@ newTabBtn.addEventListener('click', () => {
 });
 
 // Global Keyboard Shortcuts
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
     const activeTab = getActiveTab();
 
     // Ctrl+R - Reload page
@@ -341,16 +388,30 @@ document.addEventListener('keydown', (e) => {
     // Alt+ArrowLeft - Go back
     if (e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault();
-        if (activeTab && activeTab.webview.canGoBack()) {
-            activeTab.webview.goBack();
+        if (activeTab) {
+            try {
+                const canGoBack = await activeTab.webview.canGoBack();
+                if (canGoBack) {
+                    activeTab.webview.goBack();
+                }
+            } catch (error) {
+                console.error('Error going back:', error);
+            }
         }
     }
 
     // Alt+ArrowRight - Go forward
     if (e.altKey && e.key === 'ArrowRight') {
         e.preventDefault();
-        if (activeTab && activeTab.webview.canGoForward()) {
-            activeTab.webview.goForward();
+        if (activeTab) {
+            try {
+                const canGoForward = await activeTab.webview.canGoForward();
+                if (canGoForward) {
+                    activeTab.webview.goForward();
+                }
+            } catch (error) {
+                console.error('Error going forward:', error);
+            }
         }
     }
 
@@ -495,3 +556,8 @@ try {
 } catch (error) {
     console.error('Error creating first tab:', error);
 }
+
+// Periodically update navigation button states to keep them in sync with webview history
+setInterval(() => {
+    updateNavigationButtons();
+}, 500);
