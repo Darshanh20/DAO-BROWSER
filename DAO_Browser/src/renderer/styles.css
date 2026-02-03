@@ -1,0 +1,777 @@
+/* Global RESET & Base Styles */
+:root {
+    --bg-dark: #09090b;
+    /* Deepest black/grey */
+    --bg-panel: #14141a;
+    /* Toolbar/Tab background */
+    --bg-element: #1e1e26;
+    /* Input/Button background */
+    --bg-hover: #2a2a35;
+
+    --accent-blue: #60a5fa;
+    /* Light blue accent */
+    --accent-glow: rgba(96, 165, 250, 0.2);
+
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --text-dim: #6b7280;
+
+    --border-subtle: #27272a;
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 20px;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    overflow: hidden;
+    user-select: none;
+    /* UI feel */
+}
+
+/* Layout Containers */
+#browser-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* ==================== TAB BAR ==================== */
+#tab-bar {
+    display: flex;
+    align-items: flex-end;
+    /* Tabs sit on bottom */
+    background-color: var(--bg-dark);
+    height: 48px;
+    padding: 0 16px;
+    gap: 8px;
+    -webkit-app-region: drag;
+    /* Draggable titlebar area */
+}
+
+#tabs-container {
+    display: flex;
+    flex: 1;
+    height: 100%;
+    align-items: flex-end;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-app-region: no-drag;
+    /* Tabs need to be clickable */
+    padding-bottom: 0;
+}
+
+/* Hide scrollbar but allow scroll */
+#tabs-container::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    width: 200px;
+    height: 38px;
+    padding: 0 12px;
+    gap: 10px;
+    background: transparent;
+    border-radius: 12px 12px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    transition: background 0.2s, color 0.2s;
+    cursor: pointer;
+    position: relative;
+}
+
+.tab:hover {
+    background: var(--bg-element);
+    color: var(--text-primary);
+}
+
+.tab.active {
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.tab-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+}
+
+.tab.active .tab-icon {
+    opacity: 1;
+    fill: var(--accent-blue);
+}
+
+.tab-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.close-tab {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    opacity: 0;
+    /* Hidden by default */
+    transition: all 0.2s;
+}
+
+.tab:hover .close-tab {
+    opacity: 1;
+}
+
+.close-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+#new-tab-btn {
+    -webkit-app-region: no-drag;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-bottom: 6px;
+    /* Align with input */
+    transition: background 0.2s;
+}
+
+#new-tab-btn:hover {
+    background: var(--bg-element);
+    color: #fff;
+}
+
+/* ==================== TOOLBAR ==================== */
+#toolbar {
+    height: 54px;
+    background-color: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+/* Nav Controls (Back/Forward/Reload) */
+.nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.icon-btn {
+    width: 34px;
+    height: 34px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.icon-btn:hover {
+    background: var(--bg-element);
+    color: #fff;
+}
+
+.icon-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.icon-btn:disabled:hover {
+    background: transparent;
+}
+
+/* High-tech shield logo on far left */
+.shield-toggle-btn {
+    color: #ef4444;
+    /* Brave color when active usually orange, but keeping blue/red for theme */
+    color: var(--accent-blue);
+    font-size: 18px;
+    background: rgba(96, 165, 250, 0.1);
+}
+
+.shield-toggle-btn.active {
+    background: rgba(96, 165, 250, 0.2);
+    color: #fb923c;
+    /* Orange like Brave */
+    box-shadow: 0 0 8px rgba(251, 146, 60, 0.3);
+}
+
+.shield-toggle-btn:hover {
+    background: rgba(96, 165, 250, 0.2);
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* Address Bar Area */
+.url-container {
+    flex: 1;
+    max-width: 800px;
+    height: 38px;
+    background-color: var(--bg-dark);
+    border-radius: var(--radius-lg);
+    /* Pill shape */
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    border: 1px solid var(--border-subtle);
+    transition: border-color 0.2s;
+}
+
+.url-container:focus-within {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 1px var(--accent-blue);
+}
+
+.lock-icon {
+    margin-left: 12px;
+    color: #10b981;
+    /* Green lock */
+    font-size: 12px;
+}
+
+#address-bar {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-left: 10px;
+    outline: none;
+}
+
+.url-badge {
+    background: #1e3a8a;
+    /* Dark blue badge */
+    color: #93c5fd;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-right: 8px;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.bookmark-star {
+    margin-right: 8px;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.bookmark-star:hover {
+    color: #facc15;
+}
+
+/* Right Toolbar Tools */
+.window-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.profile-pic {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fcd34d, #f59e0b);
+    border: 2px solid var(--bg-panel);
+    cursor: pointer;
+}
+
+/* ==================== CONTENT AREA ==================== */
+#content-area {
+    flex: 1;
+    position: relative;
+    background: var(--bg-dark);
+}
+
+.webview-tab {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+    /* Webviews are white by default */
+}
+
+/* ==================== WELCOME / NEW TAB PAGE ==================== */
+#welcome-screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    /* Start from top so we can scroll */
+    padding-top: 10vh;
+    /* Push content down slightly */
+    background: radial-gradient(circle at center, #1c1c24 0%, #09090b 70%);
+    overflow-y: auto;
+    /* Enable vertical scrolling */
+    scrollbar-width: thin;
+    scrollbar-color: #4b5563 transparent;
+}
+
+.logo-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.logo-shield {
+    font-size: 64px;
+    color: var(--accent-blue);
+    filter: drop-shadow(0 0 20px var(--accent-glow));
+    margin-bottom: 16px;
+    animation: pulse 4s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.brand-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+}
+
+.brand-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 600;
+}
+
+.search-wrapper {
+    width: 100%;
+    max-width: 600px;
+    position: relative;
+    margin-bottom: 40px;
+}
+
+.search-input-large {
+    width: 100%;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
+    border-radius: 28px;
+    padding: 0 140px 0 52px;
+    /* Space for icon and button */
+    font-size: 16px;
+    color: #fff;
+    outline: none;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.search-input-large:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.1);
+}
+
+.search-icon-large {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    font-size: 18px;
+}
+
+.search-btn-large {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    bottom: 6px;
+    padding: 0 24px;
+    border-radius: 22px;
+    background: var(--accent-blue);
+    border: none;
+    color: #000;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.search-btn-large:hover {
+    filter: brightness(1.1);
+}
+
+.search-btn-large:active {
+    transform: scale(0.96);
+}
+
+.features-grid {
+    display: flex;
+    gap: 32px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.feature-item i {
+    font-size: 14px;
+}
+
+/* ==================== BRAVE STYLE SHIELD POPUP ==================== */
+.shield-popup {
+    position: absolute;
+    top: 105px;
+    left: 16px;
+    width: 360px;
+    background: #1f2023;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid #36373b;
+    z-index: 1000;
+    font-family: 'Poppins', sans-serif;
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.popup-header {
+    background: #2b2c31;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brave-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.site-domain {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.popup-hero {
+    padding: 24px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #36373b;
+}
+
+.stats-text {
+    font-size: 14px;
+    color: #fff;
+    max-width: 60%;
+    line-height: 1.4;
+}
+
+.learn-more {
+    display: block;
+    color: #8b9bb4;
+    text-decoration: none;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.stats-number {
+    font-size: 48px;
+    font-weight: 300;
+    color: #fb923c;
+    /* Brave Orange */
+}
+
+.popup-controls {
+    padding: 16px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #2b2c31;
+    padding: 16px;
+    border-radius: 12px;
+}
+
+.control-icon {
+    font-size: 20px;
+    color: #fff;
+}
+
+.control-info {
+    flex: 1;
+}
+
+.control-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.control-desc {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Switch Toggle */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4b5563;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked+.slider {
+    background-color: #6366f1;
+    /* Indigo toggle color */
+}
+
+input:focus+.slider {
+    box-shadow: 0 0 1px #6366f1;
+}
+
+input:checked+.slider:before {
+    transform: translateX(20px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.popup-footer {
+    background: #191a1d;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #fff;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ml-auto {
+    margin-left: auto;
+}
+
+/* ==================== NEWS FEED SECTION ==================== */
+#news-section {
+    width: 100%;
+    max-width: 1000px;
+    margin-top: 40px;
+    padding-bottom: 20px;
+}
+
+.news-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding: 0 16px;
+}
+
+.news-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.weather-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #2b2c31;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #e5e7eb;
+}
+
+/* Vertical Grid Container */
+.news-scroll-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    padding: 10px 16px 40px 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Remove horizontal scroll styles */
+/* News Card */
+.news-card {
+    height: 280px;
+    /* Slightly taller */
+    background: #1f2023;
+    border: 1px solid #36373b;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+}
+
+.news-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    border-color: #4b5563;
+}
+
+.news-image {
+    height: 140px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    backdrop-filter: blur(4px);
+}
+
+.news-content {
+    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.news-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.source-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.news-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

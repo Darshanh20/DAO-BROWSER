@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>D.A.O. Browser</title>
+    <!-- Use Font Awesome for icons if available, or fallbacks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="browser-container">
+        <!-- Tab Bar -->
+        <div id="tab-bar">
+            <!-- App Title/Logo Area could go here -->
+            <div id="tabs-container">
+                <!-- Javascript will insert tabs here -->
+                <button id="new-tab-btn" title="New Tab">+</button>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <header id="toolbar">
+            <button id="shield-btn" class="icon-btn shield-toggle-btn" title="Shield Status">
+                <i class="fa-solid fa-shield-halved"></i>
+            </button>
+
+            <div class="nav-controls">
+                <button id="back-btn" class="icon-btn" title="Go Back">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <button id="forward-btn" class="icon-btn" title="Go Forward">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button id="reload-btn" class="icon-btn" title="Reload">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+
+            <!-- Address Bar Pill -->
+            <div class="url-container">
+                <i class="fa-solid fa-lock lock-icon"></i>
+                <input type="text" id="address-bar" placeholder="Search DAO or type a URL">
+                <span class="url-badge">
+                    <i class="fa-solid fa-shield-cat"></i> PROTECTED
+                </span>
+                <i class="fa-regular fa-star bookmark-star"></i>
+            </div>
+
+            <!-- Go Button (Hidden visually, triggered by Enter, kept for logic) -->
+            <button id="go-btn" style="display: none;"></button>
+
+            <!-- Window Controls / Extras -->
+            <div class="window-controls">
+                <button class="icon-btn"><i class="fa-solid fa-puzzle-piece"></i></button>
+                <button class="icon-btn"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                <button class="icon-btn"><i class="fa-solid fa-gear"></i></button>
+                <div class="profile-pic"></div>
+            </div>
+        </header>
+
+        <!-- Ad-Blocker Stats Popup -->
+        <!-- Brave-Style Shield Popup -->
+        <div id="shield-popup" class="shield-popup hidden">
+            <div class="popup-header">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Brave_icon_lionface.svg/1200px-Brave_icon_lionface.svg.png"
+                    class="brave-icon" alt="Shield">
+                <span id="current-site" class="site-domain">example.com</span>
+            </div>
+
+            <div class="popup-hero">
+                <div class="stats-text">
+                    Trackers, ads, and more blocked
+                    <a href="#" class="learn-more">Learn more</a>
+                </div>
+                <div class="stats-number" id="popup-blocked-count">0</div>
+            </div>
+
+            <div class="popup-controls">
+                <div class="control-row">
+                    <div class="control-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="control-info">
+                        <div class="control-title">Shields are UP for this site</div>
+                        <div class="control-desc">If this site seems broken, try Shields down.</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="shield-toggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="popup-footer">
+                <i class="fa-solid fa-list-ul"></i> Advanced controls
+                <i class="fa-solid fa-chevron-down ml-auto"></i>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main id="content-area">
+            <!-- Webviews created dynamically here -->
+
+            <!-- New Landing Page -->
+            <div id="welcome-screen">
+                <div class="logo-section">
+                    <i class="fa-solid fa-shield-halved logo-shield"></i>
+                    <h1 class="brand-title">D.A.O. Search</h1>
+                    <div class="brand-subtitle">Private • Decentralized • Secure</div>
+                </div>
+
+                <div class="search-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon-large"></i>
+                    <input type="text" id="home-search-input" class="search-input-large"
+                        placeholder="Search the web...">
+                    <button id="home-search-btn" class="search-btn-large">SEARCH</button>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-item"><i class="fa-solid fa-user-secret"></i> Anonymous Mode</div>
+                    <div class="feature-item"><i class="fa-solid fa-shield-virus"></i> Ad-Shield Active</div>
+                    <div class="feature-item"><i class="fa-solid fa-link"></i> On-Chain Search</div>
+                </div>
+
+                <!-- News Feed Section (Edge Style) -->
+                <div id="news-section">
+                    <div class="news-header">
+                        <h2>Top Stories</h2>
+                        <span class="weather-badge"><i class="fa-solid fa-cloud-moon"></i> 22° Mumbai</span>
+                    </div>
+                    <div class="news-scroll-container">
+                        <!-- Card 1 -->
+                        <div class="news-card">
+                            <div class="news-image"
+                                style="background-image: url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2832&auto=format&fit=crop');">
+                                <div class="play-icon"><i class="fa-solid fa-play"></i></div>
+                            </div>
+                            <div class="news-content">
+                                <div class="news-source"><img
+                                        src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg"
+                                        class="source-icon"> Crypto Daily • 2h</div>
+                                <h3 class="news-title">Bitcoin hits new all-time high as institutional adoption surges
+                                    globally.</h3>
+                            </div>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div class="news-card">
+                            <div class="news-image"
+                                style="background-image: url('https://images.unsplash.com/photo-1621504450168-b8c4c2a4208a?q=80&w=2670&auto=format&fit=crop');">
+                            </div>
+                            <div class="news-content">
+                                <div class="news-source"><img
+                                        src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Ethereum_logo_2014.svg"
+                                        class="source-icon"> ETH World • 4h</div>
+                                <h3 class="news-title">Ethereum 2.0 upgrade complete: What this means for gas fees.</h3>
+                            </div>
+                        </div>
+
+                        <!-- Card 3 -->
+                        <div class="news-card">
+                            <div class="news-image"
+                                style="background-image: url('https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=2774&auto=format&fit=crop');">
+                            </div>
+                            <div class="news-content">
+                                <div class="news-source"><i class="fa-solid fa-newspaper"></i> TechCrunch • 5h</div>
+                                <h3 class="news-title">AI regulation talks heat up in Silicon Valley: Key takeaways.
+                                </h3>
+                            </div>
+                        </div>
+
+                        <!-- Card 4 -->
+                        <div class="news-card">
+                            <div class="news-image"
+                                style="background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2670&auto=format&fit=crop');">
+                                <div class="play-icon"><i class="fa-solid fa-play"></i></div>
+                            </div>
+                            <div class="news-content">
+                                <div class="news-source"><i class="fa-solid fa-robot"></i> AI Today • 8h</div>
+                                <h3 class="news-title">New generative models can create 3D worlds in seconds.</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+
+</html>
