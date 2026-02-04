@@ -9,7 +9,8 @@ const tabsContainer = document.getElementById('tabs-container');
 const newTabBtn = document.getElementById('new-tab-btn');
 const contentArea = document.getElementById('content-area');
 const welcomeScreen = document.getElementById('welcome-screen');
-const loadingBar = document.getElementById('loading-bar');
+const progressBar = document.getElementById('progress-bar');
+const loadingSpinner = document.getElementById('loading-spinner-overlay');
 const blockedCountEl = document.getElementById('blocked-count');
 const adblockerBtn = document.getElementById('adblocker-btn');
 const goBtn = document.getElementById('go-btn');
@@ -161,18 +162,29 @@ class Tab {
             this.tabTitleElement.textContent = this.title;
         });
 
-        // Loading states with loading bar
+        // Loading states with progress bar and spinner
         this.webview.addEventListener('did-start-loading', () => {
             if (this.id === activeTabId) {
                 console.log('Loading...');
-                loadingBar.classList.add('loading');
+                progressBar.classList.add('active');
+                progressBar.classList.add('loading');
+                loadingSpinner.classList.add('visible');
             }
         });
 
         this.webview.addEventListener('did-stop-loading', () => {
             if (this.id === activeTabId) {
                 console.log('Finished loading.');
-                loadingBar.classList.remove('loading');
+                progressBar.classList.remove('loading');
+                progressBar.classList.add('complete');
+                loadingSpinner.classList.remove('visible');
+                
+                // Reset progress bar after animation
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressBar.classList.remove('complete');
+                }, 600);
+                
                 // Check if current URL is blank and show welcome screen
                 if (this.url === 'about:blank') {
                     welcomeScreen.style.display = 'flex';
@@ -194,6 +206,16 @@ class Tab {
         // Handle page load failures
         this.webview.addEventListener('did-fail-load', async (e) => {
             if (e.isMainFrame && e.errorCode !== -3) {
+                // Hide loading indicators
+                progressBar.classList.remove('loading');
+                progressBar.classList.add('complete');
+                loadingSpinner.classList.remove('visible');
+                
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressBar.classList.remove('complete');
+                }, 600);
+                
                 try {
                     const rendererPath = await window.electronAPI.paths.getPath('renderer');
                     const errorPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/error.html?code=${e.errorCode}&message=${encodeURIComponent(e.errorDescription)}&url=${encodeURIComponent(e.validatedURL)}`;
