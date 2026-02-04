@@ -190,6 +190,20 @@ class Tab {
         this.webview.addEventListener('dom-ready', () => {
             updateNavigationButtons();
         });
+
+        // Handle page load failures
+        this.webview.addEventListener('did-fail-load', async (e) => {
+            if (e.isMainFrame && e.errorCode !== -3) {
+                try {
+                    const rendererPath = await window.electronAPI.paths.getPath('renderer');
+                    const errorPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/error.html?code=${e.errorCode}&message=${encodeURIComponent(e.errorDescription)}&url=${encodeURIComponent(e.validatedURL)}`;
+                    this.webview.src = errorPageUrl;
+                    console.error(`❌ Page failed to load: ${e.errorDescription} (Code: ${e.errorCode})`);
+                } catch (error) {
+                    console.error('Error loading error page:', error);
+                }
+            }
+        });
     }
 
     convertUrlForDisplay(url) {
@@ -204,6 +218,10 @@ class Tab {
             // Check if it's a settings page
             if (filePath.includes('settings-dialog.html')) {
                 return 'dao://settings';
+            }
+            // Check if it's an error page
+            if (filePath.includes('error.html')) {
+                return 'dao://error';
             }
         }
         return url;
@@ -355,6 +373,15 @@ backBtn.addEventListener('click', async () => {
             const canGoBack = await activeTab.webview.canGoBack();
             if (canGoBack) {
                 activeTab.webview.goBack();
+            } else {
+                // If can't go back in history, try to go back within the page (for error page)
+                activeTab.webview.executeJavaScript(`
+                    if (typeof goBack === 'function') {
+                        goBack();
+                    } else if (window.history.length > 1) {
+                        window.history.back();
+                    }
+                `).catch(err => console.error('Error executing back:', err));
             }
         } catch (error) {
             console.error('Error going back:', error);

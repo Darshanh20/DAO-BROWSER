@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Error - D.A.O. Browser</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            background-attachment: fixed;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Animated background elements */
+        .bg-orb-1 {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -200px;
+            left: -200px;
+            animation: float 20s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        .bg-orb-2 {
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: -150px;
+            right: -150px;
+            animation: float 25s ease-in-out infinite reverse;
+            z-index: -1;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(30px); }
+        }
+
+        .error-wrapper {
+            width: 100%;
+            max-width: 600px;
+            animation: slideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .error-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .error-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.2), transparent);
+        }
+
+        .error-icon {
+            font-size: 120px;
+            margin-bottom: 30px;
+            display: block;
+            animation: iconBounce 2.5s ease-in-out infinite;
+        }
+
+        @keyframes iconBounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            25% { transform: translateY(-15px) rotate(-5deg); }
+            50% { transform: translateY(0) rotate(0deg); }
+            75% { transform: translateY(-10px) rotate(5deg); }
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #e0e7ff 0%, #dbeafe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .error-tagline {
+            font-size: 20px;
+            color: #94a3b8;
+            margin-bottom: 24px;
+            font-weight: 500;
+            line-height: 1.6;
+        }
+
+        .error-subtext {
+            font-size: 15px;
+            color: #cbd5e1;
+            margin-bottom: 40px;
+            line-height: 1.8;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .error-details {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 40px;
+            text-align: left;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            color: #94a3b8;
+            max-height: 120px;
+            overflow-y: auto;
+            word-break: break-all;
+            line-height: 1.6;
+        }
+
+        .error-details::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .error-details::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        .error-details::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 3px;
+        }
+
+        .error-details::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
+        }
+
+        .error-details-label {
+            font-weight: 600;
+            color: #cbd5e1;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+        }
+
+        button {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-primary:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(148, 163, 184, 0.1);
+            color: #e0e7ff;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(148, 163, 184, 0.2);
+            border-color: rgba(148, 163, 184, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(148, 163, 184, 0.15);
+        }
+
+        .btn-secondary:active {
+            transform: translateY(-1px);
+        }
+
+        .tips-section {
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .tips-title {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tips-list {
+            list-style: none;
+            font-size: 14px;
+            color: #cbd5e1;
+            line-height: 2;
+        }
+
+        .tips-list li {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tips-list li:before {
+            content: "→";
+            color: #3b82f6;
+            margin-right: 10px;
+            font-weight: 600;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .error-card {
+                padding: 40px 24px;
+            }
+
+            h1 {
+                font-size: 36px;
+            }
+
+            .error-tagline {
+                font-size: 18px;
+            }
+
+            .error-icon {
+                font-size: 80px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orb-1"></div>
+    <div class="bg-orb-2"></div>
+
+    <div class="error-wrapper">
+        <div class="error-card">
+            <i class="fas fa-wifi-slash error-icon"></i>
+            
+            <h1>Connection Lost</h1>
+            <p class="error-tagline" id="quirky-message">The internet gods have spoken.</p>
+            
+            <div class="error-subtext">
+                <div style="margin-bottom: 8px;"><span id="error-code-display">Error Code: N/A</span></div>
+                <div id="error-message-display">Unable to reach this page</div>
+            </div>
+
+            <div class="error-details">
+                <span class="error-details-label">📍 Attempted URL:</span>
+                <div id="error-url-display">Unknown</div>
+                <br>
+                <span class="error-details-label">⚠️ Error Details:</span>
+                <div id="error-full-details">An unexpected error occurred</div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn-primary" onclick="reloadPage()">
+                    <i class="fas fa-redo"></i>Reload
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Quirky messages
+        const quirkyMessages = [
+            "Looks like we took a wrong turn at the internet! 🗺️",
+            "The internet gods have spoken... and they said no. 🙏",
+            "Connection dropped harder than my productivity on Mondays. 📉",
+            "This page went ghosting mode. It's not you, it's definitely it. 👻",
+            "Error 404: Not your fault edition. Probably. 🤔",
+            "We tried to reach that page, but it ghosted us. Rude. 😤",
+            "Plot twist: The internet can't find it either. 🎬"
+        ];
+
+        // Get random quirky message
+        function getRandomQuirkyMessage() {
+            return quirkyMessages[Math.floor(Math.random() * quirkyMessages.length)];
+        }
+
+        // Extract URL parameters
+        const params = new URLSearchParams(window.location.search);
+        const errorCode = params.get('code') || 'UNKNOWN';
+        const errorMessage = params.get('message') || 'An unexpected error occurred';
+        const errorUrl = params.get('url') || 'Unknown URL';
+
+        // Error code descriptions
+        const errorDescriptions = {
+            '-106': 'Network blocked - Check your firewall or proxy settings',
+            '-105': 'Unknown error - Something unexpected happened',
+            '-104': 'Connection reset - The server hung up on us',
+            '-3': 'Navigation aborted - The page was interrupted',
+            '-2': 'Failed request - Something went wrong with the connection',
+            '-1': 'Net failed - General network failure',
+            '118': 'Activate policy - Network policy issue',
+            '124': 'Address invalid - The address is not valid',
+        };
+
+        // Update DOM
+        document.getElementById('quirky-message').textContent = getRandomQuirkyMessage();
+        document.getElementById('error-code-display').textContent = `Error Code: ${errorCode}`;
+        document.getElementById('error-message-display').textContent = errorMessage;
+        document.getElementById('error-url-display').textContent = errorUrl;
+        
+        const errorDesc = errorDescriptions[errorCode] || errorMessage;
+        document.getElementById('error-full-details').textContent = errorDesc;
+
+        // Button function
+        function reloadPage() {
+            window.location.reload();
+        }
+
+        // Allow back button to work
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            }
+        }
+
+        // Expose goBack to parent window for keyboard shortcuts
+        if (window.parent && window.parent !== window) {
+            window.parent.errorPageGoBack = goBack;
+        }
+    </script>
+</body>
+
+</html>
