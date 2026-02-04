@@ -321,6 +321,7 @@ body {
     flex: 1;
     position: relative;
     background: var(--bg-dark);
+    overflow: auto;
 }
 
 .webview-tab {
@@ -329,6 +330,7 @@ body {
     border: none;
     background: #fff;
     /* Webviews are white by default */
+    overflow: auto;
 }
 
 /* ==================== WELCOME / NEW TAB PAGE ==================== */

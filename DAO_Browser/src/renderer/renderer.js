@@ -136,7 +136,8 @@ class Tab {
         this.webview.addEventListener('did-navigate', (e) => {
             this.url = e.url;
             if (this.id === activeTabId) {
-                updateAddressBar(e.url);
+                const displayUrl = this.convertUrlForDisplay(e.url);
+                updateAddressBar(displayUrl);
                 updateNavigationButtons();
                 // Show welcome screen if navigated to blank page
                 welcomeScreen.style.display = (e.url === 'about:blank') ? 'flex' : 'none';
@@ -146,7 +147,8 @@ class Tab {
         this.webview.addEventListener('did-navigate-in-page', (e) => {
             this.url = e.url;
             if (this.id === activeTabId) {
-                updateAddressBar(e.url);
+                const displayUrl = this.convertUrlForDisplay(e.url);
+                updateAddressBar(displayUrl);
                 updateNavigationButtons();
                 // Show welcome screen if navigated to blank page
                 welcomeScreen.style.display = (e.url === 'about:blank') ? 'flex' : 'none';
@@ -188,6 +190,23 @@ class Tab {
         this.webview.addEventListener('dom-ready', () => {
             updateNavigationButtons();
         });
+    }
+
+    convertUrlForDisplay(url) {
+        // Convert file:// URLs to dao:// URLs for internal pages
+        if (url && url.startsWith('file://')) {
+            // Extract the path after file://
+            const filePath = url.replace('file://', '');
+            // Check if it's a shortcuts page
+            if (filePath.includes('shortcuts.html')) {
+                return 'dao://shortcuts';
+            }
+            // Check if it's a settings page
+            if (filePath.includes('settings-dialog.html')) {
+                return 'dao://settings';
+            }
+        }
+        return url;
     }
 
     close() {
