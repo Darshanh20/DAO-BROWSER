@@ -163,6 +163,32 @@ ipcMain.handle('adBlocker:resetSession', () => {
     return sessionBlocked;
 });
 
+// IPC Handler for fetching (bypasses CORS)
+ipcMain.handle('app:fetch', async (event, url, options = {}) => {
+    try {
+        const https = require('https');
+        return new Promise((resolve, reject) => {
+            https.get(url, options, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    resolve({
+                        status: res.statusCode,
+                        statusText: res.statusMessage,
+                        data: data,
+                        headers: res.headers
+                    });
+                });
+            }).on('error', (err) => {
+                reject(err);
+            });
+        });
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+    }
+});
+
 // IPC Handler to get the app path for internal pages
 ipcMain.handle('app:getPath', (event, pathType) => {
     if (pathType === 'renderer') {

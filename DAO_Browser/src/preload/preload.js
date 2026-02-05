@@ -15,5 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Path utilities
     paths: {
         getPath: (pathType) => ipcRenderer.invoke('app:getPath', pathType)
-    }
+    },
+
+    // Fetch API (goes through main process to bypass CORS)
+    fetchNews: (url, options) => ipcRenderer.invoke('app:fetch', url, options)
 });
