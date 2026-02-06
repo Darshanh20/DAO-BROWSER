@@ -1,0 +1,133 @@
+/* ==================== FIND BAR STYLES ==================== */
+
+.find-bar {
+    position: fixed;
+    top: 112px; /* Below toolbar + tab-bar + progress-bar */
+    right: 24px;
+    z-index: 9999;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    padding: 12px 16px;
+    min-width: 360px;
+    animation: slideDown 0.2s ease-out;
+    backdrop-filter: blur(8px);
+}
+
+.find-bar.hidden {
+    display: none;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.find-bar-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.find-icon {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.find-input {
+    flex: 1;
+    background: var(--bg-element);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.find-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.find-input::placeholder {
+    color: var(--text-dim);
+}
+
+/* Highlight when no matches found */
+.find-input.no-matches {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.find-counter {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    min-width: 60px;
+    text-align: center;
+}
+
+.find-counter.no-matches {
+    color: #ef4444;
+}
+
+.find-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.find-btn,
+.find-btn-close {
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+}
+
+.find-btn:hover,
+.find-btn-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent-blue);
+}
+
+.find-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.find-btn:disabled:hover {
+    background: transparent;
+    border-color: var(--border-subtle);
+    color: var(--text-secondary);
+}
+
+.find-btn-close {
+    border-color: transparent;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .find-bar {
+        right: 12px;
+        left: 12px;
+        min-width: auto;
+    }
+}

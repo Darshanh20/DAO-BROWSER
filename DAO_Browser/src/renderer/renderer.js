@@ -553,6 +553,22 @@ document.addEventListener('keydown', async (e) => {
         addressBar.select();
     }
 
+    // Ctrl+F - Find in page
+    if (e.ctrlKey && e.key === 'f') {
+        console.log('=== Ctrl+F detected in renderer.js ===');
+        e.preventDefault();
+        console.log('Ctrl+F pressed, checking window.findBar...');
+        console.log('window.findBar exists:', !!window.findBar);
+        console.log('window.findBar:', window.findBar);
+        if (window.findBar) {
+            console.log('Calling window.findBar.open()');
+            window.findBar.open();
+        } else {
+            console.error('ERROR: window.findBar is not defined!');
+            console.error('This means find-bar.js did not initialize properly');
+        }
+    }
+
     // Alt+ArrowLeft - Go back
     if (e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault();

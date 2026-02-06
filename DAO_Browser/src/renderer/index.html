@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/find-bar.css">
 </head>
 
 <body>
@@ -70,6 +71,26 @@
         <div id="loading-spinner-overlay" class="loading-spinner-overlay hidden">
             <div class="spinner-container">
                 <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- Find Bar (Ctrl+F Search) -->
+        <div id="find-bar" class="find-bar hidden">
+            <div class="find-bar-content">
+                <i class="fa-solid fa-magnifying-glass find-icon"></i>
+                <input type="text" id="find-input" class="find-input" placeholder="Find in page..." autocomplete="off" spellcheck="false">
+                <span id="find-counter" class="find-counter">0 of 0</span>
+                <div class="find-controls">
+                    <button id="find-prev-btn" class="find-btn" title="Previous (Shift+Enter)">
+                        <i class="fa-solid fa-chevron-up"></i>
+                    </button>
+                    <button id="find-next-btn" class="find-btn" title="Next (Enter)">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <button id="find-close-btn" class="find-btn-close" title="Close (Esc)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -295,6 +316,7 @@
     </div>
     <script src="renderer.js"></script>
     <script src="modules/settings-dialog.js"></script>
+    <script src="modules/find-bar.js"></script>
 </body>
 
 </html>
