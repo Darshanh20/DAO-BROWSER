@@ -87,6 +87,8 @@ class Tab {
         this.id = id;
         this.url = url || 'about:blank';
         this.title = 'New Tab';
+        this.isLoading = false;
+        this.loadingStopTimeout = null;
 
         console.log(`Creating tab ${id}...`);
 
@@ -165,36 +167,58 @@ class Tab {
         // Loading states with progress bar and spinner
         this.webview.addEventListener('did-start-loading', () => {
             if (this.id === activeTabId) {
-                console.log('Loading...');
-                progressBar.classList.add('active');
-                progressBar.classList.add('loading');
-                loadingSpinner.classList.add('visible');
+                // Only show loading if not already loading
+                if (!this.isLoading) {
+                    console.log('Loading...');
+                    this.isLoading = true;
+                    progressBar.classList.add('active');
+                    progressBar.classList.add('loading');
+                    loadingSpinner.classList.add('visible');
+                }
+                
+                // Clear any pending stop timeout to prevent premature hiding
+                if (this.loadingStopTimeout) {
+                    clearTimeout(this.loadingStopTimeout);
+                    this.loadingStopTimeout = null;
+                }
             }
         });
 
         this.webview.addEventListener('did-stop-loading', () => {
             if (this.id === activeTabId) {
-                console.log('Finished loading.');
-                progressBar.classList.remove('loading');
-                progressBar.classList.add('complete');
-                loadingSpinner.classList.remove('visible');
-                
-                // Reset progress bar after animation
-                setTimeout(() => {
-                    progressBar.classList.remove('active');
-                    progressBar.classList.remove('complete');
-                }, 600);
-                
-                // Check if current URL is blank and show welcome screen
-                if (this.url === 'about:blank') {
-                    welcomeScreen.style.display = 'flex';
-                } else {
-                    welcomeScreen.style.display = 'none';
+                // Debounce the stop-loading event to prevent flickering
+                // If more resources start loading within 500ms, keep the bar visible
+                if (this.loadingStopTimeout) {
+                    clearTimeout(this.loadingStopTimeout);
                 }
-                // Add a small delay to ensure webview history is updated
-                setTimeout(() => {
-                    updateNavigationButtons();
-                }, 100);
+                
+                this.loadingStopTimeout = setTimeout(() => {
+                    if (this.id === activeTabId && this.isLoading) {
+                        console.log('Finished loading.');
+                        this.isLoading = false;
+                        progressBar.classList.remove('loading');
+                        progressBar.classList.add('complete');
+                        loadingSpinner.classList.remove('visible');
+                        
+                        // Reset progress bar after animation
+                        setTimeout(() => {
+                            progressBar.classList.remove('active');
+                            progressBar.classList.remove('complete');
+                        }, 600);
+                        
+                        // Check if current URL is blank and show welcome screen
+                        if (this.url === 'about:blank') {
+                            welcomeScreen.style.display = 'flex';
+                        } else {
+                            welcomeScreen.style.display = 'none';
+                        }
+                        // Add a small delay to ensure webview history is updated
+                        setTimeout(() => {
+                            updateNavigationButtons();
+                        }, 100);
+                    }
+                    this.loadingStopTimeout = null;
+                }, 500); // 500ms debounce to allow for resource cascade loading
             }
         });
 
@@ -250,6 +274,12 @@ class Tab {
     }
 
     close() {
+        // Clear any pending loading timeout
+        if (this.loadingStopTimeout) {
+            clearTimeout(this.loadingStopTimeout);
+            this.loadingStopTimeout = null;
+        }
+        
         if (tabs.length === 1) {
             // Don't close the last tab, just reset it
             this.webview.src = 'about:blank';
