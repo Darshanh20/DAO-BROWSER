@@ -86,9 +86,16 @@ class Tab {
     constructor(id, url = '') {
         this.id = id;
         this.url = url || 'about:blank';
+        this.previousUrl = null; // Track previous URL to detect actual changes
         this.title = 'New Tab';
         this.isLoading = false;
         this.loadingStopTimeout = null;
+        this.mainFrameNavigating = false; // Track if main frame is navigating
+        this.loaderState = 'idle'; // idle | loading | complete
+        this.navigationStartTime = null; // Track when navigation started
+        this.navigationId = 0; // Unique ID for each real navigation
+        this.documentLoadComplete = false; // Lock loader after main document loads
+        this.lastHistoryStateUrl = null; // Track history API changes to distinguish from real nav
 
         console.log(`Creating tab ${id}...`);
 
@@ -135,26 +142,58 @@ class Tab {
     }
 
     setupWebviewListeners() {
-        // Update address bar and title on navigation
+        // STRICT: Only trigger loader on REAL document navigation (not SPA internal changes)
+        // will-navigate fires for actual page loads, clicks that change main frame
+        this.webview.addEventListener('will-navigate', (e) => {
+            // This is a REAL navigation - increase navigation ID to invalidate stale events
+            const newUrl = e.url;
+            
+            if (this.id === activeTabId && !this.documentLoadComplete) {
+                // Only prepare for loader if document isn't already complete
+                const urlChanged = (this.previousUrl !== newUrl);
+                
+                if (urlChanged && e.isMainFrame) {
+                    console.log(`🔄 [${this.id}] REAL document navigation: ${this.previousUrl || 'start'} → ${newUrl}`);
+                    
+                    // Increment navigation ID to ignore stale events from previous navigation
+                    this.navigationId++;
+                    this.mainFrameNavigating = true;
+                    this.navigationStartTime = Date.now();
+                    this.documentLoadComplete = false; // Reset for new navigation
+                    
+                } else {
+                    console.log(`⤵️ [${this.id}] SPA route change detected (same base URL), ignoring`);
+                    this.mainFrameNavigating = false;
+                }
+            }
+        });
+
+        // Update URL tracking
         this.webview.addEventListener('did-navigate', (e) => {
+            this.previousUrl = this.url;
             this.url = e.url;
+            this.lastHistoryStateUrl = e.url;
+            
             if (this.id === activeTabId) {
                 const displayUrl = this.convertUrlForDisplay(e.url);
                 updateAddressBar(displayUrl);
                 updateNavigationButtons();
-                // Show welcome screen if navigated to blank page
                 welcomeScreen.style.display = (e.url === 'about:blank') ? 'flex' : 'none';
             }
         });
 
+        // Ignore SPA in-page navigation (history API, anchor changes)
         this.webview.addEventListener('did-navigate-in-page', (e) => {
             this.url = e.url;
+            this.lastHistoryStateUrl = e.url; // Track that history API was used
+            
             if (this.id === activeTabId) {
                 const displayUrl = this.convertUrlForDisplay(e.url);
                 updateAddressBar(displayUrl);
                 updateNavigationButtons();
-                // Show welcome screen if navigated to blank page
                 welcomeScreen.style.display = (e.url === 'about:blank') ? 'flex' : 'none';
+                // CRITICAL: Don't trigger loader for SPA navigation
+                this.mainFrameNavigating = false;
             }
         });
 
@@ -164,81 +203,55 @@ class Tab {
             this.tabTitleElement.textContent = this.title;
         });
 
-        // Loading states with progress bar and spinner
+        // Loading states - STRICT guards against SPA activity
+        // Only show loader if:
+        // 1. Document not already loaded (documentLoadComplete = false)
+        // 2. Real navigation detected (mainFrameNavigating = true)
+        // 3. Loader not already showing
         this.webview.addEventListener('did-start-loading', () => {
-            if (this.id === activeTabId) {
-                // Only show loading if not already loading
-                if (!this.isLoading) {
-                    console.log('Loading...');
-                    this.isLoading = true;
-                    progressBar.classList.add('active');
-                    progressBar.classList.add('loading');
-                    loadingSpinner.classList.add('visible');
-                }
+            if (this.id === activeTabId && 
+                this.mainFrameNavigating && 
+                !this.documentLoadComplete && 
+                this.loaderState === 'idle') {
                 
-                // Clear any pending stop timeout to prevent premature hiding
-                if (this.loadingStopTimeout) {
-                    clearTimeout(this.loadingStopTimeout);
-                    this.loadingStopTimeout = null;
-                }
+                console.log(`⏳ [${this.id}] Showing loader - starting document load`);
+                this.loaderState = 'loading';
+                this.isLoading = true;
+                progressBar.classList.add('active');
+                progressBar.classList.add('loading');
+                loadingSpinner.classList.add('visible');
             }
         });
 
-        this.webview.addEventListener('did-stop-loading', () => {
-            if (this.id === activeTabId) {
-                // Debounce the stop-loading event to prevent flickering
-                // If more resources start loading within 500ms, keep the bar visible
-                if (this.loadingStopTimeout) {
-                    clearTimeout(this.loadingStopTimeout);
-                }
-                
-                this.loadingStopTimeout = setTimeout(() => {
-                    if (this.id === activeTabId && this.isLoading) {
-                        console.log('Finished loading.');
-                        this.isLoading = false;
-                        progressBar.classList.remove('loading');
-                        progressBar.classList.add('complete');
-                        loadingSpinner.classList.remove('visible');
-                        
-                        // Reset progress bar after animation
-                        setTimeout(() => {
-                            progressBar.classList.remove('active');
-                            progressBar.classList.remove('complete');
-                        }, 600);
-                        
-                        // Check if current URL is blank and show welcome screen
-                        if (this.url === 'about:blank') {
-                            welcomeScreen.style.display = 'flex';
-                        } else {
-                            welcomeScreen.style.display = 'none';
-                        }
-                        // Add a small delay to ensure webview history is updated
-                        setTimeout(() => {
-                            updateNavigationButtons();
-                        }, 100);
-                    }
-                    this.loadingStopTimeout = null;
-                }, 500); // 500ms debounce to allow for resource cascade loading
-            }
-        });
-
-        // Update navigation buttons when history changes
+        // Main document ready - LOCK the loader (no more background activity should restart it)
         this.webview.addEventListener('dom-ready', () => {
+            if (this.id === activeTabId && this.loaderState === 'loading' && this.mainFrameNavigating) {
+                console.log(`✅ [${this.id}] Main document ready - LOCKING loader`);
+                
+                // Lock the document - no more loader restarts allowed
+                this.documentLoadComplete = true;
+                this.completeLoading();
+            }
+            
+            // Always update navigation buttons
             updateNavigationButtons();
+        });
+
+        // Fallback: did-stop-loading (only if dom-ready didn't complete it)
+        this.webview.addEventListener('did-stop-loading', () => {
+            if (this.id === activeTabId && this.loaderState === 'loading' && !this.documentLoadComplete) {
+                console.log(`⏹️ [${this.id}] Loading stopped (fallback) - completing loader`);
+                this.documentLoadComplete = true;
+                this.completeLoading();
+            }
         });
 
         // Handle page load failures
         this.webview.addEventListener('did-fail-load', async (e) => {
-            if (e.isMainFrame && e.errorCode !== -3) {
-                // Hide loading indicators
-                progressBar.classList.remove('loading');
-                progressBar.classList.add('complete');
-                loadingSpinner.classList.remove('visible');
-                
-                setTimeout(() => {
-                    progressBar.classList.remove('active');
-                    progressBar.classList.remove('complete');
-                }, 600);
+            if (e.isMainFrame && e.errorCode !== -3 && this.mainFrameNavigating && this.loaderState === 'loading') {
+                // Complete the loader on error
+                this.documentLoadComplete = true;
+                this.completeLoading();
                 
                 try {
                     const rendererPath = await window.electronAPI.paths.getPath('renderer');
@@ -250,6 +263,40 @@ class Tab {
                 }
             }
         });
+    }
+
+    // Complete the loader animation and reset state
+    completeLoading() {
+        // Only complete if loader is actually loading
+        if (this.loaderState !== 'loading') return;
+        
+        this.loaderState = 'complete';
+        this.isLoading = false;
+        this.mainFrameNavigating = false;
+        this.documentLoadComplete = true; // LOCK: No more loader restarts for this navigation
+        
+        console.log(`🔒 [${this.id}] Document load locked - no further loader restarts allowed`);
+        
+        progressBar.classList.remove('loading');
+        progressBar.classList.add('complete');
+        loadingSpinner.classList.remove('visible');
+        
+        // Fade out and hide
+        setTimeout(() => {
+            progressBar.classList.remove('active');
+            progressBar.classList.remove('complete');
+            this.loaderState = 'idle'; // Reset for next navigation
+        }, 600);
+        
+        // Check if current URL is blank and show welcome screen
+        if (this.url === 'about:blank') {
+            welcomeScreen.style.display = 'flex';
+        } else {
+            welcomeScreen.style.display = 'none';
+        }
+        
+        // Update navigation buttons
+        updateNavigationButtons();
     }
 
     convertUrlForDisplay(url) {
@@ -274,11 +321,14 @@ class Tab {
     }
 
     close() {
-        // Clear any pending loading timeout
+        // Clear any pending loading timeout and reset flags
         if (this.loadingStopTimeout) {
             clearTimeout(this.loadingStopTimeout);
             this.loadingStopTimeout = null;
         }
+        this.mainFrameNavigating = false;
+        this.isLoading = false;
+        this.loaderState = 'idle';
         
         if (tabs.length === 1) {
             // Don't close the last tab, just reset it
@@ -309,11 +359,16 @@ class Tab {
 
 // Switch to a specific tab
 function switchToTab(tabId) {
-    // Hide all webviews and deactivate all tabs
+    // Hide all webviews and deactivate all tabs, hide loader if switching away
     tabs.forEach(tab => {
         tab.webview.classList.remove('active');
         tab.webview.style.display = 'none'; // Ensure hidden
         tab.tabElement.classList.remove('active');
+        // Hide loader if this tab was loading
+        if (tab.loaderState === 'loading') {
+            progressBar.classList.remove('active', 'loading');
+            loadingSpinner.classList.remove('visible');
+        }
     });
 
     // Show and activate the selected tab
@@ -327,6 +382,11 @@ function switchToTab(tabId) {
         updateAddressBar(displayUrl);
         welcomeScreen.style.display = tab.url === 'about:blank' ? 'flex' : 'none';
         updateNavigationButtons();
+        // Show loader if the new tab is loading
+        if (tab.loaderState === 'loading') {
+            progressBar.classList.add('active', 'loading');
+            loadingSpinner.classList.add('visible');
+        }
     }
 }
 
@@ -334,6 +394,12 @@ function switchToTab(tabId) {
 function createNewTab(url = '') {
     const tab = new Tab(nextTabId++, url);
     tabs.push(tab);
+    // If URL is provided (not blank), mark that navigation is happening
+    if (url && url !== 'about:blank') {
+        tab.previousUrl = 'about:blank'; // Set previousUrl so will-navigate detects change
+        tab.documentLoadComplete = false; // Reset so loader can show
+        tab.mainFrameNavigating = true;
+    }
     switchToTab(tab.id);
     return tab;
 }
@@ -365,6 +431,9 @@ function navigate(url) {
     console.log('Active tab:', activeTab);
 
     if (activeTab) {
+        // Reset document load flag and prepare for real navigation
+        activeTab.documentLoadComplete = false;
+        activeTab.mainFrameNavigating = true;
         activeTab.webview.src = url;
         welcomeScreen.style.display = 'none';
         console.log('Navigation successful');
@@ -715,3 +784,382 @@ try {
 setInterval(() => {
     updateNavigationButtons();
 }, 500);
+
+// ==================== PRODUCTIVITY DASHBOARD MODULE ====================
+
+// Get dashboard element references
+const liveTimeEl = document.getElementById('live-time');
+const liveDateEl = document.getElementById('live-date');
+const quickNotesEl = document.getElementById('quick-notes');
+const todayFocusEl = document.getElementById('today-focus');
+const locationDisplayEl = document.getElementById('location-display');
+
+// 1. Live Clock & Date Update
+function updateClockAndDate() {
+    const now = new Date();
+    
+    // Format time as HH:MM:SS
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    
+    if (liveTimeEl) {
+        liveTimeEl.textContent = `${hours}:${minutes}:${seconds}`;
+    }
+    
+    // Format date as "Day, Month Date"
+    const options = { weekday: 'long', month: 'long', day: 'numeric' };
+    const dateString = now.toLocaleDateString('en-US', options);
+    
+    if (liveDateEl) {
+        liveDateEl.textContent = dateString;
+    }
+}
+
+// Update clock immediately and then every second
+updateClockAndDate();
+setInterval(updateClockAndDate, 1000);
+
+// 2. Geolocation - Request Permission & Display Location
+function initializeLocation() {
+    if (!locationDisplayEl) return;
+    
+    // Check if location is already saved in localStorage
+    const savedLocation = localStorage.getItem('dao_user_location');
+    if (savedLocation) {
+        locationDisplayEl.textContent = savedLocation;
+        console.log('Location loaded from localStorage:', savedLocation);
+        return;
+    }
+    
+    // Request geolocation permission
+    if ('geolocation' in navigator) {
+        locationDisplayEl.textContent = '📍 Detecting location...';
+        locationDisplayEl.style.cursor = 'pointer';
+        locationDisplayEl.title = 'Click to update location';
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                console.log(`Geolocation granted: ${latitude}, ${longitude}`);
+                
+                // Use reverse geocoding via free API to get location name
+                reverseGeocodeLocation(latitude, longitude);
+            },
+            (error) => {
+                console.warn('Geolocation permission denied or error:', error.message);
+                
+                // Fallback to IP-based location or default
+                locationDisplayEl.textContent = '📍 Enable location to see your city';
+                locationDisplayEl.style.cursor = 'pointer';
+                locationDisplayEl.title = 'Click to enable location access';
+                
+                // Add click handler to retry
+                locationDisplayEl.addEventListener('click', initializeLocation);
+            },
+            {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 3600000 // Cache location for 1 hour
+            }
+        );
+    } else {
+        locationDisplayEl.textContent = '📍 Geolocation not supported';
+    }
+}
+
+// Reverse geocode coordinates to get location name
+async function reverseGeocodeLocation(latitude, longitude) {
+    try {
+        // Using OpenStreetMap's free Nominatim API for reverse geocoding
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+        );
+        
+        if (!response.ok) throw new Error('Geocoding failed');
+        
+        const data = await response.json();
+        
+        // Extract city/town and country
+        const city = data.address?.city || data.address?.town || data.address?.village || 'Unknown';
+        const country = data.address?.country || 'Unknown';
+        const locationText = `📍 ${city}, ${country}`;
+        
+        // Save to localStorage
+        localStorage.setItem('dao_user_location', locationText);
+        
+        if (locationDisplayEl) {
+            locationDisplayEl.textContent = locationText;
+            locationDisplayEl.style.cursor = 'pointer';
+            locationDisplayEl.title = 'Click to update location';
+            locationDisplayEl.addEventListener('click', initializeLocation);
+        }
+        
+        console.log('Location updated:', locationText);
+    } catch (error) {
+        console.error('Geocoding error:', error);
+        
+        // Fallback: show coordinates
+        const fallbackLocation = `📍 Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)}`;
+        localStorage.setItem('dao_user_location', fallbackLocation);
+        
+        if (locationDisplayEl) {
+            locationDisplayEl.textContent = fallbackLocation;
+            locationDisplayEl.style.cursor = 'pointer';
+            locationDisplayEl.title = 'Click to update location';
+            locationDisplayEl.addEventListener('click', initializeLocation);
+        }
+    }
+}
+
+// 3. Quick Notes - localStorage persistence
+function initializeQuickNotes() {
+    if (!quickNotesEl) return;
+    
+    // Load saved notes from localStorage
+    const savedNotes = localStorage.getItem('dao_quick_notes');
+    if (savedNotes) {
+        quickNotesEl.value = savedNotes;
+    }
+    
+    // Auto-save on input (debounced)
+    let saveTimeout;
+    quickNotesEl.addEventListener('input', () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            localStorage.setItem('dao_quick_notes', quickNotesEl.value);
+            console.log('Quick notes saved to localStorage');
+        }, 500); // Save after 500ms of inactivity
+    });
+}
+
+// 4. Today's Focus - localStorage persistence
+function initializeTodaysFocus() {
+    if (!todayFocusEl) return;
+    
+    // Load saved focus from localStorage
+    const savedFocus = localStorage.getItem('dao_today_focus');
+    if (savedFocus) {
+        todayFocusEl.value = savedFocus;
+    }
+    
+    // Auto-save on input (debounced)
+    let saveTimeout;
+    todayFocusEl.addEventListener('input', () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            localStorage.setItem('dao_today_focus', todayFocusEl.value);
+            console.log('Today\'s focus saved to localStorage');
+        }, 500); // Save after 500ms of inactivity
+    });
+}
+
+// Initialize dashboard features
+initializeLocation();
+initializeQuickNotes();
+initializeTodaysFocus();
+
+// Optional: Clear dashboard data on new day (reset focus)
+function checkAndResetFocusDaily() {
+    const lastResetDate = localStorage.getItem('dao_last_reset_date');
+    const today = new Date().toDateString();
+    
+    if (lastResetDate !== today) {
+        // New day detected, clear today's focus but keep notes
+        localStorage.setItem('dao_today_focus', '');
+        localStorage.setItem('dao_last_reset_date', today);
+        if (todayFocusEl) {
+            todayFocusEl.value = '';
+        }
+        console.log('Today\'s focus cleared - new day detected');
+    }
+}
+
+checkAndResetFocusDaily();
+
+// ==================== QUICK LINKS MODULE ====================
+
+// Default quick links
+const DEFAULT_LINKS = [
+    { name: 'Google', url: 'https://google.com', icon: '<i class="fa-brands fa-google"></i>' },
+    { name: 'YouTube', url: 'https://youtube.com', icon: '<i class="fa-brands fa-youtube"></i>' },
+    { name: 'GitHub', url: 'https://github.com', icon: '<i class="fa-brands fa-github"></i>' },
+    { name: 'Stack Overflow', url: 'https://stackoverflow.com', icon: '<i class="fa-brands fa-stack-overflow"></i>' },
+    { name: 'Wikipedia', url: 'https://wikipedia.org', icon: '<i class="fa-solid fa-book"></i>' },
+    { name: 'ChatGPT', url: 'https://chat.openai.com', icon: '<i class="fa-brands fa-openai"></i>' },
+];
+
+// Get DOM elements
+const quickLinksContainer = document.getElementById('quick-links-container');
+const addLinkBtn = document.getElementById('add-link-btn');
+const addLinkModal = document.getElementById('add-link-modal');
+const closeAddLinkModalBtn = document.getElementById('close-add-link-modal');
+const addLinkForm = document.getElementById('add-link-form');
+const linkNameInput = document.getElementById('link-name');
+const linkUrlInput = document.getElementById('link-url');
+const cancelLinkBtn = document.getElementById('cancel-link-btn');
+const formError = document.getElementById('form-error');
+
+let allLinks = [];
+
+// Load links from localStorage or use defaults
+function loadQuickLinks() {
+    const savedLinks = localStorage.getItem('dao_quick_links');
+    const customLinks = savedLinks ? JSON.parse(savedLinks) : [];
+    allLinks = [...DEFAULT_LINKS, ...customLinks];
+    renderQuickLinks();
+}
+
+// Render quick links to the page
+function renderQuickLinks() {
+    quickLinksContainer.innerHTML = '';
+    
+    allLinks.forEach((link, index) => {
+        const isCustom = index >= DEFAULT_LINKS.length;
+        const linkCard = document.createElement('div');
+        linkCard.className = 'quick-link-card';
+        linkCard.style.cursor = 'pointer';
+        
+        let cardHTML = `
+            <div class="quick-link-icon">${link.icon}</div>
+            <div class="quick-link-name">${link.name}</div>
+        `;
+        
+        // Add remove button for custom links only
+        if (isCustom) {
+            cardHTML += `<button class="quick-link-remove" data-index="${index}" title="Remove link">×</button>`;
+        }
+        
+        linkCard.innerHTML = cardHTML;
+        quickLinksContainer.appendChild(linkCard);
+        
+        // Add click event to open link in new tab
+        linkCard.addEventListener('click', (e) => {
+            // Don't trigger if clicking the remove button
+            if (!e.target.closest('.quick-link-remove')) {
+                createNewTab(link.url);
+            }
+        });
+        
+        // Add remove event listener
+        if (isCustom) {
+            const removeBtn = linkCard.querySelector('.quick-link-remove');
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeQuickLink(index);
+            });
+        }
+    });
+}
+
+// Remove a custom link
+function removeQuickLink(index) {
+    allLinks.splice(index, 1);
+    const customLinks = allLinks.slice(DEFAULT_LINKS.length);
+    localStorage.setItem('dao_quick_links', JSON.stringify(customLinks));
+    renderQuickLinks();
+    console.log('Quick link removed');
+}
+
+// Add a new custom link
+function addQuickLink(name, url) {
+    const newLink = { name, url, icon: '<i class="fa-solid fa-link"></i>' };
+    const customLinks = allLinks.slice(DEFAULT_LINKS.length);
+    customLinks.push(newLink);
+    localStorage.setItem('dao_quick_links', JSON.stringify(customLinks));
+    allLinks.push(newLink);
+    renderQuickLinks();
+    console.log('New quick link added:', name);
+}
+
+// Validate and normalize URL format
+function normalizeAndValidateUrl(urlString) {
+    let url = urlString.trim();
+    
+    // If URL doesn't start with http:// or https://, add https://
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    
+    try {
+        new URL(url);
+        return url; // Return the normalized URL
+    } catch (e) {
+        return null; // Invalid URL
+    }
+}
+
+// Open/Close modal
+function openAddLinkModal() {
+    addLinkModal.classList.remove('hidden');
+    linkNameInput.focus();
+}
+
+function closeAddLinkModalFunc() {
+    // Clear form fields
+    linkNameInput.value = '';
+    linkUrlInput.value = '';
+    formError.textContent = '';
+    formError.style.display = 'none';
+    // Hide modal
+    addLinkModal.classList.add('hidden');
+}
+
+// Modal event listeners
+addLinkBtn.addEventListener('click', openAddLinkModal);
+closeAddLinkModalBtn.addEventListener('click', closeAddLinkModalFunc);
+cancelLinkBtn.addEventListener('click', closeAddLinkModalFunc);
+
+// Close modal when clicking outside
+addLinkModal.addEventListener('click', (e) => {
+    if (e.target === addLinkModal) {
+        closeAddLinkModalFunc();
+    }
+});
+
+// Form submission
+addLinkForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const name = linkNameInput.value.trim();
+    let url = linkUrlInput.value.trim();
+    
+    // Clear previous errors
+    formError.style.display = 'none';
+    formError.textContent = '';
+    
+    // Validation
+    if (!name) {
+        formError.textContent = 'Website name is required';
+        formError.style.display = 'block';
+        return;
+    }
+    
+    if (!url) {
+        formError.textContent = 'URL is required';
+        formError.style.display = 'block';
+        return;
+    }
+    
+    // Validate and normalize URL
+    const validatedUrl = normalizeAndValidateUrl(url);
+    if (!validatedUrl) {
+        formError.textContent = 'Please enter a valid URL (e.g., twitter.com or https://example.com)';
+        formError.style.display = 'block';
+        return;
+    }
+    
+    // Check for duplicate names
+    if (allLinks.some(link => link.name.toLowerCase() === name.toLowerCase())) {
+        formError.textContent = 'A link with this name already exists';
+        formError.style.display = 'block';
+        return;
+    }
+    
+    // Add the link with the validated URL
+    addQuickLink(name, validatedUrl);
+    closeAddLinkModalFunc();
+});
+
+// Initialize quick links on page load
+loadQuickLinks();

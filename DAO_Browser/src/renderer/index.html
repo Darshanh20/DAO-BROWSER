@@ -203,7 +203,6 @@
                 <div class="logo-section">
                     <i class="fa-solid fa-shield-halved logo-shield"></i>
                     <h1 class="brand-title">D.A.O. Search</h1>
-                    <div class="brand-subtitle">Private • Decentralized • Secure</div>
                 </div>
 
                 <div class="search-wrapper">
@@ -213,68 +212,80 @@
                     <button id="home-search-btn" class="search-btn-large">SEARCH</button>
                 </div>
 
-                <div class="features-grid">
-                    <div class="feature-item"><i class="fa-solid fa-user-secret"></i> Anonymous Mode</div>
-                    <div class="feature-item"><i class="fa-solid fa-shield-virus"></i> Ad-Shield Active</div>
-                    <div class="feature-item"><i class="fa-solid fa-link"></i> On-Chain Search</div>
+                <!-- Quick Links Section -->
+                <div id="quick-links-section">
+                    <div class="quick-links-header">
+                        <h2>Quick Links</h2>
+                        <button id="add-link-btn" class="add-link-btn" title="Add custom link">
+                            <i class="fa-solid fa-plus"></i> Add Link
+                        </button>
+                    </div>
+                    <div id="quick-links-container" class="quick-links-grid">
+                        <!-- Links will be populated here via JavaScript -->
+                    </div>
                 </div>
 
-                <!-- News Feed Section (Edge Style) -->
-                <div id="news-section">
-                    <div class="news-header">
-                        <h2>Top Stories</h2>
-                        <span class="weather-badge"><i class="fa-solid fa-cloud-moon"></i> 22° Mumbai</span>
+                <!-- Add Link Modal -->
+                <div id="add-link-modal" class="modal hidden">
+                    <div class="modal-content add-link-modal-content">
+                        <div class="modal-header">
+                            <h2>Add Custom Link</h2>
+                            <button id="close-add-link-modal" class="close-modal-btn" title="Close">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="add-link-form">
+                                <div class="form-group">
+                                    <label for="link-name">Website Name</label>
+                                    <input type="text" id="link-name" placeholder="e.g., Twitter" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="link-url">URL</label>
+                                    <input type="url" id="link-url" placeholder="e.g., https://twitter.com" required>
+                                </div>
+                                <div class="form-error" id="form-error" style="display: none;"></div>
+                                <div class="modal-footer">
+                                    <button type="button" id="cancel-link-btn" class="btn-secondary">Cancel</button>
+                                    <button type="submit" class="btn-primary">Add Link</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                    <div class="news-scroll-container">
-                        <!-- Card 1 -->
-                        <div class="news-card">
-                            <div class="news-image"
-                                style="background-image: url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2832&auto=format&fit=crop');">
-                                <div class="play-icon"><i class="fa-solid fa-play"></i></div>
-                            </div>
-                            <div class="news-content">
-                                <div class="news-source"><img
-                                        src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg"
-                                        class="source-icon"> Crypto Daily • 2h</div>
-                                <h3 class="news-title">Bitcoin hits new all-time high as institutional adoption surges
-                                    globally.</h3>
+                </div>
+
+                <!-- Live Clock Widget (Top Right) -->
+                <div class="clock-widget">
+                    <div class="clock-display">
+                        <div class="time" id="live-time">00:00:00</div>
+                        <div class="date" id="live-date">Monday, January 1</div>
+                    </div>
+                </div>
+
+                <!-- Productivity Dashboard Section -->
+                <div id="productivity-dashboard">
+                    <div class="dashboard-grid">
+                        <!-- Location Card -->
+                        <div class="dashboard-card location-card">
+                            <div class="location-content">
+                                <div class="location-icon"><i class="fa-solid fa-location-dot"></i></div>
+                                <div class="location-text" id="location-display">📍 Mumbai, India</div>
                             </div>
                         </div>
 
-                        <!-- Card 2 -->
-                        <div class="news-card">
-                            <div class="news-image"
-                                style="background-image: url('https://images.unsplash.com/photo-1621504450168-b8c4c2a4208a?q=80&w=2670&auto=format&fit=crop');">
-                            </div>
-                            <div class="news-content">
-                                <div class="news-source"><img
-                                        src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Ethereum_logo_2014.svg"
-                                        class="source-icon"> ETH World • 4h</div>
-                                <h3 class="news-title">Ethereum 2.0 upgrade complete: What this means for gas fees.</h3>
+                        <!-- Quick Notes Card -->
+                        <div class="dashboard-card notes-card">
+                            <div class="notes-container">
+                                <h3 class="card-title">Quick Notes</h3>
+                                <textarea id="quick-notes" class="notes-input" placeholder="Jot down your thoughts..."></textarea>
                             </div>
                         </div>
 
-                        <!-- Card 3 -->
-                        <div class="news-card">
-                            <div class="news-image"
-                                style="background-image: url('https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=2774&auto=format&fit=crop');">
-                            </div>
-                            <div class="news-content">
-                                <div class="news-source"><i class="fa-solid fa-newspaper"></i> TechCrunch • 5h</div>
-                                <h3 class="news-title">AI regulation talks heat up in Silicon Valley: Key takeaways.
-                                </h3>
-                            </div>
-                        </div>
-
-                        <!-- Card 4 -->
-                        <div class="news-card">
-                            <div class="news-image"
-                                style="background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2670&auto=format&fit=crop');">
-                                <div class="play-icon"><i class="fa-solid fa-play"></i></div>
-                            </div>
-                            <div class="news-content">
-                                <div class="news-source"><i class="fa-solid fa-robot"></i> AI Today • 8h</div>
-                                <h3 class="news-title">New generative models can create 3D worlds in seconds.</h3>
+                        <!-- Today's Focus Card -->
+                        <div class="dashboard-card focus-card">
+                            <div class="focus-container">
+                                <h3 class="card-title">Today's Focus</h3>
+                                <input type="text" id="today-focus" class="focus-input" placeholder="What's your main focus today?">
                             </div>
                         </div>
                     </div>
