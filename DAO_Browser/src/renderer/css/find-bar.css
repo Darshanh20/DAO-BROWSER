@@ -123,6 +123,21 @@
     border-color: transparent;
 }
 
+.find-option-btn {
+    position: relative;
+}
+
+.find-option-btn.active {
+    background: var(--accent-blue);
+    color: white;
+    border-color: var(--accent-blue);
+}
+
+.find-option-btn.active:hover {
+    background: var(--accent-blue-hover, rgba(66, 133, 244, 0.8));
+    border-color: var(--accent-blue);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .find-bar {

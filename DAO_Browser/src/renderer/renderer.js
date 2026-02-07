@@ -17,6 +17,7 @@ const goBtn = document.getElementById('go-btn');
 const homeSearchInput = document.getElementById('home-search-input');
 const homeSearchBtn = document.getElementById('home-search-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const searchBtn = document.getElementById('search-btn');
 
 // Debug: Check if elements exist
 console.log('addressBar:', addressBar);
@@ -26,6 +27,21 @@ console.log('contentArea:', contentArea);
 let tabs = [];
 let activeTabId = null;
 let nextTabId = 1;
+
+// ==================== WEBVIEW POSTMESSAGE HANDLER ====================
+// Listen for messages from webviews about Ctrl+F and other events
+window.addEventListener('message', (event) => {
+    if (event.source === window) return; // Ignore own messages
+    
+    if (event.data && event.data.type === 'WEBVIEW_CTRL_F') {
+        console.log('[WebView Ctrl+F] Received Ctrl+F from webview, opening find bar');
+        if (window.findBar) {
+            window.findBar.open();
+        } else {
+            console.warn('[WebView Ctrl+F] window.findBar not available yet');
+        }
+    }
+});
 
 // ==================== URL SIMPLIFICATION ====================
 function simplifyURL(url) {
@@ -233,6 +249,10 @@ class Tab {
                 this.completeLoading();
             }
             
+            // Inject Ctrl+F handler into webview
+            console.log(`[WebView ${this.id}] DOM ready, injecting Ctrl+F handler...`);
+            this.injectCtrlFHandler();
+            
             // Always update navigation buttons
             updateNavigationButtons();
         });
@@ -318,6 +338,38 @@ class Tab {
             }
         }
         return url;
+    }
+
+    injectCtrlFHandler() {
+        // Inject Ctrl+F handler into webview's isolated context
+        const script = `
+            (function() {
+                console.log('[WebView Ctrl+F] Handler injection started');
+                
+                // Send Ctrl+F event to parent window
+                document.addEventListener('keydown', function(e) {
+                    if (e.ctrlKey && e.key === 'f') {
+                        console.log('[WebView Ctrl+F] Ctrl+F pressed, sending to parent');
+                        e.preventDefault();
+                        
+                        // Use postMessage to communicate with parent
+                        window.parent.postMessage(
+                            { type: 'WEBVIEW_CTRL_F', tabId: '${this.id}' },
+                            '*'
+                        );
+                    }
+                });
+                
+                console.log('[WebView Ctrl+F] Handler injection complete');
+            })();
+        `;
+        
+        try {
+            this.webview.executeJavaScript(script);
+            console.log(`[WebView ${this.id}] Ctrl+F handler injected successfully`);
+        } catch (error) {
+            console.error(`[WebView ${this.id}] Failed to inject Ctrl+F handler:`, error);
+        }
     }
 
     close() {
@@ -555,17 +607,28 @@ document.addEventListener('keydown', async (e) => {
 
     // Ctrl+F - Find in page
     if (e.ctrlKey && e.key === 'f') {
-        console.log('=== Ctrl+F detected in renderer.js ===');
         e.preventDefault();
-        console.log('Ctrl+F pressed, checking window.findBar...');
-        console.log('window.findBar exists:', !!window.findBar);
-        console.log('window.findBar:', window.findBar);
-        if (window.findBar) {
-            console.log('Calling window.findBar.open()');
-            window.findBar.open();
+        
+        // Ensure findBar is initialized
+        if (!window.findBar) {
+            console.warn('[Ctrl+F] window.findBar not yet available, waiting for initialization...');
+            
+            // Wait for findBar to be initialized (max 2 seconds)
+            let attempts = 0;
+            const checkFindBar = setInterval(() => {
+                attempts++;
+                if (window.findBar) {
+                    clearInterval(checkFindBar);
+                    window.findBar.open();
+                    console.log('[Ctrl+F] FindBar initialized, opening...');
+                } else if (attempts > 20) {
+                    clearInterval(checkFindBar);
+                    console.error('[Ctrl+F] Timeout waiting for findBar initialization');
+                }
+            }, 100);
         } else {
-            console.error('ERROR: window.findBar is not defined!');
-            console.error('This means find-bar.js did not initialize properly');
+            window.findBar.open();
+            console.log('[Ctrl+F] FindBar opened');
         }
     }
 
@@ -771,6 +834,28 @@ if (settingsBtn) {
         e.stopPropagation();
         if (window.settingsDialog) {
             window.settingsDialog.open();
+        }
+    });
+}
+
+// Open find bar
+if (searchBtn) {
+    searchBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        if (!window.findBar) {
+            console.warn('[Search Button] window.findBar not initialized, waiting...');
+            let attempts = 0;
+            const checkFindBar = setInterval(() => {
+                attempts++;
+                if (window.findBar) {
+                    clearInterval(checkFindBar);
+                    window.findBar.open();
+                }
+                if (attempts > 20) clearInterval(checkFindBar);
+            }, 100);
+        } else {
+            window.findBar.open();
         }
     });
 }

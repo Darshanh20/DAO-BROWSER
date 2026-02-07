@@ -57,6 +57,9 @@
             <div class="window-controls">
                 <button class="icon-btn"><i class="fa-solid fa-puzzle-piece"></i></button>
                 <button class="icon-btn"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                <button id="search-btn" class="icon-btn" title="Find in page (Ctrl+F)">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
                 <button id="settings-btn" class="icon-btn" title="Settings & Shortcuts">
                     <i class="fa-solid fa-gear"></i>
                 </button>
@@ -81,6 +84,9 @@
                 <input type="text" id="find-input" class="find-input" placeholder="Find in page..." autocomplete="off" spellcheck="false">
                 <span id="find-counter" class="find-counter">0 of 0</span>
                 <div class="find-controls">
+                    <button id="find-case-btn" class="find-btn find-option-btn" title="Match Case (Alt+C)">
+                        <i class="fa-solid fa-font"></i>
+                    </button>
                     <button id="find-prev-btn" class="find-btn" title="Previous (Shift+Enter)">
                         <i class="fa-solid fa-chevron-up"></i>
                     </button>
@@ -314,9 +320,9 @@
             </div>
         </main>
     </div>
-    <script src="renderer.js"></script>
-    <script src="modules/settings-dialog.js"></script>
     <script src="modules/find-bar.js"></script>
+    <script src="modules/settings-dialog.js"></script>
+    <script src="renderer.js"></script>
 </body>
 
 </html>
