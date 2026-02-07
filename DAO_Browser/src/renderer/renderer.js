@@ -28,21 +28,6 @@ let tabs = [];
 let activeTabId = null;
 let nextTabId = 1;
 
-// ==================== WEBVIEW POSTMESSAGE HANDLER ====================
-// Listen for messages from webviews about Ctrl+F and other events
-window.addEventListener('message', (event) => {
-    if (event.source === window) return; // Ignore own messages
-    
-    if (event.data && event.data.type === 'WEBVIEW_CTRL_F') {
-        console.log('[WebView Ctrl+F] Received Ctrl+F from webview, opening find bar');
-        if (window.findBar) {
-            window.findBar.open();
-        } else {
-            console.warn('[WebView Ctrl+F] window.findBar not available yet');
-        }
-    }
-});
-
 // ==================== URL SIMPLIFICATION ====================
 function simplifyURL(url) {
     if (url === 'about:blank') return '';
@@ -121,6 +106,16 @@ class Tab {
         this.webview.classList.add('webview-tab');
         this.webview.style.display = 'none';
         this.webview.src = this.url;
+        
+        // Configure webview attributes for proper rendering
+        this.webview.setAttribute('partition', 'persist:main');
+        this.webview.setAttribute('allowpopups', 'true');
+        this.webview.setAttribute('plugins', 'true');
+        this.webview.setAttribute('disablewebsecurity', 'false');
+        
+        // Set up webview preload script for Ctrl+F support
+        this.setupWebviewPreload();
+        
         contentArea.appendChild(this.webview);
 
         // Create tab button in UI
@@ -157,7 +152,28 @@ class Tab {
         this.setupWebviewListeners();
     }
 
+    async setupWebviewPreload() {
+        try {
+            // Get the webview preload script path from main process
+            const preloadPath = await window.electronAPI.paths.getPath('webview-preload');
+            this.webview.setAttribute('preload', `file://${preloadPath}`);
+            console.log(`[Tab ${this.id}] Webview preload set`);
+        } catch (error) {
+            console.error(`[Tab ${this.id}] Failed to set webview preload:`, error);
+        }
+    }
+
     setupWebviewListeners() {
+        // Listen for Ctrl+F from webview (via IPC)
+        this.webview.addEventListener('ipc-message', (event) => {
+            if (event.channel === 'webview-ctrl-f') {
+                console.log(`[Tab ${this.id}] Received Ctrl+F from webview`);
+                if (window.findBar) {
+                    window.findBar.open();
+                }
+            }
+        });
+
         // STRICT: Only trigger loader on REAL document navigation (not SPA internal changes)
         // will-navigate fires for actual page loads, clicks that change main frame
         this.webview.addEventListener('will-navigate', (e) => {
@@ -249,10 +265,6 @@ class Tab {
                 this.completeLoading();
             }
             
-            // Inject Ctrl+F handler into webview
-            console.log(`[WebView ${this.id}] DOM ready, injecting Ctrl+F handler...`);
-            this.injectCtrlFHandler();
-            
             // Always update navigation buttons
             updateNavigationButtons();
         });
@@ -338,38 +350,6 @@ class Tab {
             }
         }
         return url;
-    }
-
-    injectCtrlFHandler() {
-        // Inject Ctrl+F handler into webview's isolated context
-        const script = `
-            (function() {
-                console.log('[WebView Ctrl+F] Handler injection started');
-                
-                // Send Ctrl+F event to parent window
-                document.addEventListener('keydown', function(e) {
-                    if (e.ctrlKey && e.key === 'f') {
-                        console.log('[WebView Ctrl+F] Ctrl+F pressed, sending to parent');
-                        e.preventDefault();
-                        
-                        // Use postMessage to communicate with parent
-                        window.parent.postMessage(
-                            { type: 'WEBVIEW_CTRL_F', tabId: '${this.id}' },
-                            '*'
-                        );
-                    }
-                });
-                
-                console.log('[WebView Ctrl+F] Handler injection complete');
-            })();
-        `;
-        
-        try {
-            this.webview.executeJavaScript(script);
-            console.log(`[WebView ${this.id}] Ctrl+F handler injected successfully`);
-        } catch (error) {
-            console.error(`[WebView ${this.id}] Failed to inject Ctrl+F handler:`, error);
-        }
     }
 
     close() {
@@ -608,27 +588,10 @@ document.addEventListener('keydown', async (e) => {
     // Ctrl+F - Find in page
     if (e.ctrlKey && e.key === 'f') {
         e.preventDefault();
-        
-        // Ensure findBar is initialized
-        if (!window.findBar) {
-            console.warn('[Ctrl+F] window.findBar not yet available, waiting for initialization...');
-            
-            // Wait for findBar to be initialized (max 2 seconds)
-            let attempts = 0;
-            const checkFindBar = setInterval(() => {
-                attempts++;
-                if (window.findBar) {
-                    clearInterval(checkFindBar);
-                    window.findBar.open();
-                    console.log('[Ctrl+F] FindBar initialized, opening...');
-                } else if (attempts > 20) {
-                    clearInterval(checkFindBar);
-                    console.error('[Ctrl+F] Timeout waiting for findBar initialization');
-                }
-            }, 100);
-        } else {
+        if (window.findBar) {
             window.findBar.open();
-            console.log('[Ctrl+F] FindBar opened');
+        } else {
+            console.warn('[Ctrl+F] FindBar not initialized yet');
         }
     }
 
@@ -690,6 +653,15 @@ document.addEventListener('keydown', async (e) => {
         switchToTab(tabs[prevIndex].id);
     }
 });
+
+// ==================== FIND IN PAGE BUTTON ====================
+if (searchBtn) {
+    searchBtn.addEventListener('click', () => {
+        if (window.findBar) {
+            window.findBar.open();
+        }
+    });
+}
 
 // ==================== BRAVE-STYLE SHIELD MENU LOGIC ====================
 
@@ -834,28 +806,6 @@ if (settingsBtn) {
         e.stopPropagation();
         if (window.settingsDialog) {
             window.settingsDialog.open();
-        }
-    });
-}
-
-// Open find bar
-if (searchBtn) {
-    searchBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        
-        if (!window.findBar) {
-            console.warn('[Search Button] window.findBar not initialized, waiting...');
-            let attempts = 0;
-            const checkFindBar = setInterval(() => {
-                attempts++;
-                if (window.findBar) {
-                    clearInterval(checkFindBar);
-                    window.findBar.open();
-                }
-                if (attempts > 20) clearInterval(checkFindBar);
-            }, 100);
-        } else {
-            window.findBar.open();
         }
     });
 }

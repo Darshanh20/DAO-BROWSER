@@ -194,6 +194,9 @@ ipcMain.handle('app:getPath', (event, pathType) => {
     if (pathType === 'renderer') {
         return path.join(__dirname, '../renderer');
     }
+    if (pathType === 'webview-preload') {
+        return path.join(__dirname, '../preload/webview-preload.js');
+    }
     return path.join(__dirname, '../');
 });
 

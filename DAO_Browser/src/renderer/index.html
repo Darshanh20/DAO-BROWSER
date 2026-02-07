@@ -77,27 +77,28 @@
             </div>
         </div>
 
-        <!-- Find Bar (Ctrl+F Search) -->
+        <!-- Find Bar (Chrome-Style Ctrl+F Search) -->
         <div id="find-bar" class="find-bar hidden">
-            <div class="find-bar-content">
-                <i class="fa-solid fa-magnifying-glass find-icon"></i>
-                <input type="text" id="find-input" class="find-input" placeholder="Find in page..." autocomplete="off" spellcheck="false">
-                <span id="find-counter" class="find-counter">0 of 0</span>
-                <div class="find-controls">
-                    <button id="find-case-btn" class="find-btn find-option-btn" title="Match Case (Alt+C)">
-                        <i class="fa-solid fa-font"></i>
-                    </button>
-                    <button id="find-prev-btn" class="find-btn" title="Previous (Shift+Enter)">
-                        <i class="fa-solid fa-chevron-up"></i>
-                    </button>
-                    <button id="find-next-btn" class="find-btn" title="Next (Enter)">
-                        <i class="fa-solid fa-chevron-down"></i>
-                    </button>
-                    <button id="find-close-btn" class="find-btn-close" title="Close (Esc)">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
+            <div class="find-input-container">
+                <input type="text" id="find-input" class="find-input" placeholder="Find in page" autocomplete="off" spellcheck="false">
+                <span id="find-counter" class="find-counter"></span>
             </div>
+            <div class="find-divider"></div>
+            <div class="find-nav-group">
+                <button id="find-prev-btn" class="find-btn" title="Previous match (Shift+Enter)" disabled>
+                    <i class="fa-solid fa-chevron-up"></i>
+                </button>
+                <button id="find-next-btn" class="find-btn" title="Next match (Enter)" disabled>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="find-divider"></div>
+            <button id="find-case-btn" class="find-btn find-case-btn" title="Match case (Alt+C)">
+                Aa
+            </button>
+            <button id="find-close-btn" class="find-btn find-close-btn" title="Close (Esc)">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
 
         <!-- Ad-Blocker Stats Popup -->
