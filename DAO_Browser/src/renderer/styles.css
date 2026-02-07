@@ -237,6 +237,26 @@ body {
     box-shadow: 0 0 8px var(--accent-glow);
 }
 
+/* Summarize Button */
+#summarize-btn {
+    background: #3b82f6;
+    color: white;
+    font-weight: 500;
+}
+
+#summarize-btn:hover {
+    background: #60a5fa;
+}
+
+#summarize-btn:active {
+    transform: scale(0.96);
+}
+
+#summarize-btn.active {
+    background: #60a5fa;
+    border: 1px solid #93c5fd;
+}
+
 /* Address Bar Area */
 .url-container {
     flex: 1;

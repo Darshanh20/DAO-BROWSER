@@ -20,3 +20,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Fetch API (goes through main process to bypass CORS)
     fetchNews: (url, options) => ipcRenderer.invoke('app:fetch', url, options)
 });
+
+// Expose summarization API
+contextBridge.exposeInMainWorld('api', {
+    summarizeArticle: (articleData) => ipcRenderer.invoke('summarize:article', articleData),
+    checkSummarizationService: () => ipcRenderer.invoke('summarize:checkService')
+});

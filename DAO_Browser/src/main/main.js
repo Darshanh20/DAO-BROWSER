@@ -197,6 +197,115 @@ ipcMain.handle('app:getPath', (event, pathType) => {
     return path.join(__dirname, '../');
 });
 
+// IPC Handler for Article Summarization
+ipcMain.handle('summarize:article', async (event, articleData) => {
+    const http = require('http');
+    
+    console.log('[Summarization] Starting request...');
+    console.log('[Summarization] Text length:', articleData.text.length, 'characters');
+    
+    return new Promise((resolve, reject) => {
+        const postData = JSON.stringify({
+            text: articleData.text,
+            sentences: articleData.sentences || 5
+        });
+
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: '/summarize',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            },
+            timeout: 30000 // 30 second timeout (increased from 10 seconds)
+        };
+
+        const startTime = Date.now();
+        const req = http.request(options, (res) => {
+            let data = '';
+            
+            console.log('[Summarization] Response received, status:', res.statusCode);
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                const duration = Date.now() - startTime;
+                console.log('[Summarization] Request completed in', duration, 'ms');
+                
+                try {
+                    const response = JSON.parse(data);
+                    if (res.statusCode === 200) {
+                        console.log('[Summarization] Success! Generated', response.summary?.length || 0, 'sentences');
+                        resolve({
+                            success: true,
+                            data: response
+                        });
+                    } else {
+                        console.error('[Summarization] Error response:', response);
+                        resolve({
+                            success: false,
+                            error: response.error || 'Summarization failed',
+                            message: response.message || 'Unknown error'
+                        });
+                    }
+                } catch (error) {
+                    console.error('[Summarization] Failed to parse response:', error);
+                    reject(new Error('Failed to parse response: ' + error.message));
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            console.error('[Summarization] Request error:', error.message);
+            reject(new Error('Failed to connect to summarization service. Make sure the Python server is running on port 5000.'));
+        });
+
+        req.on('timeout', () => {
+            console.error('[Summarization] Request timed out after 30 seconds');
+            req.destroy();
+            reject(new Error('Summarization request timed out after 30 seconds. The article might be too long or the service is slow. Try a shorter article.'));
+        });
+
+        console.log('[Summarization] Sending request to backend...');
+        req.write(postData);
+        req.end();
+    });
+});
+
+// IPC Handler to check if summarization service is available
+ipcMain.handle('summarize:checkService', async () => {
+    const http = require('http');
+    
+    return new Promise((resolve) => {
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: '/health',
+            method: 'GET',
+            timeout: 2000
+        };
+
+        const req = http.request(options, (res) => {
+            resolve({ available: res.statusCode === 200 });
+        });
+
+        req.on('error', () => {
+            resolve({ available: false });
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            resolve({ available: false });
+        });
+
+        req.end();
+    });
+});
+
 // Log app info
 console.log(`D.A.O. Browser v1.0 - Privacy & Distraction-Free`);
 console.log(`Total Ads Blocked: ${totalBlocked}`);

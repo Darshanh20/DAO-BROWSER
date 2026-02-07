@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/settings.css">
     <link rel="stylesheet" href="css/find-bar.css">
+    <link rel="stylesheet" href="css/summary-panel.css">
 </head>
 
 <body>
@@ -57,6 +58,9 @@
             <div class="window-controls">
                 <button class="icon-btn"><i class="fa-solid fa-puzzle-piece"></i></button>
                 <button class="icon-btn"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                <button id="summarize-btn" class="icon-btn" title="Summarize Article (Ctrl+Shift+S)">
+                    <i class="fa-solid fa-file-lines"></i>
+                </button>
                 <button id="search-btn" class="icon-btn" title="Find in page (Ctrl+F)">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
@@ -96,6 +100,52 @@
                     <button id="find-close-btn" class="find-btn-close" title="Close (Esc)">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Summary Panel (Right Sidebar) -->
+        <div id="summary-panel" class="summary-panel hidden">
+            <div class="summary-panel-header">
+                <div class="summary-title">
+                    <i class="fa-solid fa-sparkles"></i>
+                    <h3>AI Summary</h3>
+                </div>
+                <div class="summary-actions">
+                    <button id="copy-summary-btn" class="summary-action-btn" title="Copy Summary">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                    <button id="close-summary-btn" class="summary-action-btn" title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="summary-panel-content">
+                <!-- Loading state -->
+                <div id="summary-loading" class="summary-loading hidden">
+                    <div class="summary-spinner"></div>
+                    <p>Analyzing article...</p>
+                </div>
+                <!-- Error state -->
+                <div id="summary-error" class="summary-error hidden">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <p id="summary-error-message">Failed to generate summary</p>
+                </div>
+                <!-- Summary content -->
+                <div id="summary-content" class="summary-content">
+                    <div class="summary-meta">
+                        <span id="summary-sentences-count">5 key points</span>
+                        <label for="sentence-count-select">Points:</label>
+                        <select id="sentence-count-select">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="7">7</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                    <ul id="summary-list" class="summary-list">
+                        <!-- Summary bullets will be inserted here -->
+                    </ul>
                 </div>
             </div>
         </div>
@@ -322,6 +372,7 @@
     </div>
     <script src="modules/find-bar.js"></script>
     <script src="modules/settings-dialog.js"></script>
+    <script src="utils/contentExtractor.js"></script>
     <script src="renderer.js"></script>
 </body>
 

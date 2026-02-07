@@ -112,6 +112,11 @@ class Tab {
         this.navigationId = 0; // Unique ID for each real navigation
         this.documentLoadComplete = false; // Lock loader after main document loads
         this.lastHistoryStateUrl = null; // Track history API changes to distinguish from real nav
+        
+        // Summary state per tab
+        this.summaryOpen = false;
+        this.summaryData = null;
+        this.articleData = null;
 
         console.log(`Creating tab ${id}...`);
 
@@ -439,6 +444,26 @@ function switchToTab(tabId) {
             progressBar.classList.add('active', 'loading');
             loadingSpinner.classList.add('visible');
         }
+
+        // Restore or hide summary panel based on tab state
+        if (tab.summaryOpen && tab.summaryData) {
+            // Restore summary for this tab
+            openSummaryPanel();
+            showSummaryContent(tab.summaryData);
+            lastArticleData = tab.articleData;
+        } else {
+            // Hide summary panel
+            closeSummaryPanel();
+            lastArticleData = null;
+        }
+
+        // Auto-focus the top address bar when switching tabs
+        setTimeout(() => {
+            if (addressBar) {
+                addressBar.focus();
+                addressBar.select();
+            }
+        }, 50);
     }
 }
 
@@ -630,6 +655,13 @@ document.addEventListener('keydown', async (e) => {
             window.findBar.open();
             console.log('[Ctrl+F] FindBar opened');
         }
+    }
+
+    // Ctrl+Shift+S - Summarize article
+    if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        console.log('[Ctrl+Shift+S] Summarize shortcut triggered');
+        summarizeArticle();
     }
 
     // Alt+ArrowLeft - Go back
@@ -1264,3 +1296,340 @@ addLinkForm.addEventListener('submit', (e) => {
 
 // Initialize quick links on page load
 loadQuickLinks();
+
+// ==================== ARTICLE SUMMARIZATION FEATURE ====================
+
+// Summary Panel Elements
+const summarizeBtn = document.getElementById('summarize-btn');
+const summaryPanel = document.getElementById('summary-panel');
+const closeSummaryBtn = document.getElementById('close-summary-btn');
+const copySummaryBtn = document.getElementById('copy-summary-btn');
+const summaryLoading = document.getElementById('summary-loading');
+const summaryError = document.getElementById('summary-error');
+const summaryErrorMessage = document.getElementById('summary-error-message');
+const summaryContent = document.getElementById('summary-content');
+const summaryList = document.getElementById('summary-list');
+const summarySentencesCount = document.getElementById('summary-sentences-count');
+const sentenceCountSelect = document.getElementById('sentence-count-select');
+
+// Initialize Content Extractor
+const contentExtractor = new ContentExtractor();
+
+// State
+let isSummarizing = false;
+let summaryPanelOpen = false;
+let lastArticleData = null; // Store last extracted article for re-summarization
+
+// Check if summarization service is available on startup
+async function checkSummarizationService() {
+    try {
+        const result = await window.api.checkSummarizationService();
+        if (!result.available) {
+            console.warn('⚠️ Summarization service not available. Make sure Python backend is running on port 5000.');
+        } else {
+            console.log('✅ Summarization service is available');
+        }
+    } catch (error) {
+        console.error('Failed to check summarization service:', error);
+    }
+}
+
+// Open summary panel
+function openSummaryPanel() {
+    summaryPanel.classList.remove('hidden');
+    summaryPanelOpen = true;
+    
+    // Add active state to button
+    if (summarizeBtn) {
+        summarizeBtn.classList.add('active');
+    }
+    
+    // Adjust content area to make room for panel
+    if (contentArea) {
+        contentArea.style.width = '70%';
+    }
+    
+    // Save state to current tab
+    const activeTab = getActiveTab();
+    if (activeTab) {
+        activeTab.summaryOpen = true;
+    }
+}
+
+// Close summary panel
+function closeSummaryPanel() {
+    summaryPanel.classList.add('hidden');
+    summaryPanelOpen = false;
+    
+    // Remove active state from button
+    if (summarizeBtn) {
+        summarizeBtn.classList.remove('active');
+    }
+    
+    // Restore content area to full width
+    if (contentArea) {
+        contentArea.style.width = '100%';
+    }
+    
+    // Save state to current tab
+    const activeTab = getActiveTab();
+    if (activeTab) {
+        activeTab.summaryOpen = false;
+    }
+}
+
+// Show loading state
+function showSummaryLoading() {
+    summaryLoading.classList.remove('hidden');
+    summaryError.classList.add('hidden');
+    summaryContent.classList.add('hidden');
+}
+
+// Show error state
+function showSummaryError(message) {
+    summaryLoading.classList.add('hidden');
+    summaryError.classList.remove('hidden');
+    summaryContent.classList.add('hidden');
+    summaryErrorMessage.textContent = message;
+}
+
+// Show summary content
+function showSummaryContent(summaryData) {
+    summaryLoading.classList.add('hidden');
+    summaryError.classList.add('hidden');
+    summaryContent.classList.remove('hidden');
+
+    // Clear previous summary
+    summaryList.innerHTML = '';
+
+    // Update sentence count with processing time
+    const count = summaryData.summary.length;
+    let countText = `${count} key point${count !== 1 ? 's' : ''}`;
+    if (summaryData.processing_time) {
+        countText += ` • ${summaryData.processing_time}s`;
+    }
+    summarySentencesCount.textContent = countText;
+
+    // Add summary bullets
+    summaryData.summary.forEach((sentence, index) => {
+        const li = document.createElement('li');
+        li.textContent = sentence;
+        summaryList.appendChild(li);
+    });
+}
+
+// Extract article from current webview
+async function extractArticleFromWebview() {
+    const activeTab = getActiveTab();
+    if (!activeTab || !activeTab.webview) {
+        throw new Error('No active tab');
+    }
+
+    // Check if on about:blank or welcome screen
+    if (activeTab.url === 'about:blank' || !activeTab.url) {
+        throw new Error('Please navigate to an article page first');
+    }
+
+    // Execute content extraction in the webview
+    try {
+        const result = await activeTab.webview.executeJavaScript(`
+            (function() {
+                // Content extraction code
+                const articleSelectors = [
+                    'article',
+                    '[role="main"]',
+                    'main',
+                    '.article-content',
+                    '.post-content',
+                    '.entry-content',
+                    '#article',
+                    '#content'
+                ];
+
+                const excludeSelectors = [
+                    'nav', 'header', 'footer', 'aside',
+                    '.sidebar', '.advertisement', '.ad',
+                    '.social-share', '.comments', '.related-posts',
+                    'script', 'style', 'iframe', 'noscript'
+                ];
+
+                // Find article element
+                let articleElement = null;
+                for (const selector of articleSelectors) {
+                    const el = document.querySelector(selector);
+                    if (el && el.textContent.trim().length > 200) {
+                        articleElement = el;
+                        break;
+                    }
+                }
+
+                if (!articleElement) {
+                    articleElement = document.body;
+                }
+
+                // Clone and clean
+                const clone = articleElement.cloneNode(true);
+                
+                // Remove unwanted elements
+                excludeSelectors.forEach(selector => {
+                    clone.querySelectorAll(selector).forEach(el => el.remove());
+                });
+
+                // Extract text from paragraphs
+                const paragraphs = clone.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                const textParts = [];
+                paragraphs.forEach(p => {
+                    const text = p.textContent.trim();
+                    if (text.length > 0) {
+                        textParts.push(text);
+                    }
+                });
+
+                const text = textParts.join('\\n\\n');
+
+                return {
+                    success: text.length >= 100,
+                    text: text,
+                    title: document.title || '',
+                    wordCount: text.split(/\\s+/).length,
+                    charCount: text.length
+                };
+            })();
+        `);
+
+        if (!result.success) {
+            throw new Error('Article too short or no article content found on this page');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Content extraction error:', error);
+        throw new Error('Failed to extract article content: ' + error.message);
+    }
+}
+
+// Main summarize function
+async function summarizeArticle() {
+    if (isSummarizing) {
+        console.log('Already summarizing...');
+        return;
+    }
+
+    try {
+        isSummarizing = true;
+        
+        // Open panel and show loading
+        openSummaryPanel();
+        showSummaryLoading();
+
+        // Check if service is available
+        const serviceCheck = await window.api.checkSummarizationService();
+        if (!serviceCheck.available) {
+            throw new Error('Summarization service is not running. Please start the Python backend server (python backend/summarizer.py)');
+        }
+
+        // Extract article content (only if not re-summarizing)
+        if (!lastArticleData) {
+            console.log('Extracting article content...');
+            lastArticleData = await extractArticleFromWebview();
+            console.log(`Extracted ${lastArticleData.wordCount} words, ${lastArticleData.charCount} characters`);
+        }
+
+        // Get selected sentence count
+        const sentenceCount = sentenceCountSelect ? parseInt(sentenceCountSelect.value) : 5;
+        console.log(`Using sentence count: ${sentenceCount}`);
+
+        // Send to backend for summarization
+        console.log('Sending to summarization service...');
+        const result = await window.api.summarizeArticle({
+            text: lastArticleData.text,
+            sentences: sentenceCount
+        });
+
+        if (!result.success) {
+            throw new Error(result.message || result.error || 'Summarization failed');
+        }
+
+        console.log('Summary generated successfully:', result.data);
+        
+        // Save to current tab
+        const activeTab = getActiveTab();
+        if (activeTab) {
+            activeTab.summaryData = result.data;
+            activeTab.articleData = lastArticleData;
+        }
+        
+        // Display summary
+        showSummaryContent(result.data);
+
+    } catch (error) {
+        console.error('Summarization error:', error);
+        showSummaryError(error.message);
+    } finally {
+        isSummarizing = false;
+    }
+}
+
+// Copy summary to clipboard
+async function copySummaryToClipboard() {
+    try {
+        const summaryItems = summaryList.querySelectorAll('li');
+        const summaryText = Array.from(summaryItems)
+            .map((li, index) => `${index + 1}. ${li.textContent}`)
+            .join('\n');
+
+        await navigator.clipboard.writeText(summaryText);
+        
+        // Show feedback
+        const originalIcon = copySummaryBtn.querySelector('i');
+        const originalClass = originalIcon.className;
+        originalIcon.className = 'fa-solid fa-check';
+        
+        setTimeout(() => {
+            originalIcon.className = originalClass;
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Failed to copy summary:', error);
+        alert('Failed to copy summary to clipboard');
+    }
+}
+
+// Event listeners
+if (summarizeBtn) {
+    summarizeBtn.addEventListener('click', () => {
+        lastArticleData = null; // Reset to extract fresh content
+        summarizeArticle();
+    });
+}
+
+if (closeSummaryBtn) {
+    closeSummaryBtn.addEventListener('click', () => {
+        closeSummaryPanel();
+        lastArticleData = null; // Clear cached data when closing
+        
+        // Clear from current tab
+        const activeTab = getActiveTab();
+        if (activeTab) {
+            activeTab.summaryData = null;
+            activeTab.articleData = null;
+        }
+    });
+}
+
+if (copySummaryBtn) {
+    copySummaryBtn.addEventListener('click', copySummaryToClipboard);
+}
+
+// Re-summarize when sentence count changes
+if (sentenceCountSelect) {
+    sentenceCountSelect.addEventListener('change', () => {
+        if (lastArticleData && summaryPanelOpen) {
+            console.log('Re-summarizing with new sentence count...');
+            summarizeArticle();
+        }
+    });
+}
+
+// Check service on startup
+checkSummarizationService();
