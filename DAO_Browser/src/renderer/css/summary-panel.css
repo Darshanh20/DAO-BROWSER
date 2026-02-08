@@ -1,19 +1,5 @@
-/* ==================== SUMMARY PANEL STYLES - BLACK & BLUE THEME ==================== */
-
-/* CSS Variables */
-:root {
-    --bg-primary: #0f1419;
-    --bg-secondary: #1a1f2e;
-    --bg-tertiary: #232937;
-    --accent-blue: #3b82f6;
-    --accent-blue-hover: #60a5fa;
-    --text-primary: #e5e7eb;
-    --text-secondary: #9ca3af;
-    --border-color: #2d3748;
-    --error-bg: #fee2e2;
-    --error-border: #ef4444;
-    --error-text: #dc2626;
-}
+/* ==================== SUMMARY PANEL STYLES ==================== */
+/* Note: Theme colors are defined in theme.css */
 
 /* Summary Panel Container */
 .summary-panel {
@@ -22,9 +8,9 @@
     right: 0;
     width: 30%;
     height: calc(100vh - 100px);
-    background: var(--bg-secondary);
-    border-left: 1px solid var(--border-color);
-    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.25);
+    background: var(--summary-bg);
+    border-left: 1px solid var(--summary-border);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     z-index: 900;
@@ -41,8 +27,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 18px 20px;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--bg-primary);
+    border-bottom: 1px solid var(--summary-border);
+    background: var(--summary-header);
 }
 
 .summary-title {
@@ -84,7 +70,7 @@
 }
 
 .summary-action-btn:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-hover);
     color: var(--text-primary);
 }
 
@@ -112,7 +98,7 @@
 .summary-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid var(--bg-tertiary);
+    border: 3px solid var(--bg-element);
     border-top: 3px solid var(--accent-blue);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -140,18 +126,18 @@
     padding: 20px;
     margin: 20px;
     text-align: center;
-    background: var(--error-bg);
-    border: 1px solid var(--error-border);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--color-error);
     border-radius: 8px;
 }
 
 .summary-error i {
     font-size: 48px;
-    color: var(--error-text);
+    color: var(--color-error);
 }
 
 .summary-error p {
-    color: var(--error-text);
+    color: var(--text-primary);
     font-size: 15px;
     line-height: 1.6;
     margin: 0;
@@ -179,7 +165,7 @@
     gap: 10px;
     margin-bottom: 16px;
     padding: 10px 14px;
-    background: var(--bg-tertiary);
+    background: var(--bg-element);
     border-radius: 6px;
     font-size: 13px;
     color: var(--text-secondary);
@@ -198,9 +184,9 @@
 }
 
 .summary-meta select {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--input-text);
     padding: 4px 10px;
     border-radius: 4px;
     font-size: 13px;
@@ -210,7 +196,7 @@
 
 .summary-meta select:hover {
     border-color: var(--accent-blue);
-    background: var(--bg-secondary);
+    background: var(--bg-element);
 }
 
 .summary-meta select:focus {
@@ -229,7 +215,7 @@
     position: relative;
     padding: 14px 16px 14px 28px;
     margin-bottom: 10px;
-    background: var(--bg-tertiary);
+    background: var(--bg-element);
     border-left: 3px solid var(--accent-blue);
     border-radius: 6px;
     line-height: 1.6;
@@ -239,7 +225,7 @@
 }
 
 .summary-list li:hover {
-    background: var(--bg-primary);
+    background: var(--bg-hover);
     transform: translateX(2px);
 }
 
@@ -258,16 +244,16 @@
 }
 
 .summary-panel-content::-webkit-scrollbar-track {
-    background: var(--bg-primary);
+    background: var(--scrollbar-track);
 }
 
 .summary-panel-content::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
 }
 
 .summary-panel-content::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-blue);
+    background: var(--scrollbar-thumb-hover);
 }
 
 /* Adjust content area when panel is open */

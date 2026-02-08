@@ -1,0 +1,97 @@
+/* ==================== DARK THEME (Fixed) ==================== */
+/* CSS Variables for the browser UI (fixed dark theme) */
+
+#browser-container {
+    /* Backgrounds */
+    --bg-dark: #09090b;
+    --bg-panel: #14141a;
+    --bg-element: #1e1e26;
+    --bg-hover: #2a2a35;
+    --bg-input: #1a1a24;
+    --bg-modal: #0f1419;
+    --bg-sidebar: #1a1f2e;
+    
+    /* Accent Colors */
+    --accent-blue: #60a5fa;
+    --accent-blue-hover: #3b82f6;
+    --accent-blue-active: #2563eb;
+    --accent-glow: rgba(96, 165, 250, 0.2);
+    
+    /* Text Colors */
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --text-dim: #6b7280;
+    --text-muted: #4b5563;
+    --text-inverse: #000000;
+    
+    /* Border Colors */
+    --border-subtle: #27272a;
+    --border-medium: #3f3f46;
+    --border-strong: #52525b;
+    
+    /* Status Colors */
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+    
+    /* Tab Specific */
+    --tab-bg: transparent;
+    --tab-bg-active: #14141a;
+    --tab-bg-hover: #1e1e26;
+    --tab-text: #9ca3af;
+    --tab-text-active: #ffffff;
+    
+    /* Toolbar Specific */
+    --toolbar-bg: #14141a;
+    --toolbar-border: #27272a;
+    
+    /* Button Specific */
+    --btn-bg: #1e1e26;
+    --btn-bg-hover: #2a2a35;
+    --btn-bg-active: #3f3f46;
+    --btn-text: #ffffff;
+    
+    /* Input Specific */
+    --input-bg: #1a1a24;
+    --input-border: #27272a;
+    --input-border-focus: #3b82f6;
+    --input-text: #ffffff;
+    --input-placeholder: #6b7280;
+    
+    /* Scrollbar */
+    --scrollbar-track: #14141a;
+    --scrollbar-thumb: #3f3f46;
+    --scrollbar-thumb-hover: #52525b;
+    
+    /* Shadow */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+    
+    /* Modal/Dialog */
+    --modal-overlay: rgba(0, 0, 0, 0.75);
+    --modal-bg: #0f1419;
+    --modal-border: #27272a;
+    
+    /* Summary Panel */
+    --summary-bg: #1a1f2e;
+    --summary-header: #0f1419;
+    --summary-border: #27272a;
+    
+    /* Progress Bar */
+    --progress-bg: #3b82f6;
+    --progress-track: #27272a;
+    
+    /* Welcome Screen */
+    --welcome-bg: #09090b;
+    --welcome-card-bg: #14141a;
+    --welcome-card-hover: #1e1e26;
+}
+
+/* ==================== WEBVIEW ISOLATION ==================== */
+/* Ensure webviews don't inherit browser theme */
+#browser-container .webview-tab {
+    filter: none !important;
+    background: white !important;
+}

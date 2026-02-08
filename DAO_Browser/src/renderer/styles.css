@@ -1,23 +1,7 @@
 /* Global RESET & Base Styles */
+/* Note: Theme colors are defined in theme.css */
 :root {
-    --bg-dark: #09090b;
-    /* Deepest black/grey */
-    --bg-panel: #14141a;
-    /* Toolbar/Tab background */
-    --bg-element: #1e1e26;
-    /* Input/Button background */
-    --bg-hover: #2a2a35;
-
-    --accent-blue: #60a5fa;
-    /* Light blue accent */
-    --accent-glow: rgba(96, 165, 250, 0.2);
-
-    --text-primary: #ffffff;
-    --text-secondary: #9ca3af;
-    --text-dim: #6b7280;
-
-    --border-subtle: #27272a;
-
+    /* Border Radius Constants */
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 20px;
@@ -344,12 +328,15 @@ body {
     overflow: auto;
 }
 
+/* Webview styling - explicitly isolated from theme inheritance */
 .webview-tab {
     width: 100%;
     height: 100%;
     border: none;
-    background: #fff;
-    /* Webviews are white by default */
+    background: #fff !important;
+    /* Webviews display external websites - must keep original styling */
+    /* The webview tag has its own rendering context and won't inherit CSS variables */
+    /* But we explicitly prevent any theme color inheritance here */
     overflow: auto;
 }
 
@@ -364,11 +351,11 @@ body {
     /* Start from top so we can scroll */
     padding-top: 10vh;
     /* Push content down slightly */
-    background: radial-gradient(circle at center, #1c1c24 0%, #09090b 70%);
+    background: var(--welcome-bg);
     overflow-y: auto;
     /* Enable vertical scrolling */
     scrollbar-width: thin;
-    scrollbar-color: #4b5563 transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .logo-section {
@@ -967,18 +954,19 @@ input:checked+.slider:before {
 }
 
 .dashboard-card {
-    background: linear-gradient(135deg, #1f2023 0%, #27272a 100%);
+    background: var(--welcome-card-bg);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 20px;
     box-sizing: border-box;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-sm);
 }
 
 .dashboard-card:hover {
     border-color: var(--accent-blue);
-    box-shadow: 0 8px 16px rgba(96, 165, 250, 0.15);
+    box-shadow: var(--shadow-md);
+    background: var(--welcome-card-hover);
     transform: translateY(-2px);
 }
 
@@ -1123,7 +1111,7 @@ input:checked+.slider:before {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--modal-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
