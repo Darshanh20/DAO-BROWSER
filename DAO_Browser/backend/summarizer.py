@@ -11,6 +11,7 @@ from sumy.summarizers.lsa import LsaSummarizer
 from sumy.nlp.stemmers import Stemmer
 from sumy.utils import get_stop_words
 import logging
+import database  # Import our database module for history tracking
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Electron app
@@ -131,21 +132,197 @@ def health_check():
 def index():
     """Root endpoint with API documentation"""
     return jsonify({
-        'service': 'Article Summarization API',
+        'service': 'D.A.O. Browser Backend API',
         'version': '1.0.0',
         'endpoints': {
             '/summarize': 'POST - Summarize article text',
-            '/health': 'GET - Health check'
+            '/health': 'GET - Health check',
+            '/api/history/add': 'POST - Add history entry',
+            '/api/history/all': 'GET - Get all history (paginated)',
+            '/api/history/search': 'GET - Search history',
+            '/api/history/stats': 'GET - Get history statistics',
+            '/api/history/:id': 'DELETE - Delete history entry',
+            '/api/history/clear': 'DELETE - Clear all history'
         },
         'usage': {
-            'endpoint': '/summarize',
-            'method': 'POST',
-            'body': {
-                'text': 'Your article text here',
-                'sentences': 5
+            'summarize': {
+                'endpoint': '/summarize',
+                'method': 'POST',
+                'body': {
+                    'text': 'Your article text here',
+                    'sentences': 5
+                }
+            },
+            'history': {
+                'add': 'POST /api/history/add with {url, title, favicon_url}',
+                'get': 'GET /api/history/all?page=1&limit=50',
+                'search': 'GET /api/history/search?q=query'
             }
         }
     }), 200
+
+# ==================== HISTORY API ENDPOINTS ====================
+
+@app.route('/api/history/add', methods=['POST'])
+def add_history_entry():
+    """
+    Add a new history entry
+    
+    Expected JSON body:
+    {
+        "url": "https://example.com",
+        "title": "Page Title",
+        "favicon_url": "https://example.com/favicon.ico",
+        "visit_duration": 60
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'URL is required'
+            }), 400
+        
+        url = data.get('url')
+        title = data.get('title', '')
+        favicon_url = data.get('favicon_url', '')
+        visit_duration = data.get('visit_duration', 0)
+        
+        result = database.add_history(url, title, favicon_url, visit_duration)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+    
+    except Exception as e:
+        logger.error(f"Error adding history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/history/all', methods=['GET'])
+def get_all_history():
+    """
+    Get all history with pagination
+    
+    Query params:
+    - page: Page number (default: 1)
+    - limit: Entries per page (default: 50)
+    """
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 50))
+        
+        result = database.get_history(page, limit)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+    
+    except Exception as e:
+        logger.error(f"Error fetching history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/history/search', methods=['GET'])
+def search_history_entries():
+    """
+    Search history by URL or title
+    
+    Query params:
+    - q: Search query
+    - limit: Maximum results (default: 50)
+    """
+    try:
+        query = request.args.get('q', '')
+        limit = int(request.args.get('limit', 50))
+        
+        if not query:
+            return jsonify({
+                'success': False,
+                'error': 'Search query is required'
+            }), 400
+        
+        result = database.search_history(query, limit)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+    
+    except Exception as e:
+        logger.error(f"Error searching history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/history/<int:entry_id>', methods=['DELETE'])
+def delete_history_entry(entry_id):
+    """
+    Delete a specific history entry by ID
+    """
+    try:
+        result = database.delete_history(entry_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    
+    except Exception as e:
+        logger.error(f"Error deleting history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/history/clear', methods=['DELETE'])
+def clear_all_history_entries():
+    """
+    Clear all browsing history
+    """
+    try:
+        result = database.clear_all_history()
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+    
+    except Exception as e:
+        logger.error(f"Error clearing history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/history/stats', methods=['GET'])
+def get_history_statistics():
+    """
+    Get statistics about browsing history
+    """
+    try:
+        result = database.get_history_stats()
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+    
+    except Exception as e:
+        logger.error(f"Error fetching stats: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     print("=" * 60)

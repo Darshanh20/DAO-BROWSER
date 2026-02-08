@@ -26,3 +26,13 @@ contextBridge.exposeInMainWorld('api', {
     summarizeArticle: (articleData) => ipcRenderer.invoke('summarize:article', articleData),
     checkSummarizationService: () => ipcRenderer.invoke('summarize:checkService')
 });
+
+// Expose history API
+contextBridge.exposeInMainWorld('historyAPI', {
+    addHistory: (historyData) => ipcRenderer.invoke('history:add', historyData),
+    getAllHistory: (page, limit) => ipcRenderer.invoke('history:getAll', page, limit),
+    searchHistory: (query, limit) => ipcRenderer.invoke('history:search', query, limit),
+    deleteHistory: (entryId) => ipcRenderer.invoke('history:delete', entryId),
+    clearHistory: () => ipcRenderer.invoke('history:clear'),
+    getStats: () => ipcRenderer.invoke('history:getStats')
+});

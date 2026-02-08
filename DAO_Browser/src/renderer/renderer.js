@@ -125,8 +125,13 @@ class Tab {
         this.webview.id = `webview-${id}`;
         this.webview.classList.add('webview-tab');
         this.webview.style.display = 'none';
-        this.webview.src = this.url;
+        
+        // Initially set to about:blank, will navigate after preload is set
+        this.webview.src = 'about:blank';
         contentArea.appendChild(this.webview);
+        
+        // Set preload script then navigate to actual URL
+        this.setupWebviewPreloadAndNavigate(this.url);
 
         // Create tab button in UI
         this.tabElement = document.createElement('div');
@@ -160,6 +165,33 @@ class Tab {
 
         // Setup webview event listeners
         this.setupWebviewListeners();
+    }
+
+    async setupWebviewPreloadAndNavigate(targetUrl) {
+        // Set preload script for webview to enable access to electron APIs
+        try {
+            const preloadPath = await window.electronAPI.paths.getPath('renderer');
+            const preloadScript = preloadPath.replace(/\\/g, '/').replace('/renderer', '/preload/preload.js');
+            
+            // Set webview attributes for proper API access
+            this.webview.setAttribute('preload', `file:///${preloadScript}`);
+            this.webview.setAttribute('nodeintegration', 'false');
+            this.webview.setAttribute('nodeintegrationinsubframes', 'false');
+            this.webview.setAttribute('webpreferences', 'contextIsolation=true');
+            
+            console.log(`Webview preload set: ${preloadScript}`);
+            
+            // Now navigate to the target URL if it's not about:blank
+            if (targetUrl && targetUrl !== 'about:blank') {
+                this.webview.src = targetUrl;
+            }
+        } catch (error) {
+            console.error('Failed to set webview preload:', error);
+            // Navigate anyway even if preload fails
+            if (targetUrl && targetUrl !== 'about:blank') {
+                this.webview.src = targetUrl;
+            }
+        }
     }
 
     setupWebviewListeners() {
@@ -254,6 +286,9 @@ class Tab {
                 this.completeLoading();
             }
             
+            // Add to browsing history
+            this.addToHistory();
+            
             // Inject Ctrl+F handler into webview
             console.log(`[WebView ${this.id}] DOM ready, injecting Ctrl+F handler...`);
             this.injectCtrlFHandler();
@@ -343,6 +378,42 @@ class Tab {
             }
         }
         return url;
+    }
+
+    async addToHistory() {
+        // Don't track internal pages or blank pages
+        if (!this.url || this.url === 'about:blank' || this.url.startsWith('dao://')) {
+            return;
+        }
+        
+        try {
+            // Get page title (fallback to URL if no title)
+            const title = this.title && this.title !== 'New Tab' ? this.title : this.url;
+            
+            // Try to get favicon
+            let faviconUrl = '';
+            try {
+                const urlObj = new URL(this.url);
+                faviconUrl = `${urlObj.protocol}//${urlObj.hostname}/favicon.ico`;
+            } catch (e) {
+                console.log('[History] Could not extract favicon URL');
+            }
+            
+            // Add to history via backend
+            const result = await window.historyAPI.addHistory({
+                url: this.url,
+                title: title,
+                favicon_url: faviconUrl,
+                visit_duration: 0
+            });
+            
+            if (result.success) {
+                console.log(`[History] Added: ${title}`);
+            }
+        } catch (error) {
+            // Silently fail if backend is not available
+            console.log('[History] Backend not available:', error);
+        }
     }
 
     injectCtrlFHandler() {
@@ -655,6 +726,13 @@ document.addEventListener('keydown', async (e) => {
             window.findBar.open();
             console.log('[Ctrl+F] FindBar opened');
         }
+    }
+
+    // Ctrl+H - Open browsing history
+    if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
+        console.log('[Ctrl+H] History shortcut triggered');
+        openHistoryPage();
     }
 
     // Ctrl+Shift+S - Summarize article
@@ -1296,6 +1374,39 @@ addLinkForm.addEventListener('submit', (e) => {
 
 // Initialize quick links on page load
 loadQuickLinks();
+
+// ==================== HISTORY FEATURE ====================
+
+const historyBtn = document.getElementById('history-btn');
+
+// Open history in a new tab
+async function openHistoryPage() {
+    console.log('[History] Opening history tab');
+    
+    try {
+        const rendererPath = await window.electronAPI.paths.getPath('renderer');
+        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html`;
+        
+        // Create a new tab with the history page
+        const historyTab = createNewTab(historyPageUrl);
+        historyTab.title = 'Browsing History';
+        historyTab.tabTitleElement.textContent = 'Browsing History';
+        
+        console.log('[History] History tab opened successfully');
+    } catch (err) {
+        console.error('[History] Failed to open history tab:', err);
+    }
+}
+
+// History button click handler
+if (historyBtn) {
+    historyBtn.addEventListener('click', () => {
+        console.log('[History] Button clicked');
+        openHistoryPage();
+    });
+} else {
+    console.error('[History] ❌ History button element not found!');
+}
 
 // ==================== ARTICLE SUMMARIZATION FEATURE ====================
 

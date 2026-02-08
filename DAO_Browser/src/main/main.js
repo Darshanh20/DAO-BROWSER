@@ -306,6 +306,290 @@ ipcMain.handle('summarize:checkService', async () => {
     });
 });
 
+// ==================== HISTORY TRACKING ====================
+
+// IPC Handler to add history entry
+ipcMain.handle('history:add', async (event, historyData) => {
+    const http = require('http');
+    
+    console.log('[History] Adding entry:', historyData.url);
+    
+    return new Promise((resolve, reject) => {
+        const postData = JSON.stringify({
+            url: historyData.url,
+            title: historyData.title || '',
+            favicon_url: historyData.favicon_url || '',
+            visit_duration: historyData.visit_duration || 0
+        });
+
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: '/api/history/add',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            },
+            timeout: 5000
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    const response = JSON.parse(data);
+                    if (res.statusCode === 200) {
+                        console.log('[History] Entry added successfully');
+                        resolve(response);
+                    } else {
+                        console.error('[History] Error response:', response);
+                        resolve({ success: false, error: response.error });
+                    }
+                } catch (error) {
+                    console.error('[History] Failed to parse response:', error);
+                    resolve({ success: false, error: error.message });
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            console.error('[History] Request error:', error.message);
+            resolve({ success: false, error: error.message });
+        });
+
+        req.on('timeout', () => {
+            console.error('[History] Request timed out');
+            req.destroy();
+            resolve({ success: false, error: 'Timeout' });
+        });
+
+        req.write(postData);
+        req.end();
+    });
+});
+
+// IPC Handler to get all history
+ipcMain.handle('history:getAll', async (event, page = 1, limit = 50) => {
+    const http = require('http');
+    
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: `/api/history/all?page=${page}&limit=${limit}`,
+            method: 'GET',
+            timeout: 5000
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    const response = JSON.parse(data);
+                    resolve(response);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Request timed out'));
+        });
+
+        req.end();
+    });
+});
+
+// IPC Handler to search history
+ipcMain.handle('history:search', async (event, query, limit = 50) => {
+    const http = require('http');
+    
+    return new Promise((resolve, reject) => {
+        const encodedQuery = encodeURIComponent(query);
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: `/api/history/search?q=${encodedQuery}&limit=${limit}`,
+            method: 'GET',
+            timeout: 5000
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    const response = JSON.parse(data);
+                    resolve(response);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Request timed out'));
+        });
+
+        req.end();
+    });
+});
+
+// IPC Handler to delete history entry
+ipcMain.handle('history:delete', async (event, entryId) => {
+    const http = require('http');
+    
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: `/api/history/${entryId}`,
+            method: 'DELETE',
+            timeout: 5000
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    const response = JSON.parse(data);
+                    resolve(response);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Request timed out'));
+        });
+
+        req.end();
+    });
+});
+
+// IPC Handler to clear all history
+ipcMain.handle('history:clear', async () => {
+    const http = require('http');
+    
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: '/api/history/clear',
+            method: 'DELETE',
+            timeout: 5000
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    const response = JSON.parse(data);
+                    resolve(response);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Request timed out'));
+        });
+
+        req.end();
+    });
+});
+
+// IPC Handler to get history stats
+ipcMain.handle('history:getStats', async () => {
+    const http = require('http');
+    
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: '/api/history/stats',
+            method: 'GET',
+            timeout: 5000
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    const response = JSON.parse(data);
+                    resolve(response);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Request timed out'));
+        });
+
+        req.end();
+    });
+});
+
 // Log app info
 console.log(`D.A.O. Browser v1.0 - Privacy & Distraction-Free`);
 console.log(`Total Ads Blocked: ${totalBlocked}`);

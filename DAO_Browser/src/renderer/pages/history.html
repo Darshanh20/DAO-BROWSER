@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browsing History - D.A.O. Browser</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #09090b;
+            color: #ffffff;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: #14141a;
+            padding: 24px 40px;
+            border-bottom: 1px solid #27272a;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            max-width: 700px;
+        }
+
+        .search-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            background: #1e1e26;
+            border: 1px solid #27272a;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            pointer-events: none;
+        }
+
+        .clear-btn {
+            padding: 12px 24px;
+            background: #ef4444;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .clear-btn:hover {
+            background: #dc2626;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #27272a;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #60a5fa;
+        }
+
+        .content {
+            padding: 32px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .date-group {
+            margin-bottom: 32px;
+        }
+
+        .date-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #27272a;
+        }
+
+        .history-list {
+            list-style: none;
+        }
+
+        .history-item {
+            background: #14141a;
+            border: 1px solid #27272a;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .history-item:hover {
+            background: #1e1e26;
+            border-color: #3f3f46;
+            transform: translateX(4px);
+        }
+
+        .favicon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: #2a2a35;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .favicon img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .favicon i {
+            font-size: 16px;
+            color: #60a5fa;
+        }
+
+        .history-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .history-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-url {
+            font-size: 13px;
+            color: #6b7280;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: #6b7280;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .visit-count {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .visit-time {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .delete-btn {
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            color: #9ca3af;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .delete-btn:hover {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .loading i {
+            font-size: 40px;
+            animation: spin 1s linear infinite;
+            color: #60a5fa;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #3f3f46;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #9ca3af;
+        }
+
+        .empty-state p {
+            color: #6b7280;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 32px;
+            padding: 24px;
+        }
+
+        .pagination button {
+            padding: 10px 20px;
+            background: #1e1e26;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #2a2a35;
+            border-color: #60a5fa;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #991b1b;
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fa-solid fa-clock-rotate-left"></i> Browsing History</h1>
+        <div class="search-bar">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="search-input" class="search-input" placeholder="Search history by URL or title...">
+            </div>
+            <button id="clear-all-btn" class="clear-btn">
+                <i class="fa-solid fa-trash"></i>
+                Clear All
+            </button>
+        </div>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span>Total visits: <span class="stat-value" id="total-entries">0</span></span>
+            </div>
+            <div class="stat-item">
+                <i class="fa-solid fa-link"></i>
+                <span>Unique sites: <span class="stat-value" id="unique-urls">0</span></span>
+            </div>
+            <div class="stat-item">
+                <i class="fa-solid fa-clock"></i>
+                <span>Time spent: <span class="stat-value" id="total-time">0h</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div id="history-container">
+            <!-- History items will be loaded here -->
+        </div>
+
+        <div id="pagination" class="pagination" style="display: none;">
+            <button id="prev-page"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+            <span class="page-info">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
+            <button id="next-page">Next <i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <script src="../modules/history-page.js"></script>
+</body>
+</html>
