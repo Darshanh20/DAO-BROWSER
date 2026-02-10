@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 const path = require('path');
+const fetch = require('cross-fetch');
 
 let mainWindow;
 
@@ -8,75 +9,85 @@ let totalBlocked = 0;
 let sessionBlocked = 0;
 let adBlockerEnabled = true;
 
-// Comprehensive list of ad and tracker domains
-const AD_DOMAINS = [
-    'doubleclick.net',
-    'googlesyndication.com',
-    'google-analytics.com',
-    'analytics.google.com',
-    'facebook.com/tr',
-    'connect.facebook.net',
-    'twitter.com/i/web',
-    'ads.google.com',
-    'adservice.google.com',
-    'pagead2.googlesyndication.com',
-    'googleadservices.com',
-    'amazon-adsystem.com',
-    'criteo.com',
-    'scorecardresearch.com',
-    'chartbeat.net',
-    'kissmetrics.com',
-    'mixpanel.com',
-    'segment.com',
-    'intercom.io',
-    'fullstory.com'
+// Set of blocked ad domains (loaded from blocklists at startup)
+let blockedDomains = new Set();
+
+// Blocklist sources (hosts-file format) — domain-level only, won't break YouTube
+const BLOCKLIST_URLS = [
+    'https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext', // Peter Lowe's (~3,500 domains)
 ];
 
-// URL patterns that indicate ad/tracking requests
-const AD_PATTERNS = [
-    '/ads/',
-    '/ad/',
-    '/banner/',
-    '/banners/',
-    '/advertisements/',
-    '/advertisement/',
-    '/tracking',
-    '/tracker/',
-    '/pixels/',
-    '/pixel.gif',
-    '/analytics',
-    '/metrics',
-    '/beacon',
-    '/t.gif',
-    '.gif?',
-    '/log?',
-    '/log.php'
+// Fallback hardcoded domains (used if download fails)
+const FALLBACK_DOMAINS = [
+    'doubleclick.net', 'googlesyndication.com', 'google-analytics.com',
+    'ads.google.com', 'adservice.google.com', 'googleadservices.com',
+    'pagead2.googlesyndication.com', 'amazon-adsystem.com', 'criteo.com',
+    'scorecardresearch.com', 'chartbeat.net', 'facebook.com/tr',
+    'connect.facebook.net', 'mixpanel.com', 'segment.com', 'intercom.io',
+    'fullstory.com', 'hotjar.com', 'adnxs.com', 'rubiconproject.com',
+    'pubmatic.com', 'openx.net', 'casalemedia.com', 'turn.com',
+    'serving-sys.com', 'moatads.com', 'adsrvr.org', 'taboola.com',
+    'outbrain.com', 'revcontent.com', 'mgid.com', 'zergnet.com'
 ];
 
-// Efficient filtering function
+// Parse hosts-file format and extract domains
+function parseHostsFile(text) {
+    const domains = new Set();
+    const lines = text.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        // Skip comments and empty lines
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        // Hosts file format: "127.0.0.1 ad.domain.com" or "0.0.0.0 ad.domain.com"
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 2 && (parts[0] === '127.0.0.1' || parts[0] === '0.0.0.0')) {
+            const domain = parts[1].toLowerCase();
+            if (domain && domain !== 'localhost' && domain !== 'localhost.localdomain') {
+                domains.add(domain);
+            }
+        }
+    }
+    return domains;
+}
+
+// Download and load blocklists
+async function loadBlocklists() {
+    console.log('📥 Downloading ad-blocker domain lists...');
+
+    for (const url of BLOCKLIST_URLS) {
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const text = await response.text();
+                const domains = parseHostsFile(text);
+                domains.forEach(d => blockedDomains.add(d));
+                console.log(`   ✅ Loaded ${domains.size} domains from ${url.substring(0, 50)}...`);
+            }
+        } catch (error) {
+            console.warn(`   ⚠️ Failed to download blocklist: ${error.message}`);
+        }
+    }
+
+    // Add fallback domains if download failed or as extras
+    FALLBACK_DOMAINS.forEach(d => blockedDomains.add(d));
+
+    console.log(`🛡️ Ad-Blocker ready: ${blockedDomains.size} domains loaded`);
+}
+
+// Check if a request URL belongs to a blocked ad domain
 function isAdRequest(url) {
     try {
-        const urlObj = new URL(url);
-        const hostname = urlObj.hostname;
-        const pathname = urlObj.pathname + urlObj.search;
-
-        // Check against known ad domains
-        for (const domain of AD_DOMAINS) {
-            if (hostname.includes(domain)) {
-                return true;
-            }
+        const hostname = new URL(url).hostname.toLowerCase();
+        // Check exact match and parent domain match
+        // e.g., "ads.example.com" is blocked if "example.com" is in the list
+        if (blockedDomains.has(hostname)) return true;
+        const parts = hostname.split('.');
+        for (let i = 1; i < parts.length - 1; i++) {
+            const parent = parts.slice(i).join('.');
+            if (blockedDomains.has(parent)) return true;
         }
-
-        // Check against ad patterns
-        for (const pattern of AD_PATTERNS) {
-            if (pathname.includes(pattern)) {
-                return true;
-            }
-        }
-
         return false;
     } catch (e) {
-        // Invalid URL, don't block
         return false;
     }
 }
@@ -89,43 +100,38 @@ function createWindow() {
         minHeight: 600,
         autoHideMenuBar: true,
         webPreferences: {
-            // This links our UI to our system securely
             preload: path.join(__dirname, '../preload/preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
-            webviewTag: true // Crucial for rendering other websites
+            webviewTag: true
         }
     });
 
-    // Load our UI file
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-
-    // Maximize the window
     mainWindow.maximize();
-
-    // Open DevTools for debugging (Optional - uncomment to enable)
     mainWindow.webContents.openDevTools();
 
-    // Setup ad-blocker for all webview instances
+    // Setup ad-blocker
     setupAdBlocker();
 }
 
-function setupAdBlocker() {
-    const { session } = require('electron');
+async function setupAdBlocker() {
+    // Load blocklists first
+    await loadBlocklists();
 
-    // Apply to default session
+    // Intercept all network requests in the default session
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
         if (!adBlockerEnabled) {
             callback({ cancel: false });
             return;
         }
 
-        const url = details.url;
-
-        if (isAdRequest(url)) {
-            console.log(`🚫 Blocked: ${url}`);
+        if (isAdRequest(details.url)) {
             sessionBlocked++;
             totalBlocked++;
+            if (sessionBlocked % 10 === 0) {
+                console.log(`🚫 Blocked ${sessionBlocked} ads this session`);
+            }
             callback({ cancel: true });
         } else {
             callback({ cancel: false });
@@ -153,9 +159,10 @@ ipcMain.handle('adBlocker:getStats', () => {
 
 ipcMain.handle('adBlocker:toggle', () => {
     adBlockerEnabled = !adBlockerEnabled;
-    console.log(`Ad-Blocker ${adBlockerEnabled ? 'Enabled' : 'Disabled'}`);
+    console.log(`Ad-Blocker ${adBlockerEnabled ? '🛡️ Enabled' : '⚠️ Disabled'}`);
     return adBlockerEnabled;
 });
+
 
 ipcMain.handle('adBlocker:resetSession', () => {
     sessionBlocked = 0;
@@ -200,10 +207,10 @@ ipcMain.handle('app:getPath', (event, pathType) => {
 // IPC Handler for Article Summarization
 ipcMain.handle('summarize:article', async (event, articleData) => {
     const http = require('http');
-    
+
     console.log('[Summarization] Starting request...');
     console.log('[Summarization] Text length:', articleData.text.length, 'characters');
-    
+
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify({
             text: articleData.text,
@@ -225,9 +232,9 @@ ipcMain.handle('summarize:article', async (event, articleData) => {
         const startTime = Date.now();
         const req = http.request(options, (res) => {
             let data = '';
-            
+
             console.log('[Summarization] Response received, status:', res.statusCode);
-            
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
@@ -235,7 +242,7 @@ ipcMain.handle('summarize:article', async (event, articleData) => {
             res.on('end', () => {
                 const duration = Date.now() - startTime;
                 console.log('[Summarization] Request completed in', duration, 'ms');
-                
+
                 try {
                     const response = JSON.parse(data);
                     if (res.statusCode === 200) {
@@ -279,7 +286,7 @@ ipcMain.handle('summarize:article', async (event, articleData) => {
 // IPC Handler to check if summarization service is available
 ipcMain.handle('summarize:checkService', async () => {
     const http = require('http');
-    
+
     return new Promise((resolve) => {
         const options = {
             hostname: 'localhost',
@@ -311,9 +318,9 @@ ipcMain.handle('summarize:checkService', async () => {
 // IPC Handler to add history entry
 ipcMain.handle('history:add', async (event, historyData) => {
     const http = require('http');
-    
+
     console.log('[History] Adding entry:', historyData.url);
-    
+
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify({
             url: historyData.url,
@@ -336,7 +343,7 @@ ipcMain.handle('history:add', async (event, historyData) => {
 
         const req = http.request(options, (res) => {
             let data = '';
-            
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
@@ -377,7 +384,7 @@ ipcMain.handle('history:add', async (event, historyData) => {
 // IPC Handler to get all history
 ipcMain.handle('history:getAll', async (event, page = 1, limit = 50) => {
     const http = require('http');
-    
+
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'localhost',
@@ -389,7 +396,7 @@ ipcMain.handle('history:getAll', async (event, page = 1, limit = 50) => {
 
         const req = http.request(options, (res) => {
             let data = '';
-            
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
@@ -420,7 +427,7 @@ ipcMain.handle('history:getAll', async (event, page = 1, limit = 50) => {
 // IPC Handler to search history
 ipcMain.handle('history:search', async (event, query, limit = 50) => {
     const http = require('http');
-    
+
     return new Promise((resolve, reject) => {
         const encodedQuery = encodeURIComponent(query);
         const options = {
@@ -433,7 +440,7 @@ ipcMain.handle('history:search', async (event, query, limit = 50) => {
 
         const req = http.request(options, (res) => {
             let data = '';
-            
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
@@ -464,7 +471,7 @@ ipcMain.handle('history:search', async (event, query, limit = 50) => {
 // IPC Handler to delete history entry
 ipcMain.handle('history:delete', async (event, entryId) => {
     const http = require('http');
-    
+
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'localhost',
@@ -476,7 +483,7 @@ ipcMain.handle('history:delete', async (event, entryId) => {
 
         const req = http.request(options, (res) => {
             let data = '';
-            
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
@@ -507,7 +514,7 @@ ipcMain.handle('history:delete', async (event, entryId) => {
 // IPC Handler to clear all history
 ipcMain.handle('history:clear', async () => {
     const http = require('http');
-    
+
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'localhost',
@@ -519,7 +526,7 @@ ipcMain.handle('history:clear', async () => {
 
         const req = http.request(options, (res) => {
             let data = '';
-            
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
@@ -550,7 +557,7 @@ ipcMain.handle('history:clear', async () => {
 // IPC Handler to get history stats
 ipcMain.handle('history:getStats', async () => {
     const http = require('http');
-    
+
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'localhost',
@@ -562,7 +569,7 @@ ipcMain.handle('history:getStats', async () => {
 
         const req = http.request(options, (res) => {
             let data = '';
-            
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
