@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session, protocol } = require('electron');
 const path = require('path');
 const fetch = require('cross-fetch');
+const contentFilter = require('./content-filter');
 
 let mainWindow;
 
@@ -92,6 +93,12 @@ function isAdRequest(url) {
     }
 }
 
+// Register custom protocol scheme BEFORE app is ready
+// This allows safe redirects from HTTPS to our block page
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'dao-blocked', privileges: { standard: true, secure: true } }
+]);
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1400,
@@ -111,22 +118,42 @@ function createWindow() {
     mainWindow.maximize();
     mainWindow.webContents.openDevTools();
 
+    // Register the dao-blocked:// protocol to serve the block page
+    const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
+    protocol.registerFileProtocol('dao-blocked', (request, callback) => {
+        callback({ path: blockPagePath });
+    });
+
     // Setup ad-blocker
     setupAdBlocker();
 }
 
 async function setupAdBlocker() {
-    // Load blocklists first
-    await loadBlocklists();
+    // Load both blocklists in parallel
+    await Promise.all([
+        loadBlocklists(),
+        contentFilter.loadContentBlocklists()
+    ]);
+
+    // Register content filter IPC handlers
+    contentFilter.registerIpcHandlers();
 
     // Intercept all network requests in the default session
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
-        if (!adBlockerEnabled) {
-            callback({ cancel: false });
+        // 1. Check content filter FIRST (redirect to block page)
+        const contentResult = contentFilter.checkRequest(details.url);
+        if (contentResult === 'blocked') {
+            // For navigation requests, redirect to custom protocol block page
+            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+                callback({ redirectURL: `dao-blocked://blocked?url=${encodeURIComponent(details.url)}` });
+            } else {
+                callback({ cancel: true });
+            }
             return;
         }
 
-        if (isAdRequest(details.url)) {
+        // 2. Check ad-blocker
+        if (adBlockerEnabled && isAdRequest(details.url)) {
             sessionBlocked++;
             totalBlocked++;
             if (sessionBlocked % 10 === 0) {
@@ -138,7 +165,7 @@ async function setupAdBlocker() {
         }
     });
 
-    console.log('✅ Ad-Blocker initialized');
+    console.log('✅ Ad-Blocker + Content Filter initialized');
 }
 
 app.whenReady().then(createWindow);

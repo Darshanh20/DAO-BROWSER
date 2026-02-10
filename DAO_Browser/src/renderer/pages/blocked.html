@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Site Blocked - D.A.O. Browser</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a0a0a 0%, #2d1015 50%, #1a0a0a 100%);
+            background-attachment: fixed;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Animated background */
+        .bg-orb-1 {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(220, 38, 38, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -200px;
+            left: -200px;
+            animation: float 20s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        .bg-orb-2 {
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: -150px;
+            right: -150px;
+            animation: float 25s ease-in-out infinite reverse;
+            z-index: -1;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(30px);
+            }
+        }
+
+        .blocked-wrapper {
+            width: 100%;
+            max-width: 600px;
+            animation: slideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .blocked-card {
+            background: rgba(30, 10, 10, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .blocked-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.6), transparent);
+        }
+
+        .shield-icon {
+            font-size: 100px;
+            margin-bottom: 30px;
+            display: block;
+            animation: pulse 2.5s ease-in-out infinite;
+            color: #ef4444;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #fca5a5 0%, #ef4444 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .blocked-tagline {
+            font-size: 18px;
+            color: #94a3b8;
+            margin-bottom: 24px;
+            font-weight: 500;
+            line-height: 1.6;
+        }
+
+        .blocked-details {
+            background: rgba(50, 20, 20, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.15);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 30px;
+            text-align: left;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #94a3b8;
+            word-break: break-all;
+            line-height: 1.6;
+        }
+
+        .blocked-details-label {
+            font-weight: 600;
+            color: #ef4444;
+            display: block;
+            margin-bottom: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .blocked-url {
+            color: #cbd5e1;
+        }
+
+        .reason-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(220, 38, 38, 0.15);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-radius: 8px;
+            padding: 8px 16px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #fca5a5;
+            font-weight: 600;
+        }
+
+        .info-text {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-back:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-back:active {
+            transform: translateY(-1px);
+        }
+
+        .dao-badge {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(148, 163, 184, 0.08);
+            font-size: 12px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .dao-badge i {
+            color: #ef4444;
+        }
+
+        @media (max-width: 600px) {
+            .blocked-card {
+                padding: 40px 24px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .shield-icon {
+                font-size: 70px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orb-1"></div>
+    <div class="bg-orb-2"></div>
+
+    <div class="blocked-wrapper">
+        <div class="blocked-card">
+            <i class="fas fa-shield-halved shield-icon"></i>
+
+            <h1>Site Blocked</h1>
+            <p class="blocked-tagline">This website has been blocked by D.A.O. Browser's Content Filter.</p>
+
+            <div class="reason-badge">
+                <i class="fas fa-ban"></i>
+                <span>Inappropriate Content Detected</span>
+            </div>
+
+            <div class="blocked-details">
+                <span class="blocked-details-label">🔒 Blocked URL:</span>
+                <div class="blocked-url" id="blocked-url-display">Unknown</div>
+            </div>
+
+            <p class="info-text">
+                D.A.O. Browser's content filter protects you from accessing inappropriate or harmful websites.
+                This filter can be toggled in the browser's Shield settings.
+            </p>
+
+            <div class="action-buttons">
+                <button class="btn-back" onclick="goBack()">
+                    <i class="fas fa-arrow-left"></i> Go Back Safely
+                </button>
+            </div>
+
+            <div class="dao-badge">
+                <i class="fas fa-shield-halved"></i>
+                Protected by D.A.O. Browser Content Filter
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Extract blocked URL from query params
+        const params = new URLSearchParams(window.location.search);
+        const blockedUrl = params.get('url') || 'Unknown URL';
+        document.getElementById('blocked-url-display').textContent = blockedUrl;
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            }
+        }
+    </script>
+</body>
+
+</html>
