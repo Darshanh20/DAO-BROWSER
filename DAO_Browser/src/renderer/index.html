@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="css/settings.css">
     <link rel="stylesheet" href="css/find-bar.css">
     <link rel="stylesheet" href="css/summary-panel.css">
+    <link rel="stylesheet" href="css/profile-switcher.css">
+    <link rel="stylesheet" href="css/profile-manager.css">
     <script>
         // Remove preload class after page loads to enable smooth transitions
         window.addEventListener('load', () => {
@@ -78,7 +80,7 @@
                 <button id="settings-btn" class="icon-btn" title="Settings & Shortcuts">
                     <i class="fa-solid fa-gear"></i>
                 </button>
-                <div class="profile-pic"></div>
+                <!-- Profile switcher will be inserted here by ProfileSwitcher.js --> 
             </div>
         </header>
 
@@ -282,6 +284,182 @@
             </div>
         </div>
 
+        <!-- Profile Manager Modal -->
+        <div id="profile-manager-modal" class="modal hidden">
+            <div class="modal-content profile-manager-modal">
+                <div class="modal-header">
+                    <h2>Profile Manager</h2>
+                    <button id="close-profile-manager-btn" class="close-modal-btn" title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body profile-manager-body">
+                    <!-- Profile List Sidebar -->
+                    <div class="profile-list-sidebar">
+                        <div class="profile-list-header">
+                            <span class="profile-list-title">Profiles</span>
+                            <button class="create-profile-btn" id="create-profile-btn" title="Create New Profile">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>New</span>
+                            </button>
+                        </div>
+                        <div class="profile-list-container" id="profile-list-container">
+                            <div class="loading-state">
+                                <div class="loading-spinner"></div>
+                                <div>Loading profiles...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Profile Details Panel -->
+                    <div class="profile-details-panel">
+                        <div class="profile-details-header">
+                            <span class="profile-details-title" id="profile-details-title">Select a Profile</span>
+                            <div class="profile-actions-toolbar" id="profile-actions-toolbar">
+                                <!-- Action buttons will be populated dynamically -->
+                            </div>
+                        </div>
+                        <div class="profile-details-content" id="profile-details-content">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fa-solid fa-user-circle"></i>
+                                </div>
+                                <div class="empty-state-title">No Profile Selected</div>
+                                <div class="empty-state-description">
+                                    Select a profile from the list to view and edit its details,
+                                    or create a new profile to get started.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Form Template -->
+        <template id="profile-form-template">
+            <form id="profile-form" class="profile-form">
+                <div class="form-group">
+                    <label for="profile-display-name">Display Name</label>
+                    <input type="text" id="profile-display-name" name="display_name" 
+                           placeholder="e.g. Work, Personal, Kids" required 
+                           maxlength="50" autocomplete="off">
+                    <span class="form-hint">This name will be shown in the profile switcher</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="profile-name">Profile ID</label>
+                    <input type="text" id="profile-name" name="name" 
+                           placeholder="e.g. work, personal, kids" required 
+                           maxlength="30" autocomplete="off" pattern="[a-zA-Z0-9_-]+">
+                    <span class="form-hint">Unique identifier (letters, numbers, - and _ only)</span>
+                </div>
+                
+                <div class="form-group">
+                    <label>Avatar Color</label>
+                    <div id="avatar-color-picker" class="color-picker">
+                        <button type="button" class="color-option" data-color="#4285f4" style="background: #4285f4">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                        <button type="button" class="color-option" data-color="#34a853" style="background: #34a853">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                        <button type="button" class="color-option" data-color="#fbbc05" style="background: #fbbc05">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                        <button type="button" class="color-option" data-color="#ea4335" style="background: #ea4335">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                        <button type="button" class="color-option" data-color="#9b59b6" style="background: #9b59b6">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                        <button type="button" class="color-option" data-color="#1abc9c" style="background: #1abc9c">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                        <button type="button" class="color-option" data-color="#e74c3c" style="background: #e74c3c">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                        <button type="button" class="color-option" data-color="#3498db" style="background: #3498db">
+                            <i class="fa-solid fa-check" style="display: none;"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="profile-form-cancel" class="btn btn-secondary">
+                        <i class="fa-solid fa-times"></i>
+                        <span>Cancel</span>
+                    </button>
+                    <button type="submit" id="profile-form-submit" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Create Profile</span>
+                    </button>
+                </div>
+            </form>
+        </template>
+        
+        <!-- Profile Details Template -->
+        <template id="profile-details-template">
+            <div class="profile-details-view">
+                <div class="profile-avatar-large" id="details-avatar"></div>
+                <div class="profile-info-section">
+                    <div class="info-row">
+                        <span class="info-label">Display Name</span>
+                        <span class="info-value" id="details-display-name"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Profile ID</span>
+                        <span class="info-value" id="details-name"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Created</span>
+                        <span class="info-value" id="details-created"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Last Used</span>
+                        <span class="info-value" id="details-last-used"></span>
+                    </div>
+                </div>
+                <div class="profile-stats-section">
+                    <div class="stat-item">
+                        <span class="stat-value" id="details-bookmarks">0</span>
+                        <span class="stat-label">Bookmarks</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="details-history">0</span>
+                        <span class="stat-label">History Items</span>
+                    </div>
+                </div>
+            </div>
+        </template>
+        
+        <!-- Delete Confirmation Template -->
+        <template id="delete-confirmation-template">
+            <div class="delete-confirmation">
+                <div class="delete-icon">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="delete-title">Delete Profile?</h3>
+                <p class="delete-message">
+                    This will permanently delete the profile "<span id="delete-profile-name"></span>" 
+                    and all its associated data including bookmarks, settings, and browsing history.
+                </p>
+                <p class="delete-warning">
+                    <i class="fa-solid fa-warning"></i>
+                    This action cannot be undone.
+                </p>
+                <div class="delete-actions">
+                    <button type="button" id="cancel-delete-btn" class="btn btn-secondary">
+                        <span>Cancel</span>
+                    </button>
+                    <button type="button" id="confirm-delete-btn" class="btn btn-danger">
+                        <i class="fa-solid fa-trash"></i>
+                        <span>Delete Profile</span>
+                    </button>
+                </div>
+            </div>
+        </template>
+
         <!-- Main Content Area -->
         <main id="content-area">
             <!-- Webviews created dynamically here -->
@@ -385,6 +563,10 @@
     <script src="modules/find-bar.js"></script>
     <script src="modules/settings-dialog.js"></script>
     <script src="utils/contentExtractor.js"></script>
+    <script src="services/profileApi.js"></script>
+    <script src="services/profileSettings.js"></script>
+    <script src="components/ProfileSwitcher.js"></script>
+    <script src="components/ProfileManager.js"></script>
     <script src="renderer.js"></script>
 </body>
 

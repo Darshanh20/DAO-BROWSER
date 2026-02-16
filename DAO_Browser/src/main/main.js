@@ -346,14 +346,15 @@ ipcMain.handle('summarize:checkService', async () => {
 ipcMain.handle('history:add', async (event, historyData) => {
     const http = require('http');
 
-    console.log('[History] Adding entry:', historyData.url);
+    console.log('[History] Adding entry:', historyData.url, 'Profile:', historyData.profile_id);
 
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify({
             url: historyData.url,
             title: historyData.title || '',
             favicon_url: historyData.favicon_url || '',
-            visit_duration: historyData.visit_duration || 0
+            visit_duration: historyData.visit_duration || 0,
+            profile_id: historyData.profile_id || 1
         });
 
         const options = {
@@ -409,14 +410,19 @@ ipcMain.handle('history:add', async (event, historyData) => {
 });
 
 // IPC Handler to get all history
-ipcMain.handle('history:getAll', async (event, page = 1, limit = 50) => {
+ipcMain.handle('history:getAll', async (event, page = 1, limit = 50, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
+        let path = `/api/history/all?page=${page}&limit=${limit}`;
+        if (profileId) {
+            path += `&profile_id=${profileId}`;
+        }
+        
         const options = {
             hostname: 'localhost',
             port: 5000,
-            path: `/api/history/all?page=${page}&limit=${limit}`,
+            path: path,
             method: 'GET',
             timeout: 5000
         };

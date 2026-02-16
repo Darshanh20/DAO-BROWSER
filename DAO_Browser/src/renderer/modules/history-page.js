@@ -22,6 +22,12 @@ let totalPages = 1;
 let searchQuery = '';
 let searchTimeout;
 
+// Get current profile ID from localStorage (set by ProfileSwitcher)
+function getCurrentProfileId() {
+    const profileId = localStorage.getItem('dao_current_profile_id');
+    return profileId ? parseInt(profileId) : 1; // Default to profile 1
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('History page loaded');
@@ -78,8 +84,9 @@ async function loadHistory() {
     showLoading();
     
     try {
-        // Call backend directly via HTTP
-        const response = await fetch(`http://localhost:5000/api/history/all?page=${currentPage}&limit=50`);
+        const profileId = getCurrentProfileId();
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/all?page=${currentPage}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
         
         if (result.success) {
@@ -98,8 +105,9 @@ async function searchHistory(query) {
     showLoading();
     
     try {
-        // Call backend directly via HTTP
-        const response = await fetch(`http://localhost:5000/api/history/search?q=${encodeURIComponent(query)}&limit=50`);
+        const profileId = getCurrentProfileId();
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/search?q=${encodeURIComponent(query)}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
         
         if (result.success) {
@@ -359,8 +367,9 @@ async function deleteHistoryEntry(entryId) {
 
 async function clearAllHistory() {
     try {
-        // Call backend directly via HTTP
-        const response = await fetch('http://localhost:5000/api/history/clear', {
+        const profileId = getCurrentProfileId();
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/clear?profile_id=${profileId}`, {
             method: 'DELETE'
         });
         const result = await response.json();
@@ -380,8 +389,9 @@ async function clearAllHistory() {
 
 async function loadStats() {
     try {
-        // Call backend directly via HTTP
-        const response = await fetch('http://localhost:5000/api/history/stats');
+        const profileId = getCurrentProfileId();
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/stats?profile_id=${profileId}`);
         const result = await response.json();
         
         if (result.success) {

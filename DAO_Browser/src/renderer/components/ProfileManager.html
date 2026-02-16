@@ -1,0 +1,181 @@
+<!-- Profile Manager Modal -->
+<div id="profile-manager-modal" class="modal hidden">
+    <div class="modal-content profile-manager-modal">
+        <div class="modal-header">
+            <h2>Profile Manager</h2>
+            <button id="close-profile-manager-btn" class="close-modal-btn" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body profile-manager-body">
+            <!-- Profile List Sidebar -->
+            <div class="profile-list-sidebar">
+                <div class="profile-list-header">
+                    <span class="profile-list-title">Profiles</span>
+                    <button class="create-profile-btn" id="create-profile-btn" title="Create New Profile">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>New</span>
+                    </button>
+                </div>
+                <div class="profile-list-container" id="profile-list-container">
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div>Loading profiles...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Details Panel -->
+            <div class="profile-details-panel">
+                <div class="profile-details-header">
+                    <span class="profile-details-title" id="profile-details-title">Select a Profile</span>
+                    <div class="profile-actions-toolbar" id="profile-actions-toolbar">
+                        <!-- Action buttons will be populated dynamically -->
+                    </div>
+                </div>
+                <div class="profile-details-content" id="profile-details-content">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fa-solid fa-user-circle"></i>
+                        </div>
+                        <div class="empty-state-title">No Profile Selected</div>
+                        <div class="empty-state-description">
+                            Select a profile from the list to view and edit its details,
+                            or create a new profile to get started.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Creation/Edit Form Template -->
+<template id="profile-form-template">
+    <form class="profile-form" id="profile-form">
+        <div class="profile-form-group">
+            <label class="profile-form-label" for="profile-display-name">Display Name</label>
+            <input 
+                type="text" 
+                id="profile-display-name" 
+                class="profile-form-input" 
+                placeholder="Enter profile display name"
+                required
+                maxlength="50"
+            >
+            <div class="profile-form-error" id="display-name-error"></div>
+        </div>
+        
+        <div class="profile-form-group">
+            <label class="profile-form-label" for="profile-name">Profile Name (Internal)</label>
+            <input 
+                type="text" 
+                id="profile-name" 
+                class="profile-form-input" 
+                placeholder="Auto-generated from display name"
+                readonly
+            >
+            <div class="profile-form-error" id="name-error"></div>
+        </div>
+        
+        <div class="profile-form-group">
+            <label class="profile-form-label">Avatar Color</label>
+            <div class="avatar-color-picker" id="avatar-color-picker">
+                <div class="color-option" data-color="#4A90E2" style="background: #4A90E2;">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div class="color-option" data-color="#FF5722" style="background: #FF5722;"></div>
+                <div class="color-option" data-color="#9C27B0" style="background: #9C27B0;"></div>
+                <div class="color-option" data-color="#2196F3" style="background: #2196F3;"></div>
+                <div class="color-option" data-color="#FF9800" style="background: #FF9800;"></div>
+                <div class="color-option" data-color="#4CAF50" style="background: #4CAF50;"></div>
+                <div class="color-option" data-color="#E91E63" style="background: #E91E63;"></div>
+                <div class="color-option" data-color="#795548" style="background: #795548;"></div>
+                <div class="color-option" data-color="#607D8B" style="background: #607D8B;"></div>
+            </div>
+        </div>
+        
+        <div class="profile-form-group">
+            <button type="submit" class="profile-action-btn primary" id="profile-form-submit">
+                <i class="fa-solid fa-save"></i>
+                <span>Save Profile</span>
+            </button>
+            <button type="button" class="profile-action-btn" id="profile-form-cancel">
+                <i class="fa-solid fa-times"></i>
+                <span>Cancel</span>
+            </button>
+        </div>
+    </form>
+</template>
+
+<!-- Profile Details View Template -->
+<template id="profile-details-template">
+    <div class="profile-stats-grid">
+        <div class="profile-stat-card">
+            <div class="profile-stat-value" data-stat="history">0</div>
+            <div class="profile-stat-label">History Items</div>
+        </div>
+        <div class="profile-stat-card">
+            <div class="profile-stat-value" data-stat="bookmarks">0</div>
+            <div class="profile-stat-label">Bookmarks</div>
+        </div>
+        <div class="profile-stat-card">
+            <div class="profile-stat-value" data-stat="duration">0h</div>
+            <div class="profile-stat-label">Browse Time</div>
+        </div>
+        <div class="profile-stat-card">
+            <div class="profile-stat-value" data-stat="lastUsed">Never</div>
+            <div class="profile-stat-label">Last Used</div>
+        </div>
+    </div>
+    
+    <div class="profile-form">
+        <div class="profile-form-group">
+            <label class="profile-form-label">Profile Information</label>
+            <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
+                <div class="profile-avatar" id="details-avatar" style="width: 64px; height: 64px; font-size: 24px;">
+                    U
+                </div>
+                <div>
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;" id="details-display-name">
+                        Profile Name
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-secondary);" id="details-meta">
+                        Created on Date
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-form-group">
+            <label class="profile-form-label">Status</label>
+            <div id="details-status" style="margin-top: 8px;">
+                <span class="profile-status-badge">Active</span>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Delete Confirmation Dialog Template -->
+<template id="delete-confirmation-template">
+    <div style="text-align: center; padding: 20px;">
+        <div style="font-size: 48px; color: var(--error-color); margin-bottom: 16px;">
+            <i class="fa-solid fa-exclamation-triangle"></i>
+        </div>
+        <h3 style="margin-bottom: 8px;">Delete Profile?</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+            Are you sure you want to delete "<span id="delete-profile-name"></span>"?<br>
+            This action cannot be undone and all profile data will be lost.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button class="profile-action-btn danger" id="confirm-delete">
+                <i class="fa-solid fa-trash"></i>
+                <span>Delete Profile</span>
+            </button>
+            <button class="profile-action-btn" id="cancel-delete">
+                <i class="fa-solid fa-times"></i>
+                <span>Cancel</span>
+            </button>
+        </div>
+    </div>
+</template>

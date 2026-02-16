@@ -13,8 +13,22 @@ from sumy.utils import get_stop_words
 import logging
 import database  # Import our database module for history tracking
 
+# Import profile API blueprint
+try:
+    from api.profiles import profiles_bp
+    PROFILES_AVAILABLE = True
+    print("✓ Profile management API loaded")
+except ImportError as e:
+    PROFILES_AVAILABLE = False
+    print(f"⚠ Profile API not available: {e}")
+
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Electron app
+
+# Register profile management blueprint if available
+if PROFILES_AVAILABLE:
+    app.register_blueprint(profiles_bp)
+    print("✓ Profile API endpoints registered")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -173,7 +187,8 @@ def add_history_entry():
         "url": "https://example.com",
         "title": "Page Title",
         "favicon_url": "https://example.com/favicon.ico",
-        "visit_duration": 60
+        "visit_duration": 60,
+        "profile_id": 1
     }
     """
     try:
@@ -189,8 +204,9 @@ def add_history_entry():
         title = data.get('title', '')
         favicon_url = data.get('favicon_url', '')
         visit_duration = data.get('visit_duration', 0)
+        profile_id = data.get('profile_id', 1)  # Default to profile 1
         
-        result = database.add_history(url, title, favicon_url, visit_duration)
+        result = database.add_history(url, title, favicon_url, visit_duration, profile_id)
         
         if result['success']:
             return jsonify(result), 200
@@ -212,12 +228,17 @@ def get_all_history():
     Query params:
     - page: Page number (default: 1)
     - limit: Entries per page (default: 50)
+    - profile_id: Filter by profile (optional)
     """
     try:
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 50))
+        profile_id = request.args.get('profile_id')
         
-        result = database.get_history(page, limit)
+        if profile_id:
+            profile_id = int(profile_id)
+        
+        result = database.get_history(page, limit, profile_id)
         
         if result['success']:
             return jsonify(result), 200
@@ -239,10 +260,15 @@ def search_history_entries():
     Query params:
     - q: Search query
     - limit: Maximum results (default: 50)
+    - profile_id: Filter by profile (optional)
     """
     try:
         query = request.args.get('q', '')
         limit = int(request.args.get('limit', 50))
+        profile_id = request.args.get('profile_id')
+        
+        if profile_id:
+            profile_id = int(profile_id)
         
         if not query:
             return jsonify({
@@ -250,7 +276,7 @@ def search_history_entries():
                 'error': 'Search query is required'
             }), 400
         
-        result = database.search_history(query, limit)
+        result = database.search_history(query, limit, profile_id)
         
         if result['success']:
             return jsonify(result), 200
@@ -287,10 +313,18 @@ def delete_history_entry(entry_id):
 @app.route('/api/history/clear', methods=['DELETE'])
 def clear_all_history_entries():
     """
-    Clear all browsing history
+    Clear all browsing history, optionally for a specific profile
+    
+    Query params:
+    - profile_id: Clear only this profile's history (optional)
     """
     try:
-        result = database.clear_all_history()
+        profile_id = request.args.get('profile_id')
+        
+        if profile_id:
+            profile_id = int(profile_id)
+        
+        result = database.clear_all_history(profile_id)
         
         if result['success']:
             return jsonify(result), 200
@@ -308,9 +342,17 @@ def clear_all_history_entries():
 def get_history_statistics():
     """
     Get statistics about browsing history
+    
+    Query params:
+    - profile_id: Get stats for this profile only (optional)
     """
     try:
-        result = database.get_history_stats()
+        profile_id = request.args.get('profile_id')
+        
+        if profile_id:
+            profile_id = int(profile_id)
+        
+        result = database.get_history_stats(profile_id)
         
         if result['success']:
             return jsonify(result), 200
