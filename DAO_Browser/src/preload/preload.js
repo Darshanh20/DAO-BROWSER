@@ -37,9 +37,9 @@ contextBridge.exposeInMainWorld('api', {
 // Expose history API
 contextBridge.exposeInMainWorld('historyAPI', {
     addHistory: (historyData) => ipcRenderer.invoke('history:add', historyData),
-    getAllHistory: (page, limit) => ipcRenderer.invoke('history:getAll', page, limit),
-    searchHistory: (query, limit) => ipcRenderer.invoke('history:search', query, limit),
+    getAllHistory: (page, limit, profileId) => ipcRenderer.invoke('history:getAll', page, limit, profileId),
+    searchHistory: (query, limit, profileId) => ipcRenderer.invoke('history:search', query, limit, profileId),
     deleteHistory: (entryId) => ipcRenderer.invoke('history:delete', entryId),
-    clearHistory: () => ipcRenderer.invoke('history:clear'),
-    getStats: () => ipcRenderer.invoke('history:getStats')
+    clearHistory: (profileId) => ipcRenderer.invoke('history:clear', profileId),
+    getStats: (profileId) => ipcRenderer.invoke('history:getStats', profileId)
 });

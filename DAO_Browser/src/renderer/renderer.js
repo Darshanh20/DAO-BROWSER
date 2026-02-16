@@ -399,16 +399,23 @@ class Tab {
                 console.log('[History] Could not extract favicon URL');
             }
             
+            // Get current profile ID
+            let profileId = 1;  // Default profile
+            if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
+                profileId = window.profileSwitcher.currentProfile.id;
+            }
+            
             // Add to history via backend
             const result = await window.historyAPI.addHistory({
                 url: this.url,
                 title: title,
                 favicon_url: faviconUrl,
-                visit_duration: 0
+                visit_duration: 0,
+                profile_id: profileId
             });
             
             if (result.success) {
-                console.log(`[History] Added: ${title}`);
+                console.log(`[History] Added: ${title} (Profile: ${profileId})`);
             }
         } catch (error) {
             // Silently fail if backend is not available
@@ -995,6 +1002,76 @@ try {
 setInterval(() => {
     updateNavigationButtons();
 }, 500);
+
+// ==================== PROFILE SWITCH - BROWSER RESET ====================
+
+/**
+ * Reset the browser state when switching profiles
+ * Closes all tabs and creates a fresh new tab
+ */
+function resetBrowserForProfileSwitch(profileName) {
+    console.log(`[Profile Switch] Resetting browser for profile: ${profileName}`);
+    
+    // Close all existing tabs
+    while (tabs.length > 0) {
+        const tab = tabs[0];
+        
+        // Remove webview from DOM
+        if (tab.webview && tab.webview.parentNode) {
+            tab.webview.remove();
+        }
+        
+        // Remove tab element from DOM
+        if (tab.tabElement && tab.tabElement.parentNode) {
+            tab.tabElement.remove();
+        }
+        
+        // Remove from array
+        tabs.shift();
+    }
+    
+    // Reset state
+    activeTabId = null;
+    
+    // Clear address bar
+    if (addressBar) {
+        addressBar.value = '';
+    }
+    
+    // Hide loading indicators
+    if (progressBar) {
+        progressBar.classList.remove('active', 'loading');
+    }
+    if (loadingSpinner) {
+        loadingSpinner.classList.remove('visible');
+    }
+    
+    // Close summary panel
+    if (typeof closeSummaryPanel === 'function') {
+        closeSummaryPanel();
+    }
+    
+    // Show welcome screen
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'flex';
+    }
+    
+    // Create a fresh new tab
+    createNewTab();
+    
+    console.log(`[Profile Switch] Browser reset complete for profile: ${profileName}`);
+}
+
+// Listen for profile switch events
+document.addEventListener('profileSwitched', (e) => {
+    const profile = e.detail.profile;
+    if (profile) {
+        resetBrowserForProfileSwitch(profile.display_name || profile.name);
+    }
+});
+
+// Make function available globally
+window.resetBrowserForProfileSwitch = resetBrowserForProfileSwitch;
 
 // ==================== PRODUCTIVITY DASHBOARD MODULE ====================
 
@@ -1744,3 +1821,39 @@ if (sentenceCountSelect) {
 
 // Check service on startup
 checkSummarizationService();
+
+// ==================== PROFILE SYSTEM INITIALIZATION ====================
+
+// Initialize profile components
+function initializeProfileComponents() {
+    console.log('[ProfileSystem] Initializing profile components...');
+    
+    try {
+        // Initialize ProfileSwitcher
+        if (typeof ProfileSwitcher !== 'undefined') {
+            window.profileSwitcher = new ProfileSwitcher();
+            console.log('[ProfileSystem] ProfileSwitcher initialized');
+        } else {
+            console.warn('[ProfileSystem] ProfileSwitcher class not found');
+        }
+        
+        // Initialize ProfileManager
+        if (typeof ProfileManager !== 'undefined') {
+            window.profileManager = new ProfileManager();
+            console.log('[ProfileSystem] ProfileManager initialized');
+        } else {
+            console.warn('[ProfileSystem] ProfileManager class not found');
+        }
+        
+        console.log('[ProfileSystem] Profile components initialization complete');
+    } catch (error) {
+        console.error('[ProfileSystem] Error initializing profile components:', error);
+    }
+}
+
+// Initialize profile components when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeProfileComponents);
+} else {
+    initializeProfileComponents();
+}
