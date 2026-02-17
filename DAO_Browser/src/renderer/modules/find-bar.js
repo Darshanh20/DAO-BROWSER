@@ -94,12 +94,15 @@ class FindBar {
         style.id = 'findbar-styles';
         style.textContent = `
             .${this.highlightClass} {
-                background-color: yellow !important;
-                color: black !important;
+                background-color: rgba(96, 165, 250, 0.4) !important;
+                color: #0a0f1e !important;
+                border-radius: 2px;
             }
             .${this.activeHighlightClass} {
-                background-color: orange !important;
-                color: black !important;
+                background-color: #60a5fa !important;
+                color: #0a0f1e !important;
+                border-radius: 2px;
+                box-shadow: 0 0 4px rgba(96, 165, 250, 0.5);
             }
         `;
         document.head.appendChild(style);

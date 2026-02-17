@@ -16,6 +16,7 @@ import database  # Import our database module for history tracking
 # Import profile API blueprint
 try:
     from api.profiles import profiles_bp
+    from models.profile import init_profiles_database, migrate_existing_data_to_profiles
     PROFILES_AVAILABLE = True
     print("✓ Profile management API loaded")
 except ImportError as e:
@@ -24,6 +25,24 @@ except ImportError as e:
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Electron app
+
+# Initialize databases
+database.init_database()  # Initialize browsing history database
+
+# Initialize profile database if available
+if PROFILES_AVAILABLE:
+    try:
+        init_profiles_database()
+        print("✅ Profiles database initialized")
+        
+        # Verify/migrate existing data
+        migrate_result = migrate_existing_data_to_profiles()
+        if migrate_result['success']:
+            print("✅ Profiles database verified")
+        else:
+            print(f"⚠ Profile migration warning: {migrate_result.get('error', 'Unknown error')}")
+    except Exception as e:
+        print(f"❌ Error initializing profiles database: {e}")
 
 # Register profile management blueprint if available
 if PROFILES_AVAILABLE:
