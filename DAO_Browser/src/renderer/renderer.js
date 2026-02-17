@@ -399,11 +399,25 @@ class Tab {
                 console.log('[History] Could not extract favicon URL');
             }
             
-            // Get current profile ID
+            // Get current profile ID - use multiple sources for reliability
             let profileId = 1;  // Default profile
+            
+            // Try to get from ProfileSwitcher instance first (most reliable)
             if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
                 profileId = window.profileSwitcher.currentProfile.id;
+                console.log(`[History] Using ProfileSwitcher profile ID: ${profileId}`);
+            } else {
+                // Try localStorage as fallback
+                const storedProfileId = localStorage.getItem('dao_current_profile_id');
+                if (storedProfileId && !isNaN(parseInt(storedProfileId)) && parseInt(storedProfileId) > 0) {
+                    profileId = parseInt(storedProfileId);
+                    console.log(`[History] Using localStorage profile ID: ${profileId}`);
+                } else {
+                    console.log(`[History] Using default profile ID: ${profileId}`);
+                }
             }
+            
+            console.log(`[History] Adding entry: ${title} (URL: ${this.url}, Profile: ${profileId})`);
             
             // Add to history via backend
             const result = await window.historyAPI.addHistory({
@@ -415,11 +429,13 @@ class Tab {
             });
             
             if (result.success) {
-                console.log(`[History] Added: ${title} (Profile: ${profileId})`);
+                console.log(`[History] Successfully added: ${title} (Profile: ${profileId})`);
+            } else {
+                console.error(`[History] Failed to add entry:`, result.error);
             }
         } catch (error) {
-            // Silently fail if backend is not available
-            console.log('[History] Backend not available:', error);
+            // Log but don't fail if backend is not available
+            console.error('[History] Error adding to history:', error);
         }
     }
 

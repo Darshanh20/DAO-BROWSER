@@ -469,24 +469,54 @@ def migrate_existing_data_to_profiles():
                 return {'success': False, 'error': f'Failed to create default profile: {create_result["error"]}'}
             
             default_profile_id = create_result['data']['id']
+            # Activate the default profile
+            activate_profile(default_profile_id)
+            print(f"✅ Default profile created and activated (ID: {default_profile_id})")
         else:
             # Use existing default profile
             default_profile = None
+            active_profile = None
             for profile in result['data']:
                 if profile['is_default']:
                     default_profile = profile
-                    break
+                if profile['is_active']:
+                    active_profile = profile
             
             if not default_profile:
                 # Make first profile default
                 first_profile = result['data'][0]
                 update_profile(first_profile['id'], is_default=True, is_active=True)
                 default_profile_id = first_profile['id']
+                print(f"✅ Made first profile default and active (ID: {default_profile_id})")
             else:
                 default_profile_id = default_profile['id']
+                # Ensure default profile is active if no active profile exists
+                if not active_profile:
+                    activate_profile(default_profile_id)
+                    print(f"✅ Activated default profile (ID: {default_profile_id})")
         
-        # TODO: Migrate existing browsing history to default profile
-        # This will be implemented when we integrate with the existing history system
+        # Migrate existing browsing history to default profile
+        try:
+            # Import database module to migrate history
+            import sys
+            import os
+            db_path = os.path.join(os.path.dirname(__file__), '..', 'database.py')
+            sys.path.append(os.path.dirname(db_path))
+            
+            # Update any history entries that don't have a profile_id
+            import sqlite3
+            history_db_path = os.path.join(os.path.dirname(__file__), '..', 'browser_history.db')
+            if os.path.exists(history_db_path):
+                conn = sqlite3.connect(history_db_path)
+                cursor = conn.cursor()
+                cursor.execute('UPDATE browsing_history SET profile_id = ? WHERE profile_id IS NULL OR profile_id = 0', (default_profile_id,))
+                updated_rows = cursor.rowcount
+                conn.commit()
+                conn.close()
+                if updated_rows > 0:
+                    print(f"✅ Migrated {updated_rows} history entries to default profile")
+        except Exception as migrate_error:
+            print(f"⚠️ History migration failed: {migrate_error}")
         
         return {
             'success': True, 

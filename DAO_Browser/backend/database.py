@@ -83,6 +83,11 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
         conn = get_connection()
         cursor = conn.cursor()
         
+        # Validate profile_id
+        if not profile_id or profile_id <= 0:
+            profile_id = 1  # Default to profile 1
+            print(f"[History] Using default profile_id: {profile_id}")
+        
         # Get current timestamp in ISO format for consistency
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
@@ -103,6 +108,7 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
                 WHERE url = ? AND profile_id = ?
             ''', (new_count, current_time, title, favicon_url, visit_duration, url, profile_id))
             entry_id = existing['id']
+            print(f"[History DB] Updated existing entry (ID: {entry_id}, visits: {new_count}, profile: {profile_id})")
         else:
             # New URL, insert it with explicit timestamp
             cursor.execute('''
@@ -110,6 +116,7 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (url, title, favicon_url, visit_duration, current_time, profile_id))
             entry_id = cursor.lastrowid
+            print(f"[History DB] Inserted new entry (ID: {entry_id}, profile: {profile_id})")
         
         conn.commit()
         
@@ -124,6 +131,7 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
         }
     
     except Exception as e:
+        print(f"[History DB ERROR] Failed to add history: {str(e)}")
         return {
             'success': False,
             'error': str(e)

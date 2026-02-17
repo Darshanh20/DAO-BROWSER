@@ -97,6 +97,7 @@ class ProfileSwitcher {
             const profilesResult = await profileAPI.listProfiles();
             if (profilesResult.success) {
                 this.profiles = profilesResult.data;
+                console.log(`✅ Loaded ${this.profiles.length} profiles`);
             }
 
             // Load active profile
@@ -107,6 +108,15 @@ class ProfileSwitcher {
                 
                 // Store current profile ID in localStorage for other pages (like history)
                 localStorage.setItem('dao_current_profile_id', this.currentProfile.id.toString());
+                console.log(`✅ Active profile: ${this.currentProfile.display_name} (ID: ${this.currentProfile.id})`);
+            } else {
+                console.warn('❌ No active profile found, this might indicate a setup issue');
+                // If no active profile, try to activate the first available profile
+                if (this.profiles.length > 0) {
+                    const firstProfile = this.profiles[0];
+                    console.log(`🔄 Attempting to activate first profile: ${firstProfile.display_name}`);
+                    await this.switchProfile(firstProfile.id);
+                }
             }
 
             this.renderDropdown();
@@ -218,13 +228,13 @@ class ProfileSwitcher {
                 // Store current profile ID in localStorage for other pages (like history)
                 localStorage.setItem('dao_current_profile_id', this.currentProfile.id.toString());
                 
+                console.log(`✅ Switched to profile: ${this.currentProfile.display_name} (ID: ${profileId})`);
+                
                 // Emit profile switch event for other components
                 this.emitProfileSwitchEvent(this.currentProfile);
                 
                 // Reload profile list to update states
                 await this.loadProfiles();
-                
-                console.log(`✅ Switched to profile: ${this.currentProfile.display_name}`);
                 
                 // Optional: Show success notification
                 this.showNotification(`Switched to ${this.currentProfile.display_name}`, 'success');

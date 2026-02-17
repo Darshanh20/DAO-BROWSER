@@ -36,6 +36,24 @@
             color: #ffffff;
         }
 
+        .profile-indicator {
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #a8a8a8;
+            max-width: 400px;
+        }
+
+        .profile-indicator i {
+            color: #4A90E2;
+        }
+
         .search-bar {
             display: flex;
             gap: 12px;
@@ -324,6 +342,10 @@
 <body>
     <div class="header">
         <h1><i class="fa-solid fa-clock-rotate-left"></i> Browsing History</h1>
+        <div id="profile-indicator" class="profile-indicator" style="display: none;">
+            <i class="fa-solid fa-user"></i>
+            <span id="current-profile-name">Loading...</span>
+        </div>
         <div class="search-bar">
             <div class="search-input-wrapper">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>

@@ -195,6 +195,7 @@ def add_history_entry():
         data = request.get_json()
         
         if not data or 'url' not in data:
+            logger.warning("History add request missing required data or URL")
             return jsonify({
                 'success': False,
                 'error': 'URL is required'
@@ -206,11 +207,20 @@ def add_history_entry():
         visit_duration = data.get('visit_duration', 0)
         profile_id = data.get('profile_id', 1)  # Default to profile 1
         
+        # Validate profile_id
+        if not isinstance(profile_id, int) or profile_id <= 0:
+            logger.warning(f"Invalid profile_id: {profile_id}, using default profile 1")
+            profile_id = 1
+            
+        logger.info(f"Adding history entry: {url} (title: {title}, profile: {profile_id})")
+        
         result = database.add_history(url, title, favicon_url, visit_duration, profile_id)
         
         if result['success']:
+            logger.info(f"History entry added successfully for profile {profile_id}")
             return jsonify(result), 200
         else:
+            logger.error(f"Failed to add history entry: {result.get('error')}")
             return jsonify(result), 500
     
     except Exception as e:
@@ -237,12 +247,18 @@ def get_all_history():
         
         if profile_id:
             profile_id = int(profile_id)
+            
+        logger.info(f"[HISTORY API] Fetching history: page={page}, limit={limit}, profile_id={profile_id}")
+        logger.info(f"[HISTORY API] Request args: {dict(request.args)}")
         
         result = database.get_history(page, limit, profile_id)
         
         if result['success']:
+            logger.info(f"[HISTORY API] History fetched successfully: {len(result['data'])} entries, total={result['pagination']['total']}")
+            logger.info(f"[HISTORY API] First few entries: {result['data'][:3] if len(result['data']) > 0 else 'None'}")
             return jsonify(result), 200
         else:
+            logger.error(f"[HISTORY API] Failed to fetch history: {result.get('error')}")
             return jsonify(result), 500
     
     except Exception as e:
