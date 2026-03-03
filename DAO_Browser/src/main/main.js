@@ -13,6 +13,10 @@ let totalBlocked = 0;
 let sessionBlocked = 0;
 let adBlockerEnabled = true;
 
+// Exam Mode Lockdown State
+// Tracks which profiles are in lockdown mode (student exam session active)
+const examLockdownProfiles = new Map(); // profileId -> { locked: boolean, sessionId: string }
+
 // Set of blocked ad domains (loaded from blocklists at startup)
 let blockedDomains = new Set();
 
@@ -192,6 +196,10 @@ async function setupAdBlocker() {
             callback({ cancel: false });
         }
     });
+
+    // Downloads are now allowed during exam mode
+    // URL filtering (Phase 2) handles blocking non-whitelisted download sources
+    // Activity is logged silently
 
     console.log('✅ Ad-Blocker + Content Filter + Exam Mode Filter initialized');
 }
@@ -835,6 +843,19 @@ ipcMain.handle('examMode:showOpenDialog', async () => {
     return result;
 });
 
+// Show open dialog for multiple log files (Professor logs view)
+ipcMain.handle('examMode:showOpenDialogMultiple', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Student Log Files',
+        filters: [
+            { name: 'Activity Log Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile', 'multiSelections']
+    });
+    return result;
+});
+
 // Read file contents
 ipcMain.handle('examMode:readFile', async (event, filePath) => {
     const fs = require('fs');
@@ -842,6 +863,7 @@ ipcMain.handle('examMode:readFile', async (event, filePath) => {
         const content = fs.readFileSync(filePath, 'utf8');
         return { success: true, content: content };
     } catch (error) {
+        console.error('[ExamMode] Failed to read file:', error);
         return { success: false, error: error.message };
     }
 });
@@ -862,6 +884,51 @@ ipcMain.handle('examMode:logActivity', async (event, activityEntry, profileId) =
 ipcMain.handle('examMode:saveActivityLog', async (event, profileId) => {
     console.log(`[ExamMode IPC] Saving activity log for profile: ${profileId}...`);
     return sessionManager.saveActivityLog(profileId);
+});
+
+// Set lockdown state for a profile (called when student exam session activates/ends)
+ipcMain.handle('examMode:setLockdownState', async (event, locked, profileId, sessionId = null) => {
+    console.log(`[ExamMode IPC] Setting lockdown state: ${locked} for profile: ${profileId}`);
+    
+    if (locked) {
+        examLockdownProfiles.set(profileId, { locked: true, sessionId });
+        console.log(`[ExamMode Lockdown] Profile ${profileId} is now in lockdown mode`);
+    } else {
+        examLockdownProfiles.delete(profileId);
+        console.log(`[ExamMode Lockdown] Profile ${profileId} lockdown released`);
+    }
+    
+    return { success: true };
+});
+
+// Check if profile is in lockdown mode
+ipcMain.handle('examMode:isLocked', async (event, profileId) => {
+    const lockState = examLockdownProfiles.get(profileId);
+    return { locked: lockState?.locked || false, sessionId: lockState?.sessionId };
+});
+
+// Block devtools when lockdown is active
+// This listener prevents F12 from opening devtools during exam lockdown
+app.on('web-contents-created', (event, contents) => {
+    // Intercept devtools opening
+    contents.on('before-input-event', (event, input) => {
+        // Check if any profile is in lockdown mode
+        const hasLockdown = examLockdownProfiles.size > 0 && 
+            Array.from(examLockdownProfiles.values()).some(s => s.locked);
+        
+        if (hasLockdown) {
+            // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+            const isDevToolsShortcut = (
+                input.key === 'F12' ||
+                (input.control && input.shift && ['I', 'i', 'J', 'j', 'C', 'c'].includes(input.key))
+            );
+            
+            if (isDevToolsShortcut) {
+                event.preventDefault();
+                console.log('[ExamMode Lockdown] Devtools shortcut blocked');
+            }
+        }
+    });
 });
 
 // Log app info

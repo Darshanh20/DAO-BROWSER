@@ -1242,3 +1242,657 @@
     line-height: 1.6;
     margin: 8px 0 16px;
 }
+
+
+/* ==================== EXAM LOCKDOWN STYLES ==================== */
+
+/* Body state classes */
+body.exam-lockdown-active {
+    --lockdown-color: #ef4444;
+}
+
+body.exam-student-mode #tab-bar,
+body.exam-student-mode #toolbar {
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Disabled UI elements */
+.exam-disabled {
+    opacity: 0.4 !important;
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    position: relative;
+}
+
+.exam-disabled::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    cursor: not-allowed;
+}
+
+/* New tab button locked state */
+body.exam-lockdown-active #new-tab-btn {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    color: rgba(239, 68, 68, 0.5) !important;
+}
+
+body.exam-lockdown-active #new-tab-btn:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    transform: none !important;
+    cursor: not-allowed !important;
+}
+
+/* Settings button locked state */
+body.exam-lockdown-active #settings-btn.exam-disabled,
+body.exam-lockdown-active #history-btn.exam-disabled {
+    color: rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Tab close buttons in lockdown */
+body.exam-lockdown-active .tab-close.exam-disabled {
+    opacity: 0.3 !important;
+    cursor: not-allowed !important;
+}
+
+/* Profile switcher locked */
+body.exam-lockdown-active #profile-switcher.exam-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Enhanced student banner - more prominent red styling */
+body.exam-student-mode .exam-session-banner.student {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(127, 29, 29, 0.2) 50%, rgba(239, 68, 68, 0.15) 100%);
+    border-bottom: 2px solid rgba(239, 68, 68, 0.5);
+    padding: 10px 16px;
+    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.2);
+}
+
+body.exam-student-mode .exam-session-banner.student .exam-status-text {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+body.exam-student-mode .exam-session-banner.student .exam-status-dot {
+    width: 12px;
+    height: 12px;
+    animation: pulse-dot-urgent 1s infinite;
+}
+
+@keyframes pulse-dot-urgent {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    }
+    50% { 
+        opacity: 0.8; 
+        transform: scale(1.2);
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
+    }
+}
+
+/* Timer styles for student */
+body.exam-student-mode .exam-banner-timer {
+    background: rgba(239, 68, 68, 0.1);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+body.exam-student-mode .exam-banner-timer.warning {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #f59e0b;
+}
+
+body.exam-student-mode .exam-banner-timer.critical {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #ef4444;
+    animation: timer-blink 1s ease-in-out infinite;
+}
+
+@keyframes timer-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; background: rgba(239, 68, 68, 0.3); }
+}
+
+/* Lockdown indicator badge */
+.lockdown-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #ef4444;
+    margin-left: 12px;
+}
+
+.lockdown-badge i {
+    font-size: 10px;
+}
+
+/* User info in student mode */
+body.exam-student-mode .exam-banner-user {
+    background: rgba(59, 130, 246, 0.1);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Toast styles for lockdown messages */
+.exam-toast.warning {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.95) 0%, rgba(217, 119, 6, 0.95) 100%);
+    border-color: #f59e0b;
+}
+
+.exam-toast.error {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%);
+    border-color: #ef4444;
+}
+
+/* Webview container border in lockdown */
+body.exam-lockdown-active #browser-view {
+    border-top: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Address bar subtle lockdown indicator */
+body.exam-lockdown-active .url-container {
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+body.exam-lockdown-active .url-container:focus-within {
+    border-color: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Hide certain elements completely in student mode */
+body.exam-student-mode .window-controls > .icon-btn:first-child {
+    /* Extensions button - hide completely */
+    display: none !important;
+}
+
+/* ==================== STUDENT LOGS MODAL (Professor View) ==================== */
+
+.student-logs-modal {
+    width: 95%;
+    max-width: 1000px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.student-logs-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.logs-header-content h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logs-header-content h2 i {
+    color: var(--accent-blue);
+}
+
+.logs-session-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.logs-divider {
+    margin: 0 8px;
+    opacity: 0.5;
+}
+
+.student-logs-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+}
+
+/* Controls Bar */
+.logs-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.logs-controls-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.logs-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logs-select {
+    padding: 8px 12px;
+    background: var(--bg-element);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    min-width: 150px;
+    cursor: pointer;
+}
+
+.logs-select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+/* Summary Cards */
+.logs-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-element);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.summary-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.summary-icon.blocked {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.summary-icon.window {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.summary-icon.devtools {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.summary-icon.students {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.summary-data {
+    display: flex;
+    flex-direction: column;
+}
+
+.summary-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.summary-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Logs Sections */
+.logs-section {
+    margin-bottom: 20px;
+}
+
+.logs-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 10px 0;
+}
+
+/* Logs Table */
+.logs-table-container {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.logs-table thead {
+    background: var(--bg-element);
+    position: sticky;
+    top: 0;
+}
+
+.logs-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap;
+}
+
+.logs-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+}
+
+.logs-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.logs-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.logs-table .empty-row td {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 24px 12px;
+}
+
+/* Student Overview Table */
+.student-overview-table tr[data-roll] {
+    cursor: pointer;
+}
+
+.student-overview-table .alert-row {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.student-overview-table .count-cell {
+    font-weight: 600;
+    text-align: center;
+}
+
+.student-overview-table .count-cell.high {
+    color: #ef4444;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.status-badge.alert {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.status-badge.normal {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+/* Activity Log Table */
+.activity-row.blocked {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.activity-row.warning {
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.activity-row.allowed {
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.time-cell {
+    white-space: nowrap;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.type-badge.blocked {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.type-badge.warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.type-badge.allowed {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.type-badge.info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+/* Professor Actions */
+.professor-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.exam-logs-btn {
+    flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .student-logs-modal {
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+    
+    .logs-summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .logs-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .logs-controls-left,
+    .logs-controls-right {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .logs-select {
+        flex: 1;
+    }
+}
+
+/* ==================== LIVE MODE STYLES ==================== */
+
+.btn-live-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #1e3a5f 0%, #0d1f33 100%);
+    border: 1px solid #2a5078;
+    border-radius: 6px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-live-mode:hover {
+    background: linear-gradient(135deg, #2a5078 0%, #1e3a5f 100%);
+    border-color: #3b82f6;
+    color: #e2e8f0;
+}
+
+.btn-live-mode.active {
+    background: linear-gradient(135deg, #166534 0%, #14532d 100%);
+    border-color: #22c55e;
+    color: #22c55e;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-live-mode.active i {
+    animation: pulse-icon 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 16px;
+    color: #22c55e;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.live-indicator.hidden {
+    display: none;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: live-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+    0%, 100% { 
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+    }
+    50% { 
+        opacity: 0.7;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+    }
+}
+
+/* Live status badges in student table */
+.live-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.live-status-badge.active {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.live-status-badge.active::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: live-pulse 1.5s ease-in-out infinite;
+}
+
+.live-status-badge.idle {
+    background: rgba(234, 179, 8, 0.2);
+    color: #eab308;
+}
+
+.live-status-badge.lost {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.live-status-badge.submitted {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.live-status-badge.unknown {
+    background: rgba(107, 114, 128, 0.2);
+    color: #6b7280;
+}
+
+/* Last seen timestamp */
+.last-seen-time {
+    font-size: 11px;
+    color: #6b7280;
+}

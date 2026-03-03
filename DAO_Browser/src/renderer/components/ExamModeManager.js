@@ -394,6 +394,24 @@ class ExamModeManager {
                     password: password
                 };
                 
+                // Register session with backend for real-time sync
+                try {
+                    await fetch('http://localhost:5000/api/exam/session/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: result.sessionId,
+                            exam_name: examInfo.name,
+                            subject: examInfo.subject,
+                            duration_minutes: examInfo.duration_minutes
+                        })
+                    });
+                    console.log('[ExamMode] Session registered with backend');
+                } catch (backendError) {
+                    console.warn('[ExamMode] Backend registration failed:', backendError);
+                    // Continue anyway - local mode will still work
+                }
+                
                 // Activate the session banner
                 if (window.examSessionBanner && result.session) {
                     window.examSessionBanner.activateSession(result.session);

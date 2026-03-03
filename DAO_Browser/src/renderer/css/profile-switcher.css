@@ -203,3 +203,36 @@
         min-width: 160px;
     }
 }
+
+/* ==================== EXAM LOCKED STATE ==================== */
+
+.profile-switcher.exam-locked {
+    opacity: 0.7;
+}
+
+.profile-switcher-button.exam-locked {
+    cursor: not-allowed;
+    background: var(--bg-element);
+    border-color: var(--border-subtle);
+}
+
+.profile-switcher-button.exam-locked:hover {
+    background: var(--bg-element);
+    border-color: var(--border-subtle);
+}
+
+.profile-lock-icon {
+    font-size: 12px;
+    margin-left: 4px;
+    opacity: 0.8;
+}
+
+/* Grey out the avatar when locked */
+.profile-switcher.exam-locked .profile-avatar {
+    filter: grayscale(50%);
+}
+
+/* Hide dropdown icon when locked */
+.profile-switcher.exam-locked .profile-dropdown-icon {
+    display: none;
+}

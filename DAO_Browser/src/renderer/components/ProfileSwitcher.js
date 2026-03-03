@@ -9,9 +9,11 @@ class ProfileSwitcher {
         this.currentProfile = null;
         this.isOpen = false;
         this.isLoading = false;
+        this.isExamLocked = false;
         
         this.init();
         this.loadProfiles();
+        this.setupExamLockListener();
     }
 
     init() {
@@ -71,6 +73,13 @@ class ProfileSwitcher {
         // Toggle dropdown on button click
         this.button.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // Check if locked due to exam
+            if (this.isExamLocked) {
+                this.showExamLockedToast();
+                return;
+            }
+            
             this.toggleDropdown();
         });
 
@@ -371,6 +380,139 @@ class ProfileSwitcher {
         console.log(`Profile Notification [${type}]: ${message}`);
         
         // TODO: Integrate with app's notification system if available
+    }
+
+    // ==================== EXAM LOCK METHODS ====================
+
+    /**
+     * Setup listener for exam lockdown state changes
+     * TEMPORARILY DISABLED - uncomment when deploying separate student/professor instances
+     */
+    setupExamLockListener() {
+        console.log('[ProfileSwitcher] Exam lock feature DISABLED for testing');
+        // TODO: Re-enable when not testing both modes in same browser
+        return;
+        
+        /* COMMENTED OUT FOR TESTING
+        // Listen for lockdown state changes from ExamModeLockdown
+        document.addEventListener('examLockdownStateChanged', (e) => {
+            const { locked, session } = e.detail || {};
+            
+            if (locked && session?.role === 'student') {
+                this.lockForExam();
+            } else {
+                this.unlockFromExam();
+            }
+        });
+
+        // Also check on exam session activation (for initial state)
+        document.addEventListener('examSessionActivated', (e) => {
+            if (e.detail?.session?.role === 'student') {
+                this.lockForExam();
+            }
+        });
+
+        // Unlock when exam ends
+        document.addEventListener('examSessionEnded', () => {
+            this.unlockFromExam();
+        });
+
+        // Check initial state (in case exam is already active on load)
+        this.checkInitialExamState();
+        */
+    }
+
+    /**
+     * Check if exam is already active on component initialization
+     */
+    async checkInitialExamState() {
+        try {
+            const profileId = localStorage.getItem('dao_current_profile_id');
+            if (window.examModeAPI && profileId) {
+                const session = await window.examModeAPI.getActiveSession(profileId);
+                if (session?.active && session?.role === 'student') {
+                    this.lockForExam();
+                }
+            }
+        } catch (error) {
+            console.warn('[ProfileSwitcher] Failed to check initial exam state:', error);
+        }
+    }
+
+    /**
+     * Lock profile switching during exam
+     */
+    lockForExam() {
+        if (this.isExamLocked) return;
+        
+        this.isExamLocked = true;
+        console.log('🔒 [ProfileSwitcher] Locked for exam');
+        
+        // Add locked styling
+        if (this.container) {
+            this.container.classList.add('exam-locked');
+        }
+        
+        if (this.button) {
+            this.button.setAttribute('title', 'Profile switching disabled during exam');
+            this.button.classList.add('exam-locked');
+            
+            // Add lock icon
+            const lockIcon = document.createElement('span');
+            lockIcon.className = 'profile-lock-icon';
+            lockIcon.innerHTML = '🔒';
+            this.button.appendChild(lockIcon);
+        }
+        
+        // Close dropdown if open
+        this.closeDropdown();
+    }
+
+    /**
+     * Unlock profile switching after exam
+     */
+    unlockFromExam() {
+        if (!this.isExamLocked) return;
+        
+        this.isExamLocked = false;
+        console.log('🔓 [ProfileSwitcher] Unlocked from exam');
+        
+        // Remove locked styling
+        if (this.container) {
+            this.container.classList.remove('exam-locked');
+        }
+        
+        if (this.button) {
+            this.button.setAttribute('title', 'Switch Profile');
+            this.button.classList.remove('exam-locked');
+            
+            // Remove lock icon
+            const lockIcon = this.button.querySelector('.profile-lock-icon');
+            if (lockIcon) {
+                lockIcon.remove();
+            }
+        }
+    }
+
+    /**
+     * Show toast when trying to switch profiles during exam
+     */
+    showExamLockedToast() {
+        // Use exam toast if available
+        const toast = document.getElementById('exam-toast');
+        const toastMessage = document.getElementById('exam-toast-message');
+        
+        if (toast && toastMessage) {
+            toastMessage.textContent = 'You cannot switch profiles during an active exam session';
+            toast.className = 'exam-toast warning';
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        } else {
+            console.log('[ProfileSwitcher] Profile switching disabled during exam');
+        }
     }
 
     // ==================== UTILITY METHODS ====================

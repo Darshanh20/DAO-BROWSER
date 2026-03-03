@@ -23,6 +23,15 @@ except ImportError as e:
     PROFILES_AVAILABLE = False
     print(f"⚠ Profile API not available: {e}")
 
+# Import exam API blueprint
+try:
+    from api.exam import exam_bp
+    EXAM_API_AVAILABLE = True
+    print("✓ Exam Activity API loaded")
+except ImportError as e:
+    EXAM_API_AVAILABLE = False
+    print(f"⚠ Exam API not available: {e}")
+
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Electron app
 
@@ -48,6 +57,11 @@ if PROFILES_AVAILABLE:
 if PROFILES_AVAILABLE:
     app.register_blueprint(profiles_bp)
     print("✓ Profile API endpoints registered")
+
+# Register exam API blueprint if available
+if EXAM_API_AVAILABLE:
+    app.register_blueprint(exam_bp)
+    print("✓ Exam API endpoints registered")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

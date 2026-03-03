@@ -366,10 +366,16 @@
                                                 <span id="prof-session-time" class="detail-value timer-display">00:00:00</span>
                                             </div>
                                         </div>
-                                        <button id="end-exam-professor-btn" class="btn-danger exam-end-btn">
-                                            <i class="fa-solid fa-stop-circle"></i>
-                                            End Exam Session
-                                        </button>
+                                        <div class="professor-actions">
+                                            <button id="view-student-logs-btn" class="btn-secondary exam-logs-btn">
+                                                <i class="fa-solid fa-chart-line"></i>
+                                                View Student Logs
+                                            </button>
+                                            <button id="end-exam-professor-btn" class="btn-danger exam-end-btn">
+                                                <i class="fa-solid fa-stop-circle"></i>
+                                                End Exam Session
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -913,6 +919,137 @@
             </div>
         </div>
 
+        <!-- Student Logs Modal (Professor View) -->
+        <div id="student-logs-modal" class="modal hidden">
+            <div class="modal-content student-logs-modal">
+                <div class="modal-header">
+                    <div class="logs-header-content">
+                        <h2><i class="fa-solid fa-chart-line"></i> Exam Activity Logs</h2>
+                        <div class="logs-session-info">
+                            <span id="logs-exam-name">-</span>
+                            <span class="logs-divider">|</span>
+                            <span>Session: <span id="logs-session-id">------</span></span>
+                        </div>
+                    </div>
+                    <button id="close-student-logs-btn" class="close-modal-btn" title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body student-logs-body">
+                    <!-- Controls Bar -->
+                    <div class="logs-controls">
+                        <div class="logs-controls-left">
+                            <button id="live-mode-btn" class="btn-live-mode">
+                                <i class="fa-solid fa-satellite-dish"></i>
+                                <span class="live-mode-text">Live Mode</span>
+                            </button>
+                            <button id="load-log-files-btn" class="btn-secondary">
+                                <i class="fa-solid fa-folder-open"></i>
+                                Load Files
+                            </button>
+                            <select id="logs-student-filter" class="logs-select">
+                                <option value="all">All Students</option>
+                            </select>
+                            <select id="logs-type-filter" class="logs-select">
+                                <option value="all">All Activity</option>
+                                <option value="blocked_url">Blocked URLs</option>
+                                <option value="window_switched">Window Switches</option>
+                                <option value="devtools_attempt">DevTools Attempts</option>
+                                <option value="violations">All Violations</option>
+                            </select>
+                        </div>
+                        <div class="logs-controls-right">
+                            <span id="live-status-indicator" class="live-indicator hidden">
+                                <span class="live-dot"></span> Live
+                            </span>
+                            <button id="export-logs-csv-btn" class="btn-secondary" disabled>
+                                <i class="fa-solid fa-file-csv"></i>
+                                Export CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="logs-summary-cards">
+                        <div class="summary-card">
+                            <div class="summary-icon blocked"><i class="fa-solid fa-ban"></i></div>
+                            <div class="summary-data">
+                                <span class="summary-value" id="summary-blocked">0</span>
+                                <span class="summary-label">Blocked Attempts</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon window"><i class="fa-solid fa-window-restore"></i></div>
+                            <div class="summary-data">
+                                <span class="summary-value" id="summary-windows">0</span>
+                                <span class="summary-label">Window Switches</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon devtools"><i class="fa-solid fa-code"></i></div>
+                            <div class="summary-data">
+                                <span class="summary-value" id="summary-devtools">0</span>
+                                <span class="summary-label">DevTools Attempts</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon students"><i class="fa-solid fa-users"></i></div>
+                            <div class="summary-data">
+                                <span class="summary-value" id="summary-students">0</span>
+                                <span class="summary-label">Students Loaded</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Overview (shown when "All Students" selected) -->
+                    <div id="logs-student-overview" class="logs-section">
+                        <h3>Student Overview</h3>
+                        <div class="logs-table-container">
+                            <table class="logs-table student-overview-table">
+                                <thead>
+                                    <tr>
+                                        <th>Roll No</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                        <th>Blocked</th>
+                                        <th>Window</th>
+                                        <th>DevTools</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="student-overview-tbody">
+                                    <tr class="empty-row">
+                                        <td colspan="6">No student logs loaded. Click "Load Student Logs" to import log files.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Activity Log Table -->
+                    <div id="logs-activity-section" class="logs-section">
+                        <h3>Activity Log</h3>
+                        <div class="logs-table-container">
+                            <table class="logs-table activity-log-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Student</th>
+                                        <th>Activity</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activity-log-tbody">
+                                    <tr class="empty-row">
+                                        <td colspan="4">No activity logged yet.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Exam Mode Toast Notification -->
         <div id="exam-toast" class="exam-toast">
             <i class="fa-solid fa-check-circle"></i>
@@ -1027,6 +1164,8 @@
     <script src="components/ProfileSwitcher.js"></script>
     <script src="components/ProfileManager.js"></script>
     <script src="components/ExamSessionBanner.js"></script>
+    <script src="components/ExamModeLockdown.js"></script>
+    <script src="components/ExamLogsPage.js"></script>
     <script src="components/ExamModeManager.js"></script>
     <script src="renderer.js"></script>
 </body>

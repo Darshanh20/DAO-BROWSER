@@ -169,6 +169,9 @@ class ExamSessionBanner {
                 this.updateSettingsPage();
                 this.startTimer();
                 
+                // Dispatch event for lockdown module on session restore
+                this.dispatchSessionEvent('examSessionActivated', session);
+                
                 console.log(`[ExamBanner] Session restored: ${session.session_id} (${session.role}) for profile: ${profileId}`);
             }
         } catch (error) {
@@ -198,16 +201,41 @@ class ExamSessionBanner {
         this.updateSettingsPage();
         this.startTimer();
         
+        // Dispatch event for lockdown module to activate
+        this.dispatchSessionEvent('examSessionActivated', session);
+        
         console.log(`[ExamBanner] Session activated: ${session.session_id} (${session.role})`);
     }
 
     clearSession() {
+        const wasStudent = this.session?.role === 'student';
+        const sessionId = this.session?.session_id;
+        
         this.session = null;
         this.stopTimer();
         this.hideBanner();
         this.updateSettingsPage();
         
+        // Dispatch event for lockdown module to deactivate
+        this.dispatchSessionEvent('examSessionEnded', { role: wasStudent ? 'student' : 'professor', sessionId });
+        
         console.log('[ExamBanner] Session cleared');
+    }
+
+    /**
+     * Dispatch custom event for exam session state changes
+     * Used by ExamModeLockdown to enable/disable browser restrictions
+     */
+    dispatchSessionEvent(eventName, sessionData) {
+        const event = new CustomEvent(eventName, {
+            detail: { 
+                session: sessionData,
+                profileId: this.getCurrentProfileId()
+            },
+            bubbles: true
+        });
+        document.dispatchEvent(event);
+        console.log(`[ExamBanner] Dispatched ${eventName} event`);
     }
 
     // ==================== BANNER DISPLAY ====================
@@ -441,6 +469,21 @@ class ExamSessionBanner {
         
         try {
             const profileId = this.getCurrentProfileId();
+            const sessionId = this.session?.session_id;
+            
+            // Notify backend to end session (so students get notified)
+            if (sessionId) {
+                try {
+                    await fetch(`http://localhost:5000/api/exam/session/${sessionId}`, {
+                        method: 'DELETE'
+                    });
+                    console.log('[ExamBanner] Backend notified - session ended');
+                } catch (backendError) {
+                    console.warn('[ExamBanner] Backend notification failed:', backendError);
+                    // Continue anyway - students will still know when they can't sync
+                }
+            }
+            
             const result = await window.examModeAPI.endSession(profileId);
             
             if (result) {
@@ -452,6 +495,58 @@ class ExamSessionBanner {
         } catch (error) {
             console.error('[ExamBanner] Error ending session:', error);
             this.showToast('Error ending session', 'error');
+        }
+    }
+
+    /**
+     * Submit exam - can be called silently for auto-submit
+     * @param {boolean} silent - If true, don't show confirmation modal
+     */
+    async submitExam(silent = false) {
+        try {
+            const profileId = this.getCurrentProfileId();
+            
+            // Save activity log
+            const logResult = await window.examModeAPI.saveActivityLog(profileId);
+            
+            if (logResult.success) {
+                console.log('[ExamBanner] Activity log saved to:', logResult.filePath);
+            }
+            
+            // Notify backend that student submitted
+            if (this.session?.session_id && this.session?.student_info?.roll_number) {
+                try {
+                    await fetch('http://localhost:5000/api/exam/student/submit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: this.session.session_id,
+                            roll_number: this.session.student_info.roll_number
+                        })
+                    });
+                } catch (e) {
+                    console.warn('[ExamBanner] Backend submit notification failed:', e);
+                }
+            }
+            
+            // End the local session
+            const result = await window.examModeAPI.endSession(profileId);
+            
+            if (!silent) {
+                if (result) {
+                    this.showToast('Exam submitted successfully!');
+                } else {
+                    this.showToast('Failed to submit exam', 'error');
+                }
+            }
+            
+            this.clearSession();
+            
+        } catch (error) {
+            console.error('[ExamBanner] Error submitting exam:', error);
+            if (!silent) {
+                this.showToast('Error submitting exam', 'error');
+            }
         }
     }
 

@@ -103,10 +103,26 @@ contextBridge.exposeInMainWorld('examModeAPI', {
         ipcRenderer.invoke('examMode:saveFileToPath', sourcePath, destPath),
     showOpenDialog: () => 
         ipcRenderer.invoke('examMode:showOpenDialog'),
+    showOpenDialogMultiple: () => 
+        ipcRenderer.invoke('examMode:showOpenDialogMultiple'),
     readFile: (filePath) => 
         ipcRenderer.invoke('examMode:readFile', filePath),
     
     // Clipboard
     copyToClipboard: (text) => 
-        ipcRenderer.invoke('examMode:copyToClipboard', text)
+        ipcRenderer.invoke('examMode:copyToClipboard', text),
+    
+    // Lockdown mode (browser restriction during student exams)
+    setLockdownState: (locked, profileId, sessionId = null) => 
+        ipcRenderer.invoke('examMode:setLockdownState', locked, profileId, sessionId),
+    isLocked: (profileId) => 
+        ipcRenderer.invoke('examMode:isLocked', profileId),
+    
+    // Lockdown event listeners
+    onDownloadBlocked: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('examMode:downloadBlocked', listener);
+        // Return cleanup function
+        return () => ipcRenderer.removeListener('examMode:downloadBlocked', listener);
+    }
 });
