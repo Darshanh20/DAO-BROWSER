@@ -4,6 +4,7 @@ const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
 const { sessionManager } = require('./examMode/sessionManager');
 const configValidator = require('./examMode/configValidator');
+const examUrlFilter = require('./examMode/urlFilter');
 
 let mainWindow;
 
@@ -98,7 +99,8 @@ function isAdRequest(url) {
 // Register custom protocol scheme BEFORE app is ready
 // This allows safe redirects from HTTPS to our block page
 protocol.registerSchemesAsPrivileged([
-    { scheme: 'dao-blocked', privileges: { standard: true, secure: true } }
+    { scheme: 'dao-blocked', privileges: { standard: true, secure: true } },
+    { scheme: 'dao-exam-blocked', privileges: { standard: true, secure: true } }
 ]);
 
 function createWindow() {
@@ -126,6 +128,12 @@ function createWindow() {
         callback({ path: blockPagePath });
     });
 
+    // Register the dao-exam-blocked:// protocol for exam mode block page
+    const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
+    protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
+        callback({ path: examBlockPagePath });
+    });
+
     // Setup ad-blocker
     setupAdBlocker();
 }
@@ -142,7 +150,25 @@ async function setupAdBlocker() {
 
     // Intercept all network requests in the default session
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
-        // 1. Check content filter FIRST (redirect to block page)
+        // 0. Check EXAM MODE FIRST (highest priority)
+        const examResult = examUrlFilter.checkUrl(details.url, details.resourceType);
+        if (examResult.examActive && examResult.blocked) {
+            // For navigation requests, redirect to exam blocked page
+            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+                const params = new URLSearchParams({
+                    url: details.url,
+                    reason: examResult.reason || 'Not allowed during exam',
+                    blockType: examResult.blockType || 'unknown'
+                });
+                callback({ redirectURL: `dao-exam-blocked://blocked?${params.toString()}` });
+            } else {
+                // Cancel sub-resources silently
+                callback({ cancel: true });
+            }
+            return;
+        }
+        
+        // 1. Check content filter (redirect to block page)
         const contentResult = contentFilter.checkRequest(details.url);
         if (contentResult === 'blocked') {
             // For navigation requests, redirect to custom protocol block page
@@ -167,7 +193,7 @@ async function setupAdBlocker() {
         }
     });
 
-    console.log('✅ Ad-Blocker + Content Filter initialized');
+    console.log('✅ Ad-Blocker + Content Filter + Exam Mode Filter initialized');
 }
 
 app.whenReady().then(createWindow);
@@ -634,6 +660,37 @@ ipcMain.handle('history:getStats', async () => {
 
 // ==================== EXAM MODE IPC HANDLERS ====================
 
+// Set current profile ID for exam mode URL filtering
+// Called by renderer when profile changes
+ipcMain.handle('examMode:setProfileId', async (event, profileId) => {
+    console.log(`[ExamMode IPC] Setting profile ID: ${profileId}`);
+    examUrlFilter.setCurrentProfileId(profileId);
+    return { success: true };
+});
+
+// Get exam filter statistics
+ipcMain.handle('examMode:getFilterStats', async () => {
+    return examUrlFilter.getStats();
+});
+
+// Invalidate session cache (call after session create/join/end)
+ipcMain.handle('examMode:invalidateCache', async () => {
+    examUrlFilter.invalidateSessionCache();
+    return { success: true };
+});
+
+// Log blocked URL attempt (for activity logging)
+ipcMain.handle('examMode:logBlockedAttempt', async (event, blockedInfo, profileId) => {
+    // Add to activity log
+    sessionManager.logActivity({
+        type: 'blocked_attempt',
+        url: blockedInfo.url,
+        reason: blockedInfo.reason,
+        timestamp: new Date().toISOString()
+    }, profileId);
+    return { success: true };
+});
+
 // Create a new exam session (Professor side)
 ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blacklist, settings, password, profileId) => {
     console.log(`[ExamMode IPC] Creating session for profile: ${profileId}...`);
@@ -660,6 +717,12 @@ ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blac
     
     // Create session with profileId
     const result = sessionManager.createSession(examInfo, whitelist, blacklist, settings, password, profileId);
+    
+    // Invalidate URL filter cache so it picks up new session
+    if (result.success) {
+        examUrlFilter.invalidateSessionCache();
+    }
+    
     return result;
 });
 
@@ -674,6 +737,12 @@ ipcMain.handle('examMode:joinSession', async (event, configPath, password, stude
     }
     
     const result = sessionManager.joinSession(configPath, password, studentInfo, profileId);
+    
+    // Invalidate URL filter cache so it picks up new session
+    if (result.success) {
+        examUrlFilter.invalidateSessionCache();
+    }
+    
     return result;
 });
 
@@ -691,7 +760,12 @@ ipcMain.handle('examMode:getActiveSession', async (event, profileId) => {
 // End current session
 ipcMain.handle('examMode:endSession', async (event, profileId) => {
     console.log(`[ExamMode IPC] Ending session for profile: ${profileId}...`);
-    return sessionManager.endSession(profileId);
+    const result = sessionManager.endSession(profileId);
+    
+    // Invalidate URL filter cache
+    examUrlFilter.invalidateSessionCache();
+    
+    return result;
 });
 
 // Check if URL is allowed

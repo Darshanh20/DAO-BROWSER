@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Access Blocked - Exam Mode</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+        /* Design System Variables - Exam Mode Theme */
+        :root {
+            --color-bg: #0a0f1e;
+            --color-surface: #0d1530;
+            --color-surface-2: #111c3a;
+            --color-border: #1e2d5a;
+            --color-primary: #3b82f6;
+            --color-primary-glow: #60a5fa;
+            --color-text-primary: #e8edf8;
+            --color-text-secondary: #94a3b8;
+            --color-text-muted: #4a5980;
+            --color-heading: #ffffff;
+            --color-error: #ef4444;
+            --color-error-glow: #f87171;
+            --color-warning: #f59e0b;
+            --color-exam-accent: #8b5cf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            color: inherit;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--color-bg) 0%, #1a1030 50%, var(--color-bg) 100%);
+            background-attachment: fixed;
+            color: var(--color-text-primary);
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Animated background orbs */
+        .bg-orb-1 {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -200px;
+            left: -200px;
+            animation: float 20s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        .bg-orb-2 {
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: -150px;
+            right: -150px;
+            animation: float 25s ease-in-out infinite reverse;
+            z-index: -1;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(30px); }
+        }
+
+        .blocked-wrapper {
+            width: 100%;
+            max-width: 550px;
+            animation: slideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .blocked-card {
+            background: linear-gradient(145deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
+            border: 1px solid var(--color-border);
+            border-radius: 24px;
+            padding: 48px 40px;
+            text-align: center;
+            box-shadow: 
+                0 20px 50px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* Icon */
+        .blocked-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0);
+                transform: scale(1.02);
+            }
+        }
+
+        .blocked-icon i {
+            font-size: 36px;
+            color: var(--color-error);
+        }
+
+        /* Title */
+        .blocked-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-heading);
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .blocked-subtitle {
+            font-size: 16px;
+            color: var(--color-text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        /* URL display */
+        .blocked-url-container {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .blocked-url-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--color-text-muted);
+            margin-bottom: 8px;
+        }
+
+        .blocked-url {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: var(--color-error);
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        /* Reason badge */
+        .blocked-reason {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: var(--color-error-glow);
+        }
+
+        .blocked-reason i {
+            font-size: 14px;
+        }
+
+        /* Warning message */
+        .warning-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 10px;
+            padding: 14px 20px;
+            margin-bottom: 28px;
+            font-size: 13px;
+            color: var(--color-warning);
+        }
+
+        .warning-message i {
+            font-size: 16px;
+        }
+
+        /* Return button */
+        .return-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--color-primary) 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 28px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 32px;
+            text-decoration: none;
+        }
+
+        .return-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .return-btn:active {
+            transform: translateY(0);
+        }
+
+        .return-btn i {
+            font-size: 14px;
+        }
+
+        /* Exam info footer */
+        .exam-info {
+            border-top: 1px solid var(--color-border);
+            padding-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .exam-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .exam-name i {
+            color: var(--color-exam-accent);
+            font-size: 14px;
+        }
+
+        .exam-name strong {
+            color: var(--color-text-primary);
+            font-weight: 600;
+        }
+
+        .exam-timer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 14px;
+            color: var(--color-exam-accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .exam-timer i {
+            font-size: 12px;
+        }
+
+        .exam-timer.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: var(--color-warning);
+        }
+
+        .exam-timer.critical {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: var(--color-error);
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .blocked-card {
+                padding: 32px 24px;
+            }
+
+            .blocked-title {
+                font-size: 24px;
+            }
+
+            .exam-info {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Background orbs -->
+    <div class="bg-orb-1"></div>
+    <div class="bg-orb-2"></div>
+
+    <div class="blocked-wrapper">
+        <div class="blocked-card">
+            <!-- Icon -->
+            <div class="blocked-icon">
+                <i class="fas fa-ban"></i>
+            </div>
+
+            <!-- Title -->
+            <h1 class="blocked-title">Access Blocked</h1>
+            <p class="blocked-subtitle">This website is not allowed during the exam</p>
+
+            <!-- Blocked URL -->
+            <div class="blocked-url-container">
+                <div class="blocked-url-label">Blocked URL</div>
+                <div class="blocked-url" id="blocked-url">https://example.com</div>
+            </div>
+
+            <!-- Reason -->
+            <div class="blocked-reason" id="blocked-reason">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="reason-text">Site not in allowed list</span>
+            </div>
+
+            <!-- Warning -->
+            <div class="warning-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>This attempt has been logged and will appear in your report</span>
+            </div>
+
+            <!-- Return button -->
+            <a href="#" class="return-btn" id="return-btn">
+                <i class="fas fa-arrow-left"></i>
+                Return to Allowed Sites
+            </a>
+
+            <!-- Exam info -->
+            <div class="exam-info">
+                <div class="exam-name">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Exam: <strong id="exam-name">Loading...</strong></span>
+                </div>
+                <div class="exam-timer" id="exam-timer">
+                    <i class="fas fa-clock"></i>
+                    <span id="time-remaining">--:--:--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const blockedUrl = urlParams.get('url') || 'Unknown URL';
+        const reason = urlParams.get('reason') || 'Site not in allowed list';
+        const blockType = urlParams.get('blockType') || 'not_whitelisted';
+
+        // Update blocked URL display
+        document.getElementById('blocked-url').textContent = decodeURIComponent(blockedUrl);
+
+        // Update reason text with appropriate icon
+        const reasonText = document.getElementById('reason-text');
+        const reasonContainer = document.getElementById('blocked-reason');
+        reasonText.textContent = reason;
+
+        // Update icon based on block type
+        const reasonIcon = reasonContainer.querySelector('i');
+        if (blockType === 'blacklist' || reason.toLowerCase().includes('ai tool')) {
+            reasonIcon.className = 'fas fa-robot';
+        } else if (reason.toLowerCase().includes('download')) {
+            reasonIcon.className = 'fas fa-download';
+        }
+
+        // Try to get exam info from examModeAPI if available
+        let examSession = null;
+        let timerInterval = null;
+
+        async function initExamInfo() {
+            try {
+                // Check if we're in the browser context with examModeAPI
+                if (window.parent && window.parent.examModeAPI) {
+                    const profileId = localStorage.getItem('dao_current_profile_id');
+                    examSession = await window.parent.examModeAPI.getActiveSession(profileId);
+                }
+            } catch (e) {
+                console.log('Could not get exam session info');
+            }
+
+            if (examSession && examSession.exam_info) {
+                document.getElementById('exam-name').textContent = examSession.exam_info.name || 'Exam Session';
+                startTimer();
+                
+                // Set return URL to first whitelist entry
+                if (examSession.whitelist && examSession.whitelist.length > 0) {
+                    let returnUrl = examSession.whitelist[0];
+                    if (!returnUrl.startsWith('http')) {
+                        returnUrl = 'https://' + returnUrl;
+                    }
+                    document.getElementById('return-btn').href = returnUrl;
+                }
+                
+                // Log the blocked attempt
+                try {
+                    const profileId = localStorage.getItem('dao_current_profile_id');
+                    if (window.parent && window.parent.examModeAPI) {
+                        window.parent.examModeAPI.logBlockedAttempt({
+                            url: decodeURIComponent(blockedUrl),
+                            reason: reason
+                        }, profileId);
+                    }
+                } catch (e) {
+                    console.log('Could not log blocked attempt');
+                }
+            } else {
+                document.getElementById('exam-name').textContent = 'Exam Mode';
+            }
+        }
+
+        function startTimer() {
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if (!examSession || !examSession.end_time) return;
+
+            const endTime = new Date(examSession.end_time);
+            const now = new Date();
+            const remainingMs = endTime - now;
+
+            if (remainingMs <= 0) {
+                document.getElementById('time-remaining').textContent = '00:00:00';
+                clearInterval(timerInterval);
+                return;
+            }
+
+            const totalSeconds = Math.floor(remainingMs / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('time-remaining').textContent = timeStr;
+
+            // Update timer style based on remaining time
+            const timerEl = document.getElementById('exam-timer');
+            if (totalSeconds <= 300) { // 5 minutes
+                timerEl.classList.remove('warning');
+                timerEl.classList.add('critical');
+            } else if (totalSeconds <= 900) { // 15 minutes
+                timerEl.classList.remove('critical');
+                timerEl.classList.add('warning');
+            } else {
+                timerEl.classList.remove('warning', 'critical');
+            }
+        }
+
+        // Return button - go back if possible, otherwise use whitelist URL
+        document.getElementById('return-btn').addEventListener('click', function(e) {
+            if (window.history.length > 1) {
+                e.preventDefault();
+                window.history.back();
+            }
+            // Otherwise, let the href handle it
+        });
+
+        // Initialize
+        initExamInfo();
+    </script>
+</body>
+
+</html>

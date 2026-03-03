@@ -46,6 +46,10 @@ contextBridge.exposeInMainWorld('historyAPI', {
 
 // Expose Exam Mode API
 contextBridge.exposeInMainWorld('examModeAPI', {
+    // Profile ID management for URL filtering
+    setProfileId: (profileId) => 
+        ipcRenderer.invoke('examMode:setProfileId', profileId),
+    
     // Session management (all methods now require profileId for profile-specific state)
     createSession: (examInfo, whitelist, blacklist, settings, password, profileId) => 
         ipcRenderer.invoke('examMode:createSession', examInfo, whitelist, blacklist, settings, password, profileId),
@@ -71,6 +75,14 @@ contextBridge.exposeInMainWorld('examModeAPI', {
         ipcRenderer.invoke('examMode:logActivity', activityEntry, profileId),
     saveActivityLog: (profileId) => 
         ipcRenderer.invoke('examMode:saveActivityLog', profileId),
+    logBlockedAttempt: (blockedInfo, profileId) => 
+        ipcRenderer.invoke('examMode:logBlockedAttempt', blockedInfo, profileId),
+    
+    // URL Filter statistics
+    getFilterStats: () => 
+        ipcRenderer.invoke('examMode:getFilterStats'),
+    invalidateCache: () => 
+        ipcRenderer.invoke('examMode:invalidateCache'),
     
     // Validation helpers
     validatePassword: (password) => 

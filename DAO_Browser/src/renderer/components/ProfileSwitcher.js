@@ -108,6 +108,14 @@ class ProfileSwitcher {
                 
                 // Store current profile ID in localStorage for other pages (like history)
                 localStorage.setItem('dao_current_profile_id', this.currentProfile.id.toString());
+                
+                // Notify main process about current profile for exam mode URL filtering
+                if (window.examModeAPI) {
+                    window.examModeAPI.setProfileId(this.currentProfile.id.toString()).catch(err => {
+                        console.warn('[ProfileSwitcher] Failed to set initial profile ID:', err);
+                    });
+                }
+                
                 console.log(`✅ Active profile: ${this.currentProfile.display_name} (ID: ${this.currentProfile.id})`);
             } else {
                 console.warn('❌ No active profile found, this might indicate a setup issue');
@@ -344,6 +352,13 @@ class ProfileSwitcher {
             detail: { profile }
         });
         document.dispatchEvent(event);
+        
+        // Notify main process about profile change for exam mode URL filtering
+        if (window.examModeAPI && profile && profile.id) {
+            window.examModeAPI.setProfileId(profile.id.toString()).catch(err => {
+                console.warn('[ProfileSwitcher] Failed to set profile ID in main process:', err);
+            });
+        }
         
         // Also call global handler if available
         if (typeof window.onProfileSwitch === 'function') {
