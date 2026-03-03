@@ -1,7 +1,9 @@
-const { app, BrowserWindow, ipcMain, session, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard } = require('electron');
 const path = require('path');
 const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
+const { sessionManager } = require('./examMode/sessionManager');
+const configValidator = require('./examMode/configValidator');
 
 let mainWindow;
 
@@ -628,6 +630,164 @@ ipcMain.handle('history:getStats', async () => {
 
         req.end();
     });
+});
+
+// ==================== EXAM MODE IPC HANDLERS ====================
+
+// Create a new exam session (Professor side)
+ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blacklist, settings, password, profileId) => {
+    console.log(`[ExamMode IPC] Creating session for profile: ${profileId}...`);
+    
+    // Validate exam info
+    const examValidation = configValidator.validateExamInfo(examInfo);
+    if (!examValidation.valid) {
+        return { success: false, error: examValidation.errors.join(', ') };
+    }
+    
+    // Validate password
+    const pwdValidation = configValidator.validatePassword(password);
+    if (!pwdValidation.valid) {
+        return { success: false, error: pwdValidation.errors.join(', ') };
+    }
+    
+    // Validate whitelist patterns
+    for (const pattern of whitelist) {
+        const patternValidation = configValidator.validateWhitelistPattern(pattern);
+        if (!patternValidation.valid) {
+            return { success: false, error: `Invalid whitelist pattern "${pattern}": ${patternValidation.error}` };
+        }
+    }
+    
+    // Create session with profileId
+    const result = sessionManager.createSession(examInfo, whitelist, blacklist, settings, password, profileId);
+    return result;
+});
+
+// Join an existing exam session (Student side)
+ipcMain.handle('examMode:joinSession', async (event, configPath, password, studentInfo, profileId) => {
+    console.log(`[ExamMode IPC] Joining session for profile: ${profileId}...`);
+    
+    // Validate student info
+    const studentValidation = configValidator.validateStudentInfo(studentInfo);
+    if (!studentValidation.valid) {
+        return { success: false, error: studentValidation.errors.join(', ') };
+    }
+    
+    const result = sessionManager.joinSession(configPath, password, studentInfo, profileId);
+    return result;
+});
+
+// Load config file (for preview before joining)
+ipcMain.handle('examMode:loadConfig', async (event, configPath) => {
+    console.log('[ExamMode IPC] Loading config...');
+    return sessionManager.loadConfig(configPath);
+});
+
+// Get active session
+ipcMain.handle('examMode:getActiveSession', async (event, profileId) => {
+    return sessionManager.getActiveSession(profileId);
+});
+
+// End current session
+ipcMain.handle('examMode:endSession', async (event, profileId) => {
+    console.log(`[ExamMode IPC] Ending session for profile: ${profileId}...`);
+    return sessionManager.endSession(profileId);
+});
+
+// Check if URL is allowed
+ipcMain.handle('examMode:checkUrl', async (event, url, profileId) => {
+    return sessionManager.checkUrlAllowed(url, profileId);
+});
+
+// Get remaining time
+ipcMain.handle('examMode:getRemainingTime', async (event, profileId) => {
+    return sessionManager.getRemainingTime(profileId);
+});
+
+// Validate password strength (for UI feedback)
+ipcMain.handle('examMode:validatePassword', async (event, password) => {
+    return configValidator.validatePassword(password);
+});
+
+// Validate URL pattern (for UI feedback)
+ipcMain.handle('examMode:validatePattern', async (event, pattern) => {
+    return configValidator.validateWhitelistPattern(pattern);
+});
+
+// Get AI tools domains list
+ipcMain.handle('examMode:getAiToolsDomains', async () => {
+    return sessionManager.getAiToolsDomains();
+});
+
+// Get sessions directory path
+ipcMain.handle('examMode:getSessionsDirectory', async () => {
+    return sessionManager.getSessionsDirectory();
+});
+
+// Show save dialog for session file download
+ipcMain.handle('examMode:showSaveDialog', async (event, defaultFileName) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save Exam Session File',
+        defaultPath: defaultFileName,
+        filters: [
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ]
+    });
+    return result;
+});
+
+// Save file to custom location
+ipcMain.handle('examMode:saveFileToPath', async (event, sourcePath, destPath) => {
+    const fs = require('fs');
+    try {
+        fs.copyFileSync(sourcePath, destPath);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Show open dialog for session file upload
+ipcMain.handle('examMode:showOpenDialog', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Exam Session File',
+        filters: [
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+    });
+    return result;
+});
+
+// Read file contents
+ipcMain.handle('examMode:readFile', async (event, filePath) => {
+    const fs = require('fs');
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return { success: true, content: content };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Copy text to clipboard
+ipcMain.handle('examMode:copyToClipboard', async (event, text) => {
+    clipboard.writeText(text);
+    return { success: true };
+});
+
+// Log activity for student sessions
+ipcMain.handle('examMode:logActivity', async (event, activityEntry, profileId) => {
+    sessionManager.logActivity(activityEntry, profileId);
+    return { success: true };
+});
+
+// Save activity log to Desktop
+ipcMain.handle('examMode:saveActivityLog', async (event, profileId) => {
+    console.log(`[ExamMode IPC] Saving activity log for profile: ${profileId}...`);
+    return sessionManager.saveActivityLog(profileId);
 });
 
 // Log app info
