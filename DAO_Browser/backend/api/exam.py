@@ -144,7 +144,10 @@ def api_post_log():
     try:
         data = request.get_json()
         
+        logger.info(f"[ExamLog] Received log request: {data}")
+        
         if not data:
+            logger.warning("[ExamLog] No data provided")
             return jsonify({'received': False, 'error': 'No data provided'}), 400
         
         session_id = data.get('session_id')
@@ -154,13 +157,17 @@ def api_post_log():
         status = data.get('status', 'active')
         
         if not session_id:
+            logger.warning("[ExamLog] Missing session_id")
             return jsonify({'received': False, 'error': 'session_id required'}), 400
         
         if not student.get('roll_number'):
+            logger.warning("[ExamLog] Missing roll_number")
             return jsonify({'received': False, 'error': 'student roll_number required'}), 400
         
         roll_number = student['roll_number']
         student_name = student.get('name', 'Unknown')
+        
+        logger.info(f"[ExamLog] Processing: session={session_id}, student={student_name} ({roll_number}), logs={len(logs)}")
         
         # Check if session is still active
         session = get_session(session_id)
@@ -185,8 +192,9 @@ def api_post_log():
         # Add activity logs
         if logs and len(logs) > 0:
             add_activity_logs(session_id, roll_number, logs)
-            logger.debug(f"Added {len(logs)} logs for {roll_number}")
+            logger.info(f"[ExamLog] Added {len(logs)} logs for {roll_number}")
         
+        logger.info(f"[ExamLog] SUCCESS - student {roll_number} synced, url={current_url}")
         return jsonify({'received': True}), 200
     
     except Exception as e:
@@ -232,12 +240,17 @@ def api_get_students(session_id):
     GET /api/exam/session/{session_id}/students
     """
     try:
+        logger.info(f"[Dashboard] Fetching students for session: {session_id}")
+        
         result = get_session_students(session_id)
         
         # Add session info
         session = get_session(session_id)
         if session:
             result['session_info'] = session
+        
+        students_count = len(result.get('students', []))
+        logger.info(f"[Dashboard] Found {students_count} students in session {session_id}")
         
         # Calculate student statuses based on last_seen
         now = datetime.now()

@@ -63,6 +63,32 @@ class ExamModeLockdown {
                 }
             }, 500);
         });
+        
+        // Listen for blocked URL events from main process
+        this.setupUrlBlockedListener();
+    }
+    
+    /**
+     * Setup listener for URL blocked events from main process
+     */
+    setupUrlBlockedListener() {
+        if (window.examModeAPI && typeof window.examModeAPI.onUrlBlocked === 'function') {
+            this.urlBlockedCleanup = window.examModeAPI.onUrlBlocked((data) => {
+                if (this.isLocked) {
+                    console.log('[Lockdown] URL blocked event received:', data);
+                    this.logActivity({
+                        type: 'blocked_url_attempt',
+                        url: data.url,
+                        reason: data.reason,
+                        blockType: data.blockType,
+                        timestamp: data.timestamp || new Date().toISOString()
+                    });
+                }
+            });
+            console.log('[Lockdown] URL blocked listener registered');
+        } else {
+            console.warn('[Lockdown] examModeAPI.onUrlBlocked not available');
+        }
     }
 
     /**
@@ -70,13 +96,20 @@ class ExamModeLockdown {
      * @param {Object} session - The exam session state
      */
     activateLockdown(session) {
-        if (this.isLocked) return;
+        if (this.isLocked) {
+            console.log('[Lockdown] Already locked, skipping activation');
+            return;
+        }
         
         this.isLocked = true;
         this.session = session;
         this.windowSwitchCount = 0;
         
-        console.log('🔒 [Lockdown] Activating exam monitoring...');
+        console.log('🔒 [Lockdown] Activating exam monitoring...', {
+            session_id: session?.session_id,
+            student_info: session?.student_info,
+            role: session?.role
+        });
         
         // Add lockdown class to body (for CSS styling)
         document.body.classList.add('exam-lockdown-active');
@@ -97,7 +130,7 @@ class ExamModeLockdown {
         // Dispatch event for profile switcher to lock
         this.dispatchLockdownEvent(true);
         
-        console.log('🔒 [Lockdown] Exam monitoring activated');
+        console.log('🔒 [Lockdown] Exam monitoring activated successfully');
     }
 
     /**
@@ -284,17 +317,27 @@ class ExamModeLockdown {
      * Start periodic sync to backend
      */
     startBackendSync() {
-        if (this.syncInterval) return;
+        if (this.syncInterval) {
+            console.log('[Lockdown] Backend sync already running');
+            return;
+        }
         
-        console.log('[Lockdown] Starting backend sync (every 10s)...');
+        console.log('[Lockdown] Starting backend sync...', {
+            backend_url: this.BACKEND_URL,
+            interval_ms: this.SYNC_INTERVAL_MS,
+            session_id: this.session?.session_id,
+            student_name: this.session?.student_info?.name
+        });
         
-        // Initial sync
+        // Initial sync immediately
         this.syncToBackend();
         
         // Periodic sync
         this.syncInterval = setInterval(() => {
             this.syncToBackend();
         }, this.SYNC_INTERVAL_MS);
+        
+        console.log('[Lockdown] Backend sync started - syncing every 10 seconds');
     }
 
     /**
@@ -313,9 +356,52 @@ class ExamModeLockdown {
      * Sync logs to backend server
      */
     async syncToBackend() {
-        if (!this.isLocked || !this.session) return;
+        if (!this.isLocked || !this.session) {
+            console.log('[Lockdown] Sync skipped - not locked or no session');
+            return;
+        }
         
         const logsToSend = [...this.pendingLogs];
+        
+        // Get student info with fallbacks
+        const studentName = this.session.student_info?.name || 
+                            this.session.studentInfo?.name || 
+                            'Unknown';
+        const rollNumber = this.session.student_info?.roll_number || 
+                           this.session.studentInfo?.roll_number ||
+                           this.session.roll_number || 
+                           'Unknown';
+        
+        // Get current active tab URL from webview if available
+        let currentUrl = 'N/A';
+        try {
+            const activeWebview = document.querySelector('webview.active');
+            if (activeWebview) {
+                currentUrl = activeWebview.getURL() || activeWebview.src || 'N/A';
+            }
+        } catch (e) {
+            // Fallback to renderer location
+            currentUrl = 'exam-app';
+        }
+        
+        const payload = {
+            session_id: this.session.session_id,
+            student: {
+                name: studentName,
+                roll_number: rollNumber
+            },
+            logs: logsToSend,
+            current_url: currentUrl,
+            status: 'active',
+            last_seen: new Date().toISOString()
+        };
+        
+        console.log('[Lockdown] Syncing to backend:', this.BACKEND_URL, {
+            session_id: payload.session_id,
+            student: payload.student,
+            logs_count: logsToSend.length,
+            current_url: currentUrl
+        });
         
         try {
             const response = await fetch(`${this.BACKEND_URL}/log`, {
@@ -323,34 +409,28 @@ class ExamModeLockdown {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    session_id: this.session.session_id,
-                    student: {
-                        name: this.session.student_info?.name || 'Unknown',
-                        roll_number: this.session.student_info?.roll_number || 'Unknown'
-                    },
-                    logs: logsToSend,
-                    current_url: window.location.href,
-                    status: 'active',
-                    last_seen: new Date().toISOString()
-                })
+                body: JSON.stringify(payload)
             });
             
             const data = await response.json();
             
+            console.log('[Lockdown] Backend response:', data);
+            
             if (data.received) {
                 // Clear sent logs
                 this.pendingLogs = this.pendingLogs.slice(logsToSend.length);
-                console.log(`[Lockdown] Synced ${logsToSend.length} logs to backend`);
+                console.log(`[Lockdown] Synced ${logsToSend.length} logs successfully`);
             } else if (data.session_ended) {
                 // Professor ended the exam!
                 console.log('[Lockdown] Session ended by professor!');
                 this.handleRemoteSessionEnd();
+            } else {
+                console.warn('[Lockdown] Sync response not received:', data);
             }
             
         } catch (error) {
             // Network error - keep logs in queue, will retry
-            console.warn('[Lockdown] Backend sync failed, will retry:', error.message);
+            console.error('[Lockdown] Backend sync failed:', error.message, error);
         }
     }
 

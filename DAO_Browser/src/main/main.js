@@ -164,6 +164,19 @@ async function setupAdBlocker() {
                     reason: examResult.reason || 'Not allowed during exam',
                     blockType: examResult.blockType || 'unknown'
                 });
+                
+                // Send IPC event to renderer to log the blocked URL
+                console.log('[ExamFilter] Blocked URL:', details.url, 'Reason:', examResult.reason);
+                if (mainWindow && mainWindow.webContents) {
+                    mainWindow.webContents.send('examMode:urlBlocked', {
+                        type: 'blocked_url_attempt',
+                        url: details.url,
+                        reason: examResult.reason || 'Not allowed during exam',
+                        blockType: examResult.blockType || 'unknown',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
                 callback({ redirectURL: `dao-exam-blocked://blocked?${params.toString()}` });
             } else {
                 // Cancel sub-resources silently

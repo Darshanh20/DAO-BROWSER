@@ -124,5 +124,13 @@ contextBridge.exposeInMainWorld('examModeAPI', {
         ipcRenderer.on('examMode:downloadBlocked', listener);
         // Return cleanup function
         return () => ipcRenderer.removeListener('examMode:downloadBlocked', listener);
+    },
+    
+    // URL blocked event listener (for activity logging)
+    onUrlBlocked: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('examMode:urlBlocked', listener);
+        // Return cleanup function
+        return () => ipcRenderer.removeListener('examMode:urlBlocked', listener);
     }
 });
