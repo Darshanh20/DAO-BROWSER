@@ -1,92 +1,105 @@
-/* ==================== DARK THEME (Fixed) ==================== */
-/* CSS Variables for the browser UI (fixed dark theme) */
+/* ==================== UPDATED DESIGN SYSTEM ==================== */
+/* CSS Variables for the browser UI (unified design system) */
 
-#browser-container {
-    /* Backgrounds */
-    --bg-dark: #09090b;
-    --bg-panel: #14141a;
-    --bg-element: #1e1e26;
-    --bg-hover: #2a2a35;
-    --bg-input: #1a1a24;
-    --bg-modal: #0f1419;
-    --bg-sidebar: #1a1f2ef3;
+:root {
+    /* Core Colors */
+    --color-bg: #0a0f1e;
+    --color-surface: #0d1530;
+    --color-surface-2: #111c3a;
+    --color-border: #1e2d5a;
+    --color-primary: #3b82f6;
+    --color-primary-glow: #60a5fa;
+    --color-text-primary: #e8edf8;
+    --color-text-secondary: #94a3b8;
+    --color-text-muted: #4a5980;
+    --color-heading: #ffffff;
+    --color-tag: #1d3a6b;
     
-    /* Accent Colors */
-    --accent-blue: #60a5fa;
-    --accent-blue-hover: #3b82f6;
-    --accent-blue-active: #2563eb;
+    /* Legacy mappings for compatibility */
+    --bg-dark: var(--color-bg);
+    --bg-panel: var(--color-surface);
+    --bg-element: var(--color-surface-2);
+    --bg-hover: var(--color-surface-2);
+    --bg-input: var(--color-surface);
+    --bg-modal: var(--color-bg);
+    --bg-sidebar: var(--color-surface);
+    
+    --accent-blue: var(--color-primary-glow);
+    --accent-blue-hover: var(--color-primary);
+    --accent-blue-active: var(--color-primary);
     --accent-glow: rgba(96, 165, 250, 0.2);
     
-    /* Text Colors */
-    --text-primary: #ffffff;
-    --text-secondary: #9ca3af;
-    --text-dim: #6b7280;
-    --text-muted: #4b5563;
+    --text-primary: var(--color-text-primary);
+    --text-secondary: var(--color-text-secondary);
+    --text-dim: var(--color-text-muted);
+    --text-muted: var(--color-text-muted);
     --text-inverse: #000000;
     
-    /* Border Colors */
-    --border-subtle: #27272a;
-    --border-medium: #3f3f46;
-    --border-strong: #52525b;
+    --border-subtle: var(--color-border);
+    --border-medium: var(--color-border);
+    --border-strong: var(--color-border);
     
     /* Status Colors */
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
+    --color-success: #4ade80;
+    --color-warning: #fb923c;
     --color-error: #ef4444;
-    --color-info: #3b82f6;
+    --color-info: var(--color-primary);
     
-    /* Tab Specific */
+    /* Component Specific */
     --tab-bg: transparent;
-    --tab-bg-active: #14141a;
-    --tab-bg-hover: #1e1e26;
-    --tab-text: #9ca3af;
-    --tab-text-active: #ffffff;
+    --tab-bg-active: var(--color-surface);
+    --tab-bg-hover: var(--color-surface-2);
+    --tab-text: var(--color-text-secondary);
+    --tab-text-active: var(--color-text-primary);
     
-    /* Toolbar Specific */
-    --toolbar-bg: #14141a;
-    --toolbar-border: #27272a;
+    --toolbar-bg: var(--color-surface);
+    --toolbar-border: var(--color-border);
     
-    /* Button Specific */
-    --btn-bg: #1e1e26;
-    --btn-bg-hover: #2a2a35;
-    --btn-bg-active: #3f3f46;
-    --btn-text: #ffffff;
+    --btn-bg: var(--color-surface-2);
+    --btn-bg-hover: var(--color-surface-2);
+    --btn-bg-active: var(--color-border);
+    --btn-text: var(--color-text-primary);
     
-    /* Input Specific */
-    --input-bg: #1a1a24;
-    --input-border: #27272a;
-    --input-border-focus: #3b82f6;
-    --input-text: #ffffff;
-    --input-placeholder: #6b7280;
+    --input-bg: var(--color-surface);
+    --input-border: var(--color-border);
+    --input-border-focus: var(--color-primary);
+    --input-text: var(--color-text-primary);
+    --input-placeholder: var(--color-text-muted);
     
-    /* Scrollbar */
-    --scrollbar-track: #14141a;
-    --scrollbar-thumb: #3f3f46;
-    --scrollbar-thumb-hover: #52525b;
+    --scrollbar-track: var(--color-surface);
+    --scrollbar-thumb: var(--color-border);
+    --scrollbar-thumb-hover: var(--color-primary-glow);
     
-    /* Shadow */
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
     
-    /* Modal/Dialog */
-    --modal-overlay: rgba(0, 0, 0, 0.75);
-    --modal-bg: #0f1419;
-    --modal-border: #27272a;
+    --modal-overlay: rgba(10, 15, 30, 0.75);
+    --modal-bg: var(--color-bg);
+    --modal-border: var(--color-border);
     
-    /* Summary Panel */
-    --summary-bg: #1a1f2e;
-    --summary-header: #0f1419;
-    --summary-border: #27272a;
+    --summary-bg: var(--color-surface);
+    --summary-header: var(--color-bg);
+    --summary-border: var(--color-border);
     
-    /* Progress Bar */
-    --progress-bg: #3b82f6;
-    --progress-track: #27272a;
+    --progress-bg: var(--color-primary);
+    --progress-track: var(--color-border);
     
-    /* Welcome Screen */
-    --welcome-bg: #09090b;
-    --welcome-card-bg: #14141a;
-    --welcome-card-hover: #1e1e26;
+    --welcome-bg: var(--color-bg);
+    --welcome-card-bg: var(--color-surface);
+    --welcome-card-hover: var(--color-surface-2);
+    
+    /* Priority Badges */
+    --priority-high-bg: #1d3a6b;
+    --priority-high-text: #60a5fa;
+    --priority-medium-bg: #1a2e1a;
+    --priority-medium-text: #4ade80;
+    --priority-low-bg: #2a1a0a;
+    --priority-low-text: #fb923c;
+    
+    /* Code Styling */
+    --code-text: #a5f3fc;
+    --code-bg: #0c1f3f;
 }
 
 /* ==================== WEBVIEW ISOLATION ==================== */

@@ -6,10 +6,29 @@
     <title>Error - D.A.O. Browser</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+        /* Design System Variables */
+        :root {
+            --color-bg: #0a0f1e;
+            --color-surface: #0d1530;
+            --color-surface-2: #111c3a;
+            --color-border: #1e2d5a;
+            --color-primary: #3b82f6;
+            --color-primary-glow: #60a5fa;
+            --color-text-primary: #e8edf8;
+            --color-text-secondary: #94a3b8;
+            --color-text-muted: #4a5980;
+            --color-heading: #ffffff;
+            --color-error: #ef4444;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            color: inherit;
         }
 
         html, body {
@@ -18,10 +37,10 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            background: linear-gradient(135deg, var(--color-bg) 0%, #1e2951 50%, var(--color-bg) 100%);
             background-attachment: fixed;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', sans-serif;
+            color: var(--color-text-primary);
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -47,7 +66,7 @@
             position: fixed;
             width: 300px;
             height: 300px;
-            background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.1) 0%, transparent 70%);
             border-radius: 50%;
             bottom: -150px;
             right: -150px;
@@ -78,9 +97,9 @@
         }
 
         .error-card {
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(13, 21, 48, 0.6);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(148, 163, 184, 0.1);
+            border: 1px solid var(--color-border);
             border-radius: 24px;
             padding: 60px 40px;
             text-align: center;
@@ -97,7 +116,7 @@
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.2), transparent);
+            background: linear-gradient(90deg, transparent, var(--color-border), transparent);
         }
 
         .error-icon {
@@ -105,6 +124,7 @@
             margin-bottom: 30px;
             display: block;
             animation: iconBounce 2.5s ease-in-out infinite;
+            color: var(--color-primary-glow);
         }
 
         @keyframes iconBounce {
@@ -115,19 +135,21 @@
         }
 
         h1 {
-            font-size: 48px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.8rem;
             font-weight: 700;
             margin-bottom: 12px;
-            background: linear-gradient(135deg, #e0e7ff 0%, #dbeafe 100%);
+            background: linear-gradient(135deg, var(--color-heading) 0%, var(--color-text-primary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             letter-spacing: -0.5px;
+            color: var(--color-heading);
         }
 
         .error-tagline {
             font-size: 20px;
-            color: #94a3b8;
+            color: var(--color-text-secondary);
             margin-bottom: 24px;
             font-weight: 500;
             line-height: 1.6;
@@ -135,7 +157,7 @@
 
         .error-subtext {
             font-size: 15px;
-            color: #cbd5e1;
+            color: var(--color-text-primary);
             margin-bottom: 40px;
             line-height: 1.8;
             max-width: 480px;
@@ -144,15 +166,15 @@
         }
 
         .error-details {
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(148, 163, 184, 0.1);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 40px;
             text-align: left;
             font-family: 'Monaco', 'Courier New', monospace;
             font-size: 12px;
-            color: #94a3b8;
+            color: var(--color-text-secondary);
             max-height: 120px;
             overflow-y: auto;
             word-break: break-all;
@@ -169,17 +191,17 @@
         }
 
         .error-details::-webkit-scrollbar-thumb {
-            background: rgba(148, 163, 184, 0.3);
+            background: var(--color-border);
             border-radius: 3px;
         }
 
         .error-details::-webkit-scrollbar-thumb:hover {
-            background: rgba(148, 163, 184, 0.5);
+            background: var(--color-primary-glow);
         }
 
         .error-details-label {
             font-weight: 600;
-            color: #cbd5e1;
+            color: var(--color-text-primary);
             display: block;
             margin-bottom: 6px;
         }
@@ -205,17 +227,18 @@
             gap: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            font-family: 'DM Sans', sans-serif;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-glow) 100%);
+            color: var(--color-heading);
             box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, var(--color-primary-glow) 0%, var(--color-primary) 100%);
             transform: translateY(-3px);
             box-shadow: 0 6px 25px rgba(59, 130, 246, 0.5);
         }
@@ -225,17 +248,17 @@
         }
 
         .btn-secondary {
-            background: rgba(148, 163, 184, 0.1);
-            color: #e0e7ff;
-            border: 1px solid rgba(148, 163, 184, 0.2);
+            background: var(--color-surface-2);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
             backdrop-filter: blur(10px);
         }
 
         .btn-secondary:hover {
-            background: rgba(148, 163, 184, 0.2);
-            border-color: rgba(148, 163, 184, 0.4);
+            background: var(--color-surface);
+            border-color: var(--color-primary-glow);
             transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(148, 163, 184, 0.15);
+            box-shadow: 0 6px 20px rgba(96, 165, 250, 0.15);
         }
 
         .btn-secondary:active {
@@ -245,12 +268,12 @@
         .tips-section {
             margin-top: 40px;
             padding-top: 24px;
-            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            border-top: 1px solid var(--color-border);
         }
 
         .tips-title {
             font-size: 13px;
-            color: #94a3b8;
+            color: var(--color-text-secondary);
             margin-bottom: 12px;
             font-weight: 600;
             text-transform: uppercase;
@@ -260,7 +283,7 @@
         .tips-list {
             list-style: none;
             font-size: 14px;
-            color: #cbd5e1;
+            color: var(--color-text-primary);
             line-height: 2;
         }
 
@@ -272,7 +295,7 @@
 
         .tips-list li:before {
             content: "→";
-            color: #3b82f6;
+            color: var(--color-primary);
             margin-right: 10px;
             font-weight: 600;
         }
@@ -284,7 +307,7 @@
             }
 
             h1 {
-                font-size: 36px;
+                font-size: 2.2rem;
             }
 
             .error-tagline {

@@ -13,8 +13,55 @@ from sumy.utils import get_stop_words
 import logging
 import database  # Import our database module for history tracking
 
+# Import profile API blueprint
+try:
+    from api.profiles import profiles_bp
+    from models.profile import init_profiles_database, migrate_existing_data_to_profiles
+    PROFILES_AVAILABLE = True
+    print("✓ Profile management API loaded")
+except ImportError as e:
+    PROFILES_AVAILABLE = False
+    print(f"⚠ Profile API not available: {e}")
+
+# Import exam API blueprint
+try:
+    from api.exam import exam_bp
+    EXAM_API_AVAILABLE = True
+    print("✓ Exam Activity API loaded")
+except ImportError as e:
+    EXAM_API_AVAILABLE = False
+    print(f"⚠ Exam API not available: {e}")
+
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Electron app
+
+# Initialize databases
+database.init_database()  # Initialize browsing history database
+
+# Initialize profile database if available
+if PROFILES_AVAILABLE:
+    try:
+        init_profiles_database()
+        print("✅ Profiles database initialized")
+        
+        # Verify/migrate existing data
+        migrate_result = migrate_existing_data_to_profiles()
+        if migrate_result['success']:
+            print("✅ Profiles database verified")
+        else:
+            print(f"⚠ Profile migration warning: {migrate_result.get('error', 'Unknown error')}")
+    except Exception as e:
+        print(f"❌ Error initializing profiles database: {e}")
+
+# Register profile management blueprint if available
+if PROFILES_AVAILABLE:
+    app.register_blueprint(profiles_bp)
+    print("✓ Profile API endpoints registered")
+
+# Register exam API blueprint if available
+if EXAM_API_AVAILABLE:
+    app.register_blueprint(exam_bp)
+    print("✓ Exam API endpoints registered")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -173,13 +220,15 @@ def add_history_entry():
         "url": "https://example.com",
         "title": "Page Title",
         "favicon_url": "https://example.com/favicon.ico",
-        "visit_duration": 60
+        "visit_duration": 60,
+        "profile_id": 1
     }
     """
     try:
         data = request.get_json()
         
         if not data or 'url' not in data:
+            logger.warning("History add request missing required data or URL")
             return jsonify({
                 'success': False,
                 'error': 'URL is required'
@@ -189,12 +238,22 @@ def add_history_entry():
         title = data.get('title', '')
         favicon_url = data.get('favicon_url', '')
         visit_duration = data.get('visit_duration', 0)
+        profile_id = data.get('profile_id', 1)  # Default to profile 1
         
-        result = database.add_history(url, title, favicon_url, visit_duration)
+        # Validate profile_id
+        if not isinstance(profile_id, int) or profile_id <= 0:
+            logger.warning(f"Invalid profile_id: {profile_id}, using default profile 1")
+            profile_id = 1
+            
+        logger.info(f"Adding history entry: {url} (title: {title}, profile: {profile_id})")
+        
+        result = database.add_history(url, title, favicon_url, visit_duration, profile_id)
         
         if result['success']:
+            logger.info(f"History entry added successfully for profile {profile_id}")
             return jsonify(result), 200
         else:
+            logger.error(f"Failed to add history entry: {result.get('error')}")
             return jsonify(result), 500
     
     except Exception as e:
@@ -212,16 +271,27 @@ def get_all_history():
     Query params:
     - page: Page number (default: 1)
     - limit: Entries per page (default: 50)
+    - profile_id: Filter by profile (optional)
     """
     try:
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 50))
+        profile_id = request.args.get('profile_id')
         
-        result = database.get_history(page, limit)
+        if profile_id:
+            profile_id = int(profile_id)
+            
+        logger.info(f"[HISTORY API] Fetching history: page={page}, limit={limit}, profile_id={profile_id}")
+        logger.info(f"[HISTORY API] Request args: {dict(request.args)}")
+        
+        result = database.get_history(page, limit, profile_id)
         
         if result['success']:
+            logger.info(f"[HISTORY API] History fetched successfully: {len(result['data'])} entries, total={result['pagination']['total']}")
+            logger.info(f"[HISTORY API] First few entries: {result['data'][:3] if len(result['data']) > 0 else 'None'}")
             return jsonify(result), 200
         else:
+            logger.error(f"[HISTORY API] Failed to fetch history: {result.get('error')}")
             return jsonify(result), 500
     
     except Exception as e:
@@ -239,10 +309,15 @@ def search_history_entries():
     Query params:
     - q: Search query
     - limit: Maximum results (default: 50)
+    - profile_id: Filter by profile (optional)
     """
     try:
         query = request.args.get('q', '')
         limit = int(request.args.get('limit', 50))
+        profile_id = request.args.get('profile_id')
+        
+        if profile_id:
+            profile_id = int(profile_id)
         
         if not query:
             return jsonify({
@@ -250,7 +325,7 @@ def search_history_entries():
                 'error': 'Search query is required'
             }), 400
         
-        result = database.search_history(query, limit)
+        result = database.search_history(query, limit, profile_id)
         
         if result['success']:
             return jsonify(result), 200
@@ -287,10 +362,18 @@ def delete_history_entry(entry_id):
 @app.route('/api/history/clear', methods=['DELETE'])
 def clear_all_history_entries():
     """
-    Clear all browsing history
+    Clear all browsing history, optionally for a specific profile
+    
+    Query params:
+    - profile_id: Clear only this profile's history (optional)
     """
     try:
-        result = database.clear_all_history()
+        profile_id = request.args.get('profile_id')
+        
+        if profile_id:
+            profile_id = int(profile_id)
+        
+        result = database.clear_all_history(profile_id)
         
         if result['success']:
             return jsonify(result), 200
@@ -308,9 +391,17 @@ def clear_all_history_entries():
 def get_history_statistics():
     """
     Get statistics about browsing history
+    
+    Query params:
+    - profile_id: Get stats for this profile only (optional)
     """
     try:
-        result = database.get_history_stats()
+        profile_id = request.args.get('profile_id')
+        
+        if profile_id:
+            profile_id = int(profile_id)
+        
+        result = database.get_history_stats(profile_id)
         
         if result['success']:
             return jsonify(result), 200

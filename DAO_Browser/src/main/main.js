@@ -1,7 +1,10 @@
-const { app, BrowserWindow, ipcMain, session, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard } = require('electron');
 const path = require('path');
 const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
+const { sessionManager } = require('./examMode/sessionManager');
+const configValidator = require('./examMode/configValidator');
+const examUrlFilter = require('./examMode/urlFilter');
 
 let mainWindow;
 
@@ -9,6 +12,10 @@ let mainWindow;
 let totalBlocked = 0;
 let sessionBlocked = 0;
 let adBlockerEnabled = true;
+
+// Exam Mode Lockdown State
+// Tracks which profiles are in lockdown mode (student exam session active)
+const examLockdownProfiles = new Map(); // profileId -> { locked: boolean, sessionId: string }
 
 // Set of blocked ad domains (loaded from blocklists at startup)
 let blockedDomains = new Set();
@@ -96,7 +103,8 @@ function isAdRequest(url) {
 // Register custom protocol scheme BEFORE app is ready
 // This allows safe redirects from HTTPS to our block page
 protocol.registerSchemesAsPrivileged([
-    { scheme: 'dao-blocked', privileges: { standard: true, secure: true } }
+    { scheme: 'dao-blocked', privileges: { standard: true, secure: true } },
+    { scheme: 'dao-exam-blocked', privileges: { standard: true, secure: true } }
 ]);
 
 function createWindow() {
@@ -124,6 +132,12 @@ function createWindow() {
         callback({ path: blockPagePath });
     });
 
+    // Register the dao-exam-blocked:// protocol for exam mode block page
+    const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
+    protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
+        callback({ path: examBlockPagePath });
+    });
+
     // Setup ad-blocker
     setupAdBlocker();
 }
@@ -140,7 +154,38 @@ async function setupAdBlocker() {
 
     // Intercept all network requests in the default session
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
-        // 1. Check content filter FIRST (redirect to block page)
+        // 0. Check EXAM MODE FIRST (highest priority)
+        const examResult = examUrlFilter.checkUrl(details.url, details.resourceType);
+        if (examResult.examActive && examResult.blocked) {
+            // For navigation requests, redirect to exam blocked page
+            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+                const params = new URLSearchParams({
+                    url: details.url,
+                    reason: examResult.reason || 'Not allowed during exam',
+                    blockType: examResult.blockType || 'unknown'
+                });
+                
+                // Send IPC event to renderer to log the blocked URL
+                console.log('[ExamFilter] Blocked URL:', details.url, 'Reason:', examResult.reason);
+                if (mainWindow && mainWindow.webContents) {
+                    mainWindow.webContents.send('examMode:urlBlocked', {
+                        type: 'blocked_url_attempt',
+                        url: details.url,
+                        reason: examResult.reason || 'Not allowed during exam',
+                        blockType: examResult.blockType || 'unknown',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
+                callback({ redirectURL: `dao-exam-blocked://blocked?${params.toString()}` });
+            } else {
+                // Cancel sub-resources silently
+                callback({ cancel: true });
+            }
+            return;
+        }
+        
+        // 1. Check content filter (redirect to block page)
         const contentResult = contentFilter.checkRequest(details.url);
         if (contentResult === 'blocked') {
             // For navigation requests, redirect to custom protocol block page
@@ -165,7 +210,11 @@ async function setupAdBlocker() {
         }
     });
 
-    console.log('✅ Ad-Blocker + Content Filter initialized');
+    // Downloads are now allowed during exam mode
+    // URL filtering (Phase 2) handles blocking non-whitelisted download sources
+    // Activity is logged silently
+
+    console.log('✅ Ad-Blocker + Content Filter + Exam Mode Filter initialized');
 }
 
 app.whenReady().then(createWindow);
@@ -346,14 +395,15 @@ ipcMain.handle('summarize:checkService', async () => {
 ipcMain.handle('history:add', async (event, historyData) => {
     const http = require('http');
 
-    console.log('[History] Adding entry:', historyData.url);
+    console.log('[History] Adding entry:', historyData.url, 'Profile:', historyData.profile_id);
 
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify({
             url: historyData.url,
             title: historyData.title || '',
             favicon_url: historyData.favicon_url || '',
-            visit_duration: historyData.visit_duration || 0
+            visit_duration: historyData.visit_duration || 0,
+            profile_id: historyData.profile_id || 1
         });
 
         const options = {
@@ -409,14 +459,19 @@ ipcMain.handle('history:add', async (event, historyData) => {
 });
 
 // IPC Handler to get all history
-ipcMain.handle('history:getAll', async (event, page = 1, limit = 50) => {
+ipcMain.handle('history:getAll', async (event, page = 1, limit = 50, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
+        let path = `/api/history/all?page=${page}&limit=${limit}`;
+        if (profileId) {
+            path += `&profile_id=${profileId}`;
+        }
+        
         const options = {
             hostname: 'localhost',
             port: 5000,
-            path: `/api/history/all?page=${page}&limit=${limit}`,
+            path: path,
             method: 'GET',
             timeout: 5000
         };
@@ -621,6 +676,271 @@ ipcMain.handle('history:getStats', async () => {
         });
 
         req.end();
+    });
+});
+
+// ==================== EXAM MODE IPC HANDLERS ====================
+
+// Set current profile ID for exam mode URL filtering
+// Called by renderer when profile changes
+ipcMain.handle('examMode:setProfileId', async (event, profileId) => {
+    console.log(`[ExamMode IPC] Setting profile ID: ${profileId}`);
+    examUrlFilter.setCurrentProfileId(profileId);
+    return { success: true };
+});
+
+// Get exam filter statistics
+ipcMain.handle('examMode:getFilterStats', async () => {
+    return examUrlFilter.getStats();
+});
+
+// Invalidate session cache (call after session create/join/end)
+ipcMain.handle('examMode:invalidateCache', async () => {
+    examUrlFilter.invalidateSessionCache();
+    return { success: true };
+});
+
+// Log blocked URL attempt (for activity logging)
+ipcMain.handle('examMode:logBlockedAttempt', async (event, blockedInfo, profileId) => {
+    // Add to activity log
+    sessionManager.logActivity({
+        type: 'blocked_attempt',
+        url: blockedInfo.url,
+        reason: blockedInfo.reason,
+        timestamp: new Date().toISOString()
+    }, profileId);
+    return { success: true };
+});
+
+// Create a new exam session (Professor side)
+ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blacklist, settings, password, profileId) => {
+    console.log(`[ExamMode IPC] Creating session for profile: ${profileId}...`);
+    
+    // Validate exam info
+    const examValidation = configValidator.validateExamInfo(examInfo);
+    if (!examValidation.valid) {
+        return { success: false, error: examValidation.errors.join(', ') };
+    }
+    
+    // Validate password
+    const pwdValidation = configValidator.validatePassword(password);
+    if (!pwdValidation.valid) {
+        return { success: false, error: pwdValidation.errors.join(', ') };
+    }
+    
+    // Validate whitelist patterns
+    for (const pattern of whitelist) {
+        const patternValidation = configValidator.validateWhitelistPattern(pattern);
+        if (!patternValidation.valid) {
+            return { success: false, error: `Invalid whitelist pattern "${pattern}": ${patternValidation.error}` };
+        }
+    }
+    
+    // Create session with profileId
+    const result = sessionManager.createSession(examInfo, whitelist, blacklist, settings, password, profileId);
+    
+    // Invalidate URL filter cache so it picks up new session
+    if (result.success) {
+        examUrlFilter.invalidateSessionCache();
+    }
+    
+    return result;
+});
+
+// Join an existing exam session (Student side)
+ipcMain.handle('examMode:joinSession', async (event, configPath, password, studentInfo, profileId) => {
+    console.log(`[ExamMode IPC] Joining session for profile: ${profileId}...`);
+    
+    // Validate student info
+    const studentValidation = configValidator.validateStudentInfo(studentInfo);
+    if (!studentValidation.valid) {
+        return { success: false, error: studentValidation.errors.join(', ') };
+    }
+    
+    const result = sessionManager.joinSession(configPath, password, studentInfo, profileId);
+    
+    // Invalidate URL filter cache so it picks up new session
+    if (result.success) {
+        examUrlFilter.invalidateSessionCache();
+    }
+    
+    return result;
+});
+
+// Load config file (for preview before joining)
+ipcMain.handle('examMode:loadConfig', async (event, configPath) => {
+    console.log('[ExamMode IPC] Loading config...');
+    return sessionManager.loadConfig(configPath);
+});
+
+// Get active session
+ipcMain.handle('examMode:getActiveSession', async (event, profileId) => {
+    return sessionManager.getActiveSession(profileId);
+});
+
+// End current session
+ipcMain.handle('examMode:endSession', async (event, profileId) => {
+    console.log(`[ExamMode IPC] Ending session for profile: ${profileId}...`);
+    const result = sessionManager.endSession(profileId);
+    
+    // Invalidate URL filter cache
+    examUrlFilter.invalidateSessionCache();
+    
+    return result;
+});
+
+// Check if URL is allowed
+ipcMain.handle('examMode:checkUrl', async (event, url, profileId) => {
+    return sessionManager.checkUrlAllowed(url, profileId);
+});
+
+// Get remaining time
+ipcMain.handle('examMode:getRemainingTime', async (event, profileId) => {
+    return sessionManager.getRemainingTime(profileId);
+});
+
+// Validate password strength (for UI feedback)
+ipcMain.handle('examMode:validatePassword', async (event, password) => {
+    return configValidator.validatePassword(password);
+});
+
+// Validate URL pattern (for UI feedback)
+ipcMain.handle('examMode:validatePattern', async (event, pattern) => {
+    return configValidator.validateWhitelistPattern(pattern);
+});
+
+// Get AI tools domains list
+ipcMain.handle('examMode:getAiToolsDomains', async () => {
+    return sessionManager.getAiToolsDomains();
+});
+
+// Get sessions directory path
+ipcMain.handle('examMode:getSessionsDirectory', async () => {
+    return sessionManager.getSessionsDirectory();
+});
+
+// Show save dialog for session file download
+ipcMain.handle('examMode:showSaveDialog', async (event, defaultFileName) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save Exam Session File',
+        defaultPath: defaultFileName,
+        filters: [
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ]
+    });
+    return result;
+});
+
+// Save file to custom location
+ipcMain.handle('examMode:saveFileToPath', async (event, sourcePath, destPath) => {
+    const fs = require('fs');
+    try {
+        fs.copyFileSync(sourcePath, destPath);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Show open dialog for session file upload
+ipcMain.handle('examMode:showOpenDialog', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Exam Session File',
+        filters: [
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+    });
+    return result;
+});
+
+// Show open dialog for multiple log files (Professor logs view)
+ipcMain.handle('examMode:showOpenDialogMultiple', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Student Log Files',
+        filters: [
+            { name: 'Activity Log Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile', 'multiSelections']
+    });
+    return result;
+});
+
+// Read file contents
+ipcMain.handle('examMode:readFile', async (event, filePath) => {
+    const fs = require('fs');
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return { success: true, content: content };
+    } catch (error) {
+        console.error('[ExamMode] Failed to read file:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Copy text to clipboard
+ipcMain.handle('examMode:copyToClipboard', async (event, text) => {
+    clipboard.writeText(text);
+    return { success: true };
+});
+
+// Log activity for student sessions
+ipcMain.handle('examMode:logActivity', async (event, activityEntry, profileId) => {
+    sessionManager.logActivity(activityEntry, profileId);
+    return { success: true };
+});
+
+// Save activity log to Desktop
+ipcMain.handle('examMode:saveActivityLog', async (event, profileId) => {
+    console.log(`[ExamMode IPC] Saving activity log for profile: ${profileId}...`);
+    return sessionManager.saveActivityLog(profileId);
+});
+
+// Set lockdown state for a profile (called when student exam session activates/ends)
+ipcMain.handle('examMode:setLockdownState', async (event, locked, profileId, sessionId = null) => {
+    console.log(`[ExamMode IPC] Setting lockdown state: ${locked} for profile: ${profileId}`);
+    
+    if (locked) {
+        examLockdownProfiles.set(profileId, { locked: true, sessionId });
+        console.log(`[ExamMode Lockdown] Profile ${profileId} is now in lockdown mode`);
+    } else {
+        examLockdownProfiles.delete(profileId);
+        console.log(`[ExamMode Lockdown] Profile ${profileId} lockdown released`);
+    }
+    
+    return { success: true };
+});
+
+// Check if profile is in lockdown mode
+ipcMain.handle('examMode:isLocked', async (event, profileId) => {
+    const lockState = examLockdownProfiles.get(profileId);
+    return { locked: lockState?.locked || false, sessionId: lockState?.sessionId };
+});
+
+// Block devtools when lockdown is active
+// This listener prevents F12 from opening devtools during exam lockdown
+app.on('web-contents-created', (event, contents) => {
+    // Intercept devtools opening
+    contents.on('before-input-event', (event, input) => {
+        // Check if any profile is in lockdown mode
+        const hasLockdown = examLockdownProfiles.size > 0 && 
+            Array.from(examLockdownProfiles.values()).some(s => s.locked);
+        
+        if (hasLockdown) {
+            // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+            const isDevToolsShortcut = (
+                input.key === 'F12' ||
+                (input.control && input.shift && ['I', 'i', 'J', 'j', 'C', 'c'].includes(input.key))
+            );
+            
+            if (isDevToolsShortcut) {
+                event.preventDefault();
+                console.log('[ExamMode Lockdown] Devtools shortcut blocked');
+            }
+        }
     });
 });
 

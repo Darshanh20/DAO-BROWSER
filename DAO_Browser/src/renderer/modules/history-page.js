@@ -22,9 +22,43 @@ let totalPages = 1;
 let searchQuery = '';
 let searchTimeout;
 
+// Get current profile ID with multiple fallback sources
+function getCurrentProfileId() {
+    let profileId = 1; // Default fallback
+    
+    // Try to get from ProfileSwitcher instance first (most reliable)
+    if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
+        profileId = window.profileSwitcher.currentProfile.id;
+        console.log(`[History Page] Using ProfileSwitcher profile ID: ${profileId}`);
+        return profileId;
+    }
+    
+    // Try localStorage as fallback
+    const storedProfileId = localStorage.getItem('dao_current_profile_id');
+    if (storedProfileId && !isNaN(parseInt(storedProfileId)) && parseInt(storedProfileId) > 0) {
+        profileId = parseInt(storedProfileId);
+        console.log(`[History Page] Using localStorage profile ID: ${profileId}`);
+    } else {
+        console.log(`[History Page] No valid profile ID found (localStorage: ${storedProfileId}), using default: ${profileId}`);
+        
+        // Try to sync with ProfileSwitcher if available but no currentProfile yet
+        if (window.profileSwitcher && typeof window.profileSwitcher.loadProfiles === 'function') {
+            console.log(`[History Page] Attempting to refresh ProfileSwitcher...`);
+            window.profileSwitcher.loadProfiles().catch(err => {
+                console.warn('[History Page] Failed to refresh ProfileSwitcher:', err);
+            });
+        }
+    }
+    
+    return profileId;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('History page loaded');
+    
+    // Update profile indicator
+    updateProfileIndicator();
     
     // Load initial history
     await loadHistory();
@@ -34,7 +68,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Setup event listeners
     setupEventListeners();
+    
+    // Listen for profile switches to reload history
+    setupProfileSwitchListener();
 });
+
+// Setup profile switch event listener
+function setupProfileSwitchListener() {
+    document.addEventListener('profileSwitched', async (e) => {
+        console.log('[History Page] Profile switched, reloading history for new profile:', e.detail.profile.id);
+        
+        // Update localStorage immediately to ensure consistency
+        localStorage.setItem('dao_current_profile_id', e.detail.profile.id.toString());
+        
+        // Update profile indicator
+        updateProfileIndicator();
+        
+        // Reset pagination and search
+        currentPage = 1;
+        searchQuery = '';
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        // Small delay to ensure profile switch is complete
+        setTimeout(async () => {
+            console.log('[History Page] Reloading data after profile switch...');
+            await loadHistory();
+            await loadStats();
+        }, 100);
+    });
+}
+
+// Update the profile indicator in the UI
+function updateProfileIndicator() {
+    const indicatorEl = document.getElementById('profile-indicator');
+    const profileNameEl = document.getElementById('current-profile-name');
+    
+    if (!indicatorEl || !profileNameEl) return;
+    
+    const profileId = getCurrentProfileId();
+    let profileName = `Profile ${profileId}`;
+    
+    // Try to get the actual profile name
+    if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
+        profileName = window.profileSwitcher.currentProfile.display_name;
+    }
+    
+    profileNameEl.textContent = `Viewing history for: ${profileName}`;
+    indicatorEl.style.display = 'flex';
+    
+    console.log(`[History Page] Profile indicator updated: ${profileName} (ID: ${profileId})`);
+}
 
 function setupEventListeners() {
     // Search input with debounce
@@ -78,14 +163,19 @@ async function loadHistory() {
     showLoading();
     
     try {
-        // Call backend directly via HTTP
-        const response = await fetch(`http://localhost:5000/api/history/all?page=${currentPage}&limit=50`);
+        const profileId = getCurrentProfileId();
+        console.log(`[History Page] Loading history for profile ${profileId}, page ${currentPage}`);
+        
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/all?page=${currentPage}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
         
         if (result.success) {
+            console.log(`[History Page] Loaded ${result.data.length} history entries for profile ${profileId}`);
             displayHistory(result.data);
             updatePagination(result.pagination);
         } else {
+            console.error('[History Page] Failed to load history:', result.error);
             showError('Failed to load history: ' + result.error);
         }
     } catch (error) {
@@ -98,8 +188,9 @@ async function searchHistory(query) {
     showLoading();
     
     try {
-        // Call backend directly via HTTP
-        const response = await fetch(`http://localhost:5000/api/history/search?q=${encodeURIComponent(query)}&limit=50`);
+        const profileId = getCurrentProfileId();
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/search?q=${encodeURIComponent(query)}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
         
         if (result.success) {
@@ -115,6 +206,8 @@ async function searchHistory(query) {
 }
 
 function displayHistory(entries) {
+    console.log(`[History Page] Displaying ${entries.length} entries`);
+    
     historyContainer.innerHTML = '';
     
     if (entries.length === 0) {
@@ -359,39 +452,58 @@ async function deleteHistoryEntry(entryId) {
 
 async function clearAllHistory() {
     try {
-        // Call backend directly via HTTP
-        const response = await fetch('http://localhost:5000/api/history/clear', {
+        const profileId = getCurrentProfileId();
+        console.log(`[History Page] Clearing history for profile: ${profileId}`);
+        
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/clear?profile_id=${profileId}`, {
             method: 'DELETE'
         });
         const result = await response.json();
         
         if (result.success) {
-            loadHistory();
-            loadStats();
+            console.log(`[History Page] History cleared successfully for profile ${profileId}`);
+            await loadHistory();
+            await loadStats();
             alert(`Successfully cleared ${result.deleted} history entries`);
         } else {
+            console.error('[History Page] Failed to clear history:', result.error);
             alert('Failed to clear history: ' + result.error);
         }
     } catch (error) {
-        console.error('Error clearing history:', error);
-        alert('Failed to clear history');
+        console.error('[History Page] Error clearing history:', error);
+        alert('Failed to clear history. Make sure the backend server is running.');
     }
 }
 
 async function loadStats() {
     try {
-        // Call backend directly via HTTP
-        const response = await fetch('http://localhost:5000/api/history/stats');
+        const profileId = getCurrentProfileId();
+        console.log(`[History Page] Loading stats for profile: ${profileId}`);
+        
+        // Call backend directly via HTTP with profile_id
+        const response = await fetch(`http://localhost:5000/api/history/stats?profile_id=${profileId}`);
         const result = await response.json();
         
         if (result.success) {
             const stats = result.stats;
-            totalEntriesSpan.textContent = stats.total_entries;
-            uniqueUrlsSpan.textContent = stats.unique_urls;
-            totalTimeSpan.textContent = stats.total_duration_hours + 'h';
+            totalEntriesSpan.textContent = stats.total_entries || 0;
+            uniqueUrlsSpan.textContent = stats.unique_urls || 0;
+            totalTimeSpan.textContent = (stats.total_duration_hours || 0) + 'h';
+            console.log(`[History Page] Stats loaded for profile ${profileId}:`, stats);
+        } else {
+            console.error('[History Page] Failed to load stats:', result.error);
+            // Set default values on error
+            totalEntriesSpan.textContent = '0';
+            uniqueUrlsSpan.textContent = '0';
+            totalTimeSpan.textContent = '0h';
         }
     } catch (error) {
-        console.error('Error loading stats:', error);
+        console.error('[History Page] Error loading stats:', error);
+        // Set default values on error
+        totalEntriesSpan.textContent = '0';
+        uniqueUrlsSpan.textContent = '0';
+        totalTimeSpan.textContent = '0h';
     }
 }
 
@@ -420,11 +532,15 @@ function showLoading() {
 }
 
 function showEmptyState() {
+    const profileId = getCurrentProfileId();
+    const profileName = window.profileSwitcher?.currentProfile?.display_name || `Profile ${profileId}`;
+    
     historyContainer.innerHTML = `
         <div class="empty-state">
             <i class="fa-solid fa-clock-rotate-left"></i>
             <h2>No history yet</h2>
-            <p>Your browsing history will appear here</p>
+            <p>Your browsing history for ${profileName} will appear here</p>
+            <small style="color: #888; margin-top: 8px; display: block;">Profile ID: ${profileId}</small>
         </div>
     `;
 }

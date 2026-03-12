@@ -71,6 +71,8 @@
 - **Modern UI**: Professional dark theme with Font Awesome icons
 - **Settings Dialog**: Configure JavaScript, history, ad-blocker preferences
 
+### Unappropriate sites blocking featurea added.
+
 ### ⌨️ Keyboard Shortcuts
 | Shortcut | Action |
 |----------|--------|
