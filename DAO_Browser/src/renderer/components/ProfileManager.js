@@ -414,7 +414,7 @@ class ProfileManager {
             const formData = new FormData(form);
             const displayName = form.querySelector('#profile-display-name').value.trim();
             const name = form.querySelector('#profile-name').value.trim();
-            const selectedColor = form.querySelector('.color-option.selected')?.dataset.color || '#4A90E2';
+            const selectedColor = form.querySelector('.color-option.selected')?.dataset.color || '#2ecc71';
             
             // Validation
             if (!displayName || displayName.length < 2) {

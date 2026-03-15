@@ -54,8 +54,7 @@
 }
 
 .find-input:focus {
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 0 2px var(--accent-glow);
+    border-color: #2ecc71;
 }
 
 .find-input::placeholder {
@@ -64,8 +63,8 @@
 
 /* Highlight when no matches found */
 .find-input.no-matches {
-    border-color: var(--color-error);
-    background: rgba(239, 68, 68, 0.1);
+    border-color: #ff003c;
+    background: rgba(255, 0, 60, 0.1);
 }
 
 .find-counter {
@@ -77,7 +76,7 @@
 }
 
 .find-counter.no-matches {
-    color: var(--color-error);
+    color: #ff003c;
 }
 
 .find-controls {
@@ -103,9 +102,9 @@
 
 .find-btn:hover,
 .find-btn-close:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    border-color: var(--accent-blue);
+    background: #222222;
+    color: #2ecc71;
+    border-color: #2ecc71;
 }
 
 .find-btn:disabled {
@@ -128,14 +127,15 @@
 }
 
 .find-option-btn.active {
-    background: var(--accent-blue);
-    color: white;
-    border-color: var(--accent-blue);
+    background: transparent;
+    color: #2ecc71;
+    border-color: #2ecc71;
 }
 
 .find-option-btn.active:hover {
-    background: var(--accent-blue-hover, rgba(66, 133, 244, 0.8));
-    border-color: var(--accent-blue);
+    background: transparent;
+    color: #2ecc71;
+    border-color: #2ecc71;
 }
 
 /* Responsive adjustments */

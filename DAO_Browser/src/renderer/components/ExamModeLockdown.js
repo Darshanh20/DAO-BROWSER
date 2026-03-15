@@ -435,39 +435,39 @@ class ExamModeLockdown {
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    background: rgba(0, 0, 0, 0.9);
+                    background: rgba(0, 0, 0, 0.95);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     z-index: 99999;
                 }
                 .ended-modal-content {
-                    background: linear-gradient(135deg, #2a1a3e 0%, #1a1a2e 100%);
+                    background: transparent;
+                    border: 2px solid #2ecc71;
                     padding: 40px 60px;
                     border-radius: 16px;
                     text-align: center;
-                    color: white;
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-                    border: 2px solid #8b5cf6;
+                    color: #e0e0e0;
                 }
                 .ended-icon {
                     font-size: 64px;
                     margin-bottom: 20px;
+                    color: #2ecc71;
                 }
                 .ended-modal-content h2 {
                     font-size: 28px;
                     margin-bottom: 16px;
-                    color: #f59e0b;
+                    color: #2ecc71;
                 }
                 .ended-modal-content p {
                     font-size: 16px;
                     margin-bottom: 8px;
-                    color: #d1d5db;
+                    color: #888888;
                 }
                 .ended-countdown {
                     margin-top: 24px;
                     font-size: 14px;
-                    color: #8b5cf6;
+                    color: #2ecc71;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -476,7 +476,7 @@ class ExamModeLockdown {
                 .countdown-spinner {
                     width: 16px;
                     height: 16px;
-                    border: 2px solid #8b5cf6;
+                    border: 2px solid #2ecc71;
                     border-top-color: transparent;
                     border-radius: 50%;
                     animation: spin 1s linear infinite;

@@ -522,22 +522,22 @@ class ExamSessionBanner {
                     case 'synced':
                         this.syncIcon.classList.add('fa-circle-check', 'status-synced');
                         this.syncText.textContent = 'Synced';
-                        this.syncText.style.color = '#4caf50';
+                        this.syncText.style.color = '#2ecc71';
                         break;
                     case 'syncing':
                         this.syncIcon.classList.add('fa-spinner', 'fa-spin', 'status-syncing');
                         this.syncText.textContent = 'Syncing...';
-                        this.syncText.style.color = '#ff9800';
+                        this.syncText.style.color = '#f39c12';
                         break;
                     case 'offline':
                         this.syncIcon.classList.add('fa-circle-exclamation', 'status-offline');
                         this.syncText.textContent = 'Offline';
-                        this.syncText.style.color = '#f44336';
+                        this.syncText.style.color = '#e74c3c';
                         break;
                     default:
                         this.syncIcon.classList.add('fa-circle-question');
                         this.syncText.textContent = 'Unknown';
-                        this.syncText.style.color = '#999';
+                        this.syncText.style.color = '#888888';
                 }
                 
                 // Add tooltip with last sync time

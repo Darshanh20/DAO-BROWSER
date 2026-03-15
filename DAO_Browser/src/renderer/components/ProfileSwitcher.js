@@ -28,7 +28,7 @@ class ProfileSwitcher {
         this.container.className = 'profile-switcher';
         this.container.innerHTML = `
             <button class="profile-switcher-button" title="Switch Profile">
-                <div class="profile-avatar" style="background: #4A90E2;">U</div>
+                <div class="profile-avatar" style="background: linear-gradient(135deg, #2ecc71, #1abc9c);">U</div>
                 <span class="profile-name">Loading...</span>
                 <i class="fas fa-chevron-down profile-dropdown-icon"></i>
             </button>

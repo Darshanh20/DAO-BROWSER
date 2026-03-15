@@ -21,14 +21,21 @@ let currentPage = 1;
 let totalPages = 1;
 let searchQuery = '';
 let searchTimeout;
+let cachedProfileId = null; // Cache the profile ID to avoid repeated fetches
 
 // Get current profile ID with multiple fallback sources
-function getCurrentProfileId() {
+async function getCurrentProfileId() {
+    // Return cached value if available
+    if (cachedProfileId && cachedProfileId > 0) {
+        return cachedProfileId;
+    }
+    
     let profileId = 1; // Default fallback
     
-    // Try to get from ProfileSwitcher instance first (most reliable)
+    // Try to get from ProfileSwitcher instance first (most reliable for main page context)
     if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
         profileId = window.profileSwitcher.currentProfile.id;
+        cachedProfileId = profileId;
         return profileId;
     }
     
@@ -36,16 +43,28 @@ function getCurrentProfileId() {
     const storedProfileId = localStorage.getItem('dao_current_profile_id');
     if (storedProfileId && !isNaN(parseInt(storedProfileId)) && parseInt(storedProfileId) > 0) {
         profileId = parseInt(storedProfileId);
-    } else {
-        
-        // Try to sync with ProfileSwitcher if available but no currentProfile yet
-        if (window.profileSwitcher && typeof window.profileSwitcher.loadProfiles === 'function') {
-            window.profileSwitcher.loadProfiles().catch(err => {
-                console.warn('[History Page] Failed to refresh ProfileSwitcher:', err);
-            });
-        }
+        cachedProfileId = profileId;
+        return profileId;
     }
     
+    // Fetch from backend API (most reliable for history page in separate tab context)
+    try {
+        const response = await fetch('http://localhost:5000/api/profiles/active');
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.id) {
+            profileId = result.data.id;
+            cachedProfileId = profileId;
+            console.log(`[History Page] Got profile from API: ID ${profileId} (${result.data.display_name})`);
+            return profileId;
+        }
+    } catch (error) {
+        console.warn('[History Page] Failed to fetch active profile from API:', error);
+    }
+    
+    // If we got here, none of the methods worked, use default
+    console.warn('[History Page] Using default profile ID: 1');
+    cachedProfileId = profileId;
     return profileId;
 }
 
@@ -53,7 +72,7 @@ function getCurrentProfileId() {
 document.addEventListener('DOMContentLoaded', async () => {
     
     // Update profile indicator
-    updateProfileIndicator();
+    await updateProfileIndicator();
     
     // Load initial history
     await loadHistory();
@@ -75,8 +94,11 @@ function setupProfileSwitchListener() {
         // Update localStorage immediately to ensure consistency
         localStorage.setItem('dao_current_profile_id', e.detail.profile.id.toString());
         
+        // Clear cached profile ID to force refresh from API
+        cachedProfileId = null;
+        
         // Update profile indicator
-        updateProfileIndicator();
+        await updateProfileIndicator();
         
         // Reset pagination and search
         currentPage = 1;
@@ -88,19 +110,20 @@ function setupProfileSwitchListener() {
         // Small delay to ensure profile switch is complete
         setTimeout(async () => {
             console.log('[History Page] Reloading data after profile switch...');
+            await loadHistory();
             await loadStats();
         }, 100);
     });
 }
 
 // Update the profile indicator in the UI
-function updateProfileIndicator() {
+async function updateProfileIndicator() {
     const indicatorEl = document.getElementById('profile-indicator');
     const profileNameEl = document.getElementById('current-profile-name');
     
     if (!indicatorEl || !profileNameEl) return;
     
-    const profileId = getCurrentProfileId();
+    const profileId = await getCurrentProfileId();
     let profileName = `Profile ${profileId}`;
     
     // Try to get the actual profile name
@@ -154,7 +177,7 @@ async function loadHistory() {
     showLoading();
     
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         console.log(`[History Page] Loading history for profile ${profileId}, page ${currentPage}`);
         
         const response = await fetch(`http://localhost:5000/api/history/all?page=${currentPage}&limit=50&profile_id=${profileId}`);
@@ -164,7 +187,8 @@ async function loadHistory() {
             console.log(`[History Page] Loaded ${result.data.length} history entries for profile ${profileId}`);
             displayHistory(result.data);
             updatePagination(result.pagination);
-        } elconsole.error('[History Page] Failed to load history:', result.error);
+        } else {
+            console.error('[History Page] Failed to load history:', result.error);
             showError('Failed to load history: ' + result.error);
         }
     } catch (error) {
@@ -177,7 +201,7 @@ async function searchHistory(query) {
     showLoading();
     
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         // Call backend directly via HTTP with profile_id
         const response = await fetch(`http://localhost:5000/api/history/search?q=${encodeURIComponent(query)}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
@@ -440,7 +464,7 @@ async function deleteHistoryEntry(entryId) {
 
 async function clearAllHistory() {
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         console.log(`[History Page] Clearing history for profile: ${profileId}`);
         
         // Call backend directly via HTTP with profile_id
@@ -466,7 +490,7 @@ async function clearAllHistory() {
 
 async function loadStats() {
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         console.log(`[History Page] Loading stats for profile: ${profileId}`);
         
         // Call backend directly via HTTP with profile_id
@@ -520,7 +544,7 @@ function showLoading() {
 }
 
 function showEmptyState() {
-    const profileId = getCurrentProfileId();
+    const profileId = cachedProfileId || 1; // Use cached value since this is called after async operations
     const profileName = window.profileSwitcher?.currentProfile?.display_name || `Profile ${profileId}`;
     
     historyContainer.innerHTML = `
