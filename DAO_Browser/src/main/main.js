@@ -5,6 +5,8 @@ const contentFilter = require('./content-filter');
 const { sessionManager } = require('./examMode/sessionManager');
 const configValidator = require('./examMode/configValidator');
 const examUrlFilter = require('./examMode/urlFilter');
+const logSyncer = require('./examMode/logSyncer');
+const { exportExamPDF } = require('./examMode/pdfExporter');
 
 let mainWindow;
 
@@ -395,8 +397,6 @@ ipcMain.handle('summarize:checkService', async () => {
 ipcMain.handle('history:add', async (event, historyData) => {
     const http = require('http');
 
-    console.log('[History] Adding entry:', historyData.url, 'Profile:', historyData.profile_id);
-
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify({
             url: historyData.url,
@@ -429,7 +429,6 @@ ipcMain.handle('history:add', async (event, historyData) => {
                 try {
                     const response = JSON.parse(data);
                     if (res.statusCode === 200) {
-                        console.log('[History] Entry added successfully');
                         resolve(response);
                     } else {
                         console.error('[History] Error response:', response);
@@ -684,7 +683,6 @@ ipcMain.handle('history:getStats', async () => {
 // Set current profile ID for exam mode URL filtering
 // Called by renderer when profile changes
 ipcMain.handle('examMode:setProfileId', async (event, profileId) => {
-    console.log(`[ExamMode IPC] Setting profile ID: ${profileId}`);
     examUrlFilter.setCurrentProfileId(profileId);
     return { success: true };
 });
@@ -714,7 +712,6 @@ ipcMain.handle('examMode:logBlockedAttempt', async (event, blockedInfo, profileI
 
 // Create a new exam session (Professor side)
 ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blacklist, settings, password, profileId) => {
-    console.log(`[ExamMode IPC] Creating session for profile: ${profileId}...`);
     
     // Validate exam info
     const examValidation = configValidator.validateExamInfo(examInfo);
@@ -749,7 +746,6 @@ ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blac
 
 // Join an existing exam session (Student side)
 ipcMain.handle('examMode:joinSession', async (event, configPath, password, studentInfo, profileId) => {
-    console.log(`[ExamMode IPC] Joining session for profile: ${profileId}...`);
     
     // Validate student info
     const studentValidation = configValidator.validateStudentInfo(studentInfo);
@@ -762,6 +758,14 @@ ipcMain.handle('examMode:joinSession', async (event, configPath, password, stude
     // Invalidate URL filter cache so it picks up new session
     if (result.success) {
         examUrlFilter.invalidateSessionCache();
+        
+        // Start background log syncer with offline backup support
+        if (result.session) {
+            logSyncer.start(result.session, profileId, () => {
+                // Callback when professor ends session
+                mainWindow.webContents.send('examMode:sessionEndedByProfessor', { profileId });
+            });
+        }
     }
     
     return result;
@@ -769,7 +773,6 @@ ipcMain.handle('examMode:joinSession', async (event, configPath, password, stude
 
 // Load config file (for preview before joining)
 ipcMain.handle('examMode:loadConfig', async (event, configPath) => {
-    console.log('[ExamMode IPC] Loading config...');
     return sessionManager.loadConfig(configPath);
 });
 
@@ -780,8 +783,10 @@ ipcMain.handle('examMode:getActiveSession', async (event, profileId) => {
 
 // End current session
 ipcMain.handle('examMode:endSession', async (event, profileId) => {
-    console.log(`[ExamMode IPC] Ending session for profile: ${profileId}...`);
     const result = sessionManager.endSession(profileId);
+    
+    // Stop background log syncer
+    logSyncer.stop();
     
     // Invalidate URL filter cache
     examUrlFilter.invalidateSessionCache();
@@ -895,17 +900,27 @@ ipcMain.handle('examMode:logActivity', async (event, activityEntry, profileId) =
 
 // Save activity log to Desktop
 ipcMain.handle('examMode:saveActivityLog', async (event, profileId) => {
-    console.log(`[ExamMode IPC] Saving activity log for profile: ${profileId}...`);
     return sessionManager.saveActivityLog(profileId);
+});
+
+// Export exam data to PDF
+ipcMain.handle('export-exam-pdf', async (event, { examData, students, allLogs }) => {
+    return await exportExamPDF(examData, students, allLogs);
+});
+
+// Get connection status for sync indicator
+ipcMain.handle('examMode:getConnectionStatus', async () => {
+    return {
+        status: logSyncer.getConnectionStatus(),
+        lastSyncTime: logSyncer.getLastSyncTime()
+    };
 });
 
 // Set lockdown state for a profile (called when student exam session activates/ends)
 ipcMain.handle('examMode:setLockdownState', async (event, locked, profileId, sessionId = null) => {
-    console.log(`[ExamMode IPC] Setting lockdown state: ${locked} for profile: ${profileId}`);
     
     if (locked) {
         examLockdownProfiles.set(profileId, { locked: true, sessionId });
-        console.log(`[ExamMode Lockdown] Profile ${profileId} is now in lockdown mode`);
     } else {
         examLockdownProfiles.delete(profileId);
         console.log(`[ExamMode Lockdown] Profile ${profileId} lockdown released`);

@@ -6,7 +6,8 @@
  * - Load multiple student log files
  * - Filter by student or activity type
  * - Summary statistics cards
- * - Export to CSV
+ * - Export to CSV/PDF
+ * - Configurable alert thresholds
  * - Color-coded activity types
  */
 
@@ -22,13 +23,17 @@ class ExamLogsPage {
         this.liveMode = false;
         this.liveRefreshInterval = null;
         
+        // Alert threshold configuration (dashboard view only, not backend)
+        this.alertThresholdBlocked = 5;
+        this.alertThresholdDevtools = 2;
+        this.isExporting = false;
+        
         this.init();
     }
 
     init() {
         this.cacheElements();
         this.attachEventListeners();
-        console.log('✅ Exam Logs Page initialized');
     }
 
     cacheElements() {
@@ -47,12 +52,18 @@ class ExamLogsPage {
         this.studentFilter = document.getElementById('logs-student-filter');
         this.typeFilter = document.getElementById('logs-type-filter');
         this.exportCsvBtn = document.getElementById('export-logs-csv-btn');
+        this.exportPdfBtn = document.getElementById('export-logs-pdf-btn');
+        
+        // Threshold controls
+        this.thresholdBlockedSelect = document.getElementById('threshold-blocked');
+        this.thresholdDevtoolsSelect = document.getElementById('threshold-devtools');
         
         // Summary cards
         this.summaryBlocked = document.getElementById('summary-blocked');
         this.summaryWindows = document.getElementById('summary-windows');
         this.summaryDevtools = document.getElementById('summary-devtools');
         this.summaryStudents = document.getElementById('summary-students');
+        this.summaryAlerts = document.getElementById('summary-alerts');
         
         // Tables
         this.studentOverviewSection = document.getElementById('logs-student-overview');
@@ -104,6 +115,25 @@ class ExamLogsPage {
         if (this.exportCsvBtn) {
             this.exportCsvBtn.addEventListener('click', () => this.exportToCsv());
         }
+        
+        // Export PDF
+        if (this.exportPdfBtn) {
+            this.exportPdfBtn.addEventListener('click', () => this.exportToPdf());
+        }
+        
+        // Alert threshold controls
+        if (this.thresholdBlockedSelect) {
+            this.thresholdBlockedSelect.addEventListener('change', (e) => {
+                this.alertThresholdBlocked = parseInt(e.target.value);
+                this.refreshStudentOverview();
+            });
+        }
+        if (this.thresholdDevtoolsSelect) {
+            this.thresholdDevtoolsSelect.addEventListener('change', (e) => {
+                this.alertThresholdDevtools = parseInt(e.target.value);
+                this.refreshStudentOverview();
+            });
+        }
     }
 
     open() {
@@ -118,7 +148,6 @@ class ExamLogsPage {
             
             // Auto-start live mode for professors with active sessions
             if (session.role === 'professor' && !this.liveMode) {
-                console.log('[ExamLogs] Professor session detected - auto-starting live mode');
                 setTimeout(() => {
                     this.startLiveMode();
                 }, 500); // Small delay to ensure modal is visible
@@ -126,7 +155,6 @@ class ExamLogsPage {
         }
         
         this.modal.classList.remove('hidden');
-        console.log('[ExamLogs] Opened logs modal', { session_id: session?.session_id, role: session?.role });
     }
 
     close() {
@@ -149,8 +177,6 @@ class ExamLogsPage {
                 console.log('[ExamLogs] No files selected');
                 return;
             }
-            
-            console.log(`[ExamLogs] Loading ${result.filePaths.length} log files...`);
             
             // Clear existing data
             this.studentLogs.clear();
@@ -182,7 +208,7 @@ class ExamLogsPage {
                             });
                         }
                         
-                        console.log(`[ExamLogs] Loaded log for ${logData.student_info.name} (${rollNumber})`);
+
                     }
                 } catch (err) {
                     console.error(`[ExamLogs] Failed to parse file: ${filePath}`, err);
@@ -245,10 +271,20 @@ class ExamLogsPage {
             }
         }
         
+        // Count students in alert state
+        let alertCount = 0;
+        for (const logData of this.studentLogs.values()) {
+            const stats = this.calculateStudentStats(logData);
+            if (stats.isAlert) {
+                alertCount++;
+            }
+        }
+        
         if (this.summaryBlocked) this.summaryBlocked.textContent = blocked;
         if (this.summaryWindows) this.summaryWindows.textContent = windows;
         if (this.summaryDevtools) this.summaryDevtools.textContent = devtools;
         if (this.summaryStudents) this.summaryStudents.textContent = this.studentLogs.size;
+        if (this.summaryAlerts) this.summaryAlerts.textContent = alertCount;
     }
 
     renderStudentOverview() {
@@ -257,7 +293,7 @@ class ExamLogsPage {
         if (this.studentLogs.size === 0) {
             this.studentOverviewTbody.innerHTML = `
                 <tr class="empty-row">
-                    <td colspan="6">No student logs loaded. Click "Load Student Logs" to import log files.</td>
+                    <td colspan="7">No student logs loaded. Click "Load Student Logs" to import log files.</td>
                 </tr>
             `;
             return;
@@ -271,15 +307,19 @@ class ExamLogsPage {
             const statusBadge = stats.isAlert 
                 ? '<span class="status-badge alert">🔴 Alert</span>'
                 : '<span class="status-badge normal">✅ Normal</span>';
+            const alertBadge = stats.isAlert
+                ? '<span class="alert-badge">⚠️ ALERT</span>'
+                : '<span class="alert-badge normal">—</span>';
             
             html += `
                 <tr class="${alertClass}" data-roll="${rollNumber}">
                     <td>${this.escapeHtml(rollNumber)}</td>
                     <td>${this.escapeHtml(logData.student_info.name)}</td>
                     <td>${statusBadge}</td>
-                    <td class="count-cell ${stats.blocked > 5 ? 'high' : ''}">${stats.blocked}</td>
+                    <td class="count-cell ${stats.blocked > this.alertThresholdBlocked ? 'high' : ''}">${stats.blocked}</td>
                     <td class="count-cell ${stats.windows > 5 ? 'high' : ''}">${stats.windows}</td>
-                    <td class="count-cell ${stats.devtools > 2 ? 'high' : ''}">${stats.devtools}</td>
+                    <td class="count-cell ${stats.devtools > this.alertThresholdDevtools ? 'high' : ''}">${stats.devtools}</td>
+                    <td class="alert-cell">${alertBadge}</td>
                 </tr>
             `;
         }
@@ -315,11 +355,111 @@ class ExamLogsPage {
             }
         }
         
-        // Alert threshold: blocked > 5 OR devtools > 2
-        const isAlert = blocked > 5 || devtools > 2;
+        // Alert threshold: uses dynamic thresholds from dashboard
+        const isAlert = blocked > this.alertThresholdBlocked || devtools > this.alertThresholdDevtools;
         
         return { blocked, windows, devtools, isAlert };
     }
+
+    /**
+     * Refresh student overview when thresholds change
+     */
+    refreshStudentOverview() {
+        this.renderStudentOverview();
+        this.updateSummaryCards();
+    }
+
+    /**
+     * Export exam logs to PDF using shared helper
+     */
+    async exportToPdf() {
+        if (this.isExporting) return;
+        
+        try {
+            if (this.studentLogs.size === 0) {
+                this.showToast('No student logs loaded. Please load log files first.', 'error');
+                return;
+            }
+            
+            this.isExporting = true;
+            if (this.exportPdfBtn) {
+                this.exportPdfBtn.disabled = true;
+                this.exportPdfBtn.textContent = '⏳ Fetching logs...';
+            }
+            
+            // Prepare exam data from loaded logs
+            const examData = {
+                sessionId: this.currentSession?.session_id || `manual_${Date.now()}`,
+                sessionName: this.currentSession?.session_name || 'Exam Session',
+                subject: this.currentSession?.subject || 'Unknown',
+                createdBy: this.currentSession?.created_by || 'Professor',
+                duration: this.currentSession?.duration || 'N/A',
+                createdAt: this.currentSession?.created_at || new Date().toISOString()
+            };
+            
+            // Prepare student data from loaded logs
+            const students = [];
+            for (const [rollNumber, logData] of this.studentLogs) {
+                const stats = this.calculateStudentStats(logData);
+                students.push({
+                    roll_number: rollNumber,
+                    student_name: logData.student_info.name,
+                    blocked_attempts: stats.blocked,
+                    window_switches: stats.windows,
+                    devtools_attempts: stats.devtools,
+                    alert: stats.isAlert
+                });
+            }
+            
+            // Prepare all logs from loaded files
+            const allLogs = [];
+            for (const [rollNumber, logData] of this.studentLogs) {
+                const activities = logData.activity_log || [];
+                for (const activity of activities) {
+                    allLogs.push({
+                        roll_number: rollNumber,
+                        student_name: logData.student_info.name,
+                        type: activity.type,
+                        url: activity.url,
+                        reason: activity.reason,
+                        timestamp: activity.timestamp
+                    });
+                }
+            }
+            
+            // Update button text
+            if (this.exportPdfBtn) {
+                this.exportPdfBtn.textContent = '⏳ Generating PDF...';
+            }
+            
+            // Use shared export helper
+            const result = await window.exportHelpers.downloadExamPDF({
+                sessionId: examData.sessionId,
+                examData,
+                students,
+                allLogs
+            });
+            
+            if (result.cancelled) {
+                this.showToast('PDF export cancelled');
+            } else if (result.success) {
+                this.showToast(`✅ PDF saved successfully!`);
+            } else {
+                throw new Error(result.error || 'Failed to export PDF');
+            }
+            
+        } catch (error) {
+            console.error('[ExamLogs] PDF export failed:', error);
+            this.showToast(`Failed to export PDF: ${error.message}`, 'error');
+        } finally {
+            this.isExporting = false;
+            if (this.exportPdfBtn) {
+                this.exportPdfBtn.disabled = false;
+                this.exportPdfBtn.textContent = '⬇ Export PDF';
+            }
+        }
+    }
+
 
     renderActivityLog(filteredActivities = null) {
         if (!this.activityTbody) return;
@@ -415,11 +555,8 @@ class ExamLogsPage {
         const studentValue = this.studentFilter?.value || 'all';
         const typeValue = this.typeFilter?.value || 'all';
         
-        console.log('[ExamLogs] Applying filters:', { student: studentValue, type: typeValue, liveMode: this.liveMode });
-        
         // Handle "All Students" in live mode - show overview and refresh data
         if (studentValue === 'all' && this.liveMode) {
-            console.log('[ExamLogs] Switching back to All Students view');
             // Re-fetch live data to reset view
             this.fetchLiveData();
             // Show student overview
@@ -672,13 +809,10 @@ class ExamLogsPage {
      */
     async fetchLiveData() {
         if (!this.currentSession?.session_id) {
-            console.log('[ExamLogs] No session ID for live fetch');
             return;
         }
         
         const sessionId = this.currentSession.session_id;
-        
-        console.log('[ExamLogs] Fetching live data for session:', sessionId);
         
         try {
             // Fetch students list
@@ -691,15 +825,12 @@ class ExamLogsPage {
             
             const data = await response.json();
             
-            console.log('[ExamLogs] Backend response:', data);
-            
             if (!data.success) {
                 console.warn('[ExamLogs] Backend returned error:', data.error);
                 return;
             }
             
             const students = data.students || [];
-            console.log(`[ExamLogs] Live: ${students.length} students found`);
             
             // Update student logs map
             this.studentLogs.clear();

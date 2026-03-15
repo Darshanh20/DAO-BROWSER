@@ -62,6 +62,7 @@ def init_exam_database():
             log_type TEXT NOT NULL,
             log_data TEXT NOT NULL,
             timestamp DATETIME NOT NULL,
+            integrity_failed BOOLEAN DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (session_id) REFERENCES exam_sessions(session_id)
         )
@@ -84,6 +85,23 @@ def init_exam_database():
         CREATE INDEX IF NOT EXISTS idx_students_session 
         ON exam_students(session_id)
     ''')
+    
+    # Migration: Add integrity_failed column if it doesn't exist
+    try:
+        cursor.execute("PRAGMA table_info(exam_activity)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if 'integrity_failed' not in columns:
+            cursor.execute('''
+                ALTER TABLE exam_activity 
+                ADD COLUMN integrity_failed BOOLEAN DEFAULT 0
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_activity_integrity 
+                ON exam_activity(session_id, integrity_failed)
+            ''')
+            print("[Migration] Added integrity_failed column to exam_activity table")
+    except Exception as e:
+        print(f"[Migration Warning] Could not add integrity column: {e}")
     
     conn.commit()
     conn.close()
@@ -321,7 +339,7 @@ def get_session_students(session_id: str) -> Dict:
 
 # ==================== ACTIVITY LOGGING ====================
 
-def add_activity_logs(session_id: str, roll_number: str, logs: List[Dict]) -> Dict:
+def add_activity_logs(session_id: str, roll_number: str, logs: List[Dict], integrity_failed: bool = False) -> Dict:
     """Add multiple activity log entries"""
     try:
         conn = get_connection()
@@ -335,9 +353,9 @@ def add_activity_logs(session_id: str, roll_number: str, logs: List[Dict]) -> Di
             
             cursor.execute('''
                 INSERT INTO exam_activity 
-                (session_id, roll_number, log_type, log_data, timestamp)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (session_id, roll_number, log_type, log_data, timestamp))
+                (session_id, roll_number, log_type, log_data, timestamp, integrity_failed)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (session_id, roll_number, log_type, log_data, timestamp, integrity_failed))
             added += 1
         
         conn.commit()

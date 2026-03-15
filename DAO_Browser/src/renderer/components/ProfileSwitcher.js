@@ -389,11 +389,8 @@ class ProfileSwitcher {
      * TEMPORARILY DISABLED - uncomment when deploying separate student/professor instances
      */
     setupExamLockListener() {
-        console.log('[ProfileSwitcher] Exam lock feature DISABLED for testing');
-        // TODO: Re-enable when not testing both modes in same browser
-        return;
+        console.log('[ProfileSwitcher] Setting up exam lock listener...');
         
-        /* COMMENTED OUT FOR TESTING
         // Listen for lockdown state changes from ExamModeLockdown
         document.addEventListener('examLockdownStateChanged', (e) => {
             const { locked, session } = e.detail || {};
@@ -419,7 +416,6 @@ class ProfileSwitcher {
 
         // Check initial state (in case exam is already active on load)
         this.checkInitialExamState();
-        */
     }
 
     /**

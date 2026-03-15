@@ -51,7 +51,6 @@ def init_database():
     # Migration: Add profile_id column if it doesn't exist (must run BEFORE creating index)
     try:
         cursor.execute('ALTER TABLE browsing_history ADD COLUMN profile_id INTEGER DEFAULT 1')
-        print("[OK] Added profile_id column to browsing_history")
     except sqlite3.OperationalError:
         pass  # Column already exists
     
@@ -62,7 +61,6 @@ def init_database():
     
     conn.commit()
     conn.close()
-    print("[OK] Database initialized successfully")
 
 def add_history(url: str, title: str = None, favicon_url: str = None, visit_duration: int = 0, profile_id: int = 1) -> Dict:
     """
@@ -86,8 +84,7 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
         # Validate profile_id
         if not profile_id or profile_id <= 0:
             profile_id = 1  # Default to profile 1
-            print(f"[History] Using default profile_id: {profile_id}")
-        
+            print(f"[History] Using default profile: {profile_id}")
         # Get current timestamp in ISO format for consistency
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
@@ -108,7 +105,7 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
                 WHERE url = ? AND profile_id = ?
             ''', (new_count, current_time, title, favicon_url, visit_duration, url, profile_id))
             entry_id = existing['id']
-            print(f"[History DB] Updated existing entry (ID: {entry_id}, visits: {new_count}, profile: {profile_id})")
+            print(f"[History DB] Updated visit count for {url} (profile: {profile_id})")
         else:
             # New URL, insert it with explicit timestamp
             cursor.execute('''
@@ -118,7 +115,6 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
             entry_id = cursor.lastrowid
             print(f"[History DB] Inserted new entry (ID: {entry_id}, profile: {profile_id})")
         
-        conn.commit()
         
         # Fetch the complete entry
         cursor.execute('SELECT * FROM browsing_history WHERE id = ?', (entry_id,))

@@ -7,6 +7,8 @@ from flask import Blueprint, request, jsonify
 import logging
 import sys
 import os
+import hashlib
+import json
 from datetime import datetime, timedelta
 
 # Add the parent directory to the Python path
@@ -119,6 +121,46 @@ def api_end_session(session_id):
 
 # ==================== STUDENT LOG SYNC ====================
 
+def verify_payload_hash(session_id, roll_number, logs, last_seen, received_hash):
+    """
+    Verify the integrity of the payload using SHA-256 hash
+    
+    Args:
+        session_id: Session identifier
+        roll_number: Student roll number
+        logs: List of activity logs
+        last_seen: ISO timestamp string
+        received_hash: Hash received from client
+    
+    Returns:
+        Tuple (is_valid: bool, computed_hash: str)
+    """
+    try:
+        # Create the same payload that was hashed on client
+        # Must match the order and structure from logSyncer.js generatePayloadHash()
+        hash_data = {
+            'session_id': session_id,
+            'roll_number': roll_number,
+            'logs': logs,
+            'last_seen': last_seen
+        }
+        
+        # Serialize to JSON (must match client's JSON.stringify behavior)
+        json_str = json.dumps(hash_data, separators=(',', ':'), sort_keys=True)
+        
+        # Compute SHA-256 hash
+        computed_hash = hashlib.sha256(json_str.encode('utf-8')).hexdigest()
+        
+        is_valid = computed_hash == received_hash
+        
+        if not is_valid:
+            logger.warning(f"Hash mismatch for {roll_number}: expected {received_hash}, got {computed_hash}")
+        
+        return is_valid, computed_hash
+    except Exception as e:
+        logger.error(f"Error verifying hash: {e}")
+        return False, None
+
 @exam_bp.route('/log', methods=['POST'])
 def api_post_log():
     """
@@ -134,7 +176,8 @@ def api_post_log():
         "logs": [...],
         "current_url": "https://w3schools.com",
         "status": "active",
-        "last_seen": "..."
+        "last_seen": "...",
+        "payload_hash": "sha256hexdigest"
     }
     
     Returns:
@@ -144,7 +187,7 @@ def api_post_log():
     try:
         data = request.get_json()
         
-        logger.info(f"[ExamLog] Received log request: {data}")
+        logger.info(f"[ExamLog] Received log request")
         
         if not data:
             logger.warning("[ExamLog] No data provided")
@@ -155,6 +198,8 @@ def api_post_log():
         logs = data.get('logs', [])
         current_url = data.get('current_url', '')
         status = data.get('status', 'active')
+        last_seen = data.get('last_seen', '')
+        payload_hash = data.get('payload_hash')
         
         if not session_id:
             logger.warning("[ExamLog] Missing session_id")
@@ -168,6 +213,14 @@ def api_post_log():
         student_name = student.get('name', 'Unknown')
         
         logger.info(f"[ExamLog] Processing: session={session_id}, student={student_name} ({roll_number}), logs={len(logs)}")
+        
+        # Verify payload integrity (optional for backward compatibility with older clients)
+        integrity_failed = False
+        if payload_hash:
+            hash_valid, computed_hash = verify_payload_hash(session_id, roll_number, logs, last_seen, payload_hash)
+            if not hash_valid:
+                integrity_failed = True
+                logger.warning(f"[ExamLog] Integrity check FAILED for {roll_number}: hash mismatch")
         
         # Check if session is still active
         session = get_session(session_id)
@@ -189,10 +242,10 @@ def api_post_log():
         # Update student record
         update_student(session_id, roll_number, student_name, current_url, status)
         
-        # Add activity logs
+        # Add activity logs (with integrity flag)
         if logs and len(logs) > 0:
-            add_activity_logs(session_id, roll_number, logs)
-            logger.info(f"[ExamLog] Added {len(logs)} logs for {roll_number}")
+            add_activity_logs(session_id, roll_number, logs, integrity_failed=integrity_failed)
+            logger.info(f"[ExamLog] Added {len(logs)} logs for {roll_number} (integrity_failed={integrity_failed})")
         
         logger.info(f"[ExamLog] SUCCESS - student {roll_number} synced, url={current_url}")
         return jsonify({'received': True}), 200
@@ -200,6 +253,7 @@ def api_post_log():
     except Exception as e:
         logger.error(f"Error processing log: {e}")
         return jsonify({'received': False, 'error': str(e)}), 500
+
 
 @exam_bp.route('/student/submit', methods=['POST'])
 def api_student_submit():

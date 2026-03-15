@@ -75,6 +75,8 @@ contextBridge.exposeInMainWorld('examModeAPI', {
         ipcRenderer.invoke('examMode:logActivity', activityEntry, profileId),
     saveActivityLog: (profileId) => 
         ipcRenderer.invoke('examMode:saveActivityLog', profileId),
+    getConnectionStatus: () => 
+        ipcRenderer.invoke('examMode:getConnectionStatus'),
     logBlockedAttempt: (blockedInfo, profileId) => 
         ipcRenderer.invoke('examMode:logBlockedAttempt', blockedInfo, profileId),
     

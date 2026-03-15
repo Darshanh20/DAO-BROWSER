@@ -1,7 +1,13 @@
 /**
  * LogSyncer - Syncs student activity logs to backend server
  * Runs periodically during exam mode to keep professor dashboard updated
+ * Includes payload integrity checking via SHA-256 hashing
  */
+
+const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const SYNC_INTERVAL_MS = 10000; // 10 seconds
 const BACKEND_URL = 'http://localhost:5000/api/exam';
@@ -10,25 +16,31 @@ let syncInterval = null;
 let isRunning = false;
 let pendingLogs = [];
 let currentSession = null;
+let currentProfileId = null;
 let onSessionEndedCallback = null;
+let lastSyncTime = null;
+let backupRestored = false;
 
 /**
  * Start the log syncer
  * @param {Object} session - Current exam session info
+ * @param {string} profileId - Current profile ID for offline backup
  * @param {Function} onSessionEnded - Callback when professor ends exam
  */
-function start(session, onSessionEnded) {
+function start(session, profileId, onSessionEnded) {
     if (isRunning) {
-        console.log('[LogSyncer] Already running');
         return;
     }
     
     currentSession = session;
+    currentProfileId = profileId;
     onSessionEndedCallback = onSessionEnded;
     pendingLogs = [];
     isRunning = true;
+    lastSyncTime = Date.now();
     
-    console.log('[LogSyncer] Starting sync for session:', session.session_id);
+    // Check for backup from previous session and flush if needed
+    checkAndFlushBackup(profileId);
     
     // Initial sync immediately
     syncLogs();
@@ -37,8 +49,6 @@ function start(session, onSessionEnded) {
     syncInterval = setInterval(() => {
         syncLogs();
     }, SYNC_INTERVAL_MS);
-    
-    console.log('[LogSyncer] Started - syncing every 10s');
 }
 
 /**
@@ -55,14 +65,92 @@ function stop() {
     isRunning = false;
     pendingLogs = [];
     currentSession = null;
-    
-    console.log('[LogSyncer] Stopped');
 }
 
 /**
- * Add logs to pending queue (called by ExamModeLockdown)
- * @param {Array} logs - Activity log entries
+ * Generate SHA-256 hash of payload for integrity verification
+ * @param {Object} payload - The payload to hash
+ * @returns {string} - Hex-encoded SHA-256 hash
  */
+function generatePayloadHash(payload) {
+    const hashSource = JSON.stringify({
+        session_id: payload.session_id,
+        roll_number: payload.student.roll_number,
+        logs: payload.logs,
+        last_seen: payload.last_seen
+    }, null, 0); // No whitespace for consistent hashing
+    
+    return crypto
+        .createHash('sha256')
+        .update(hashSource)
+        .digest('hex');
+}
+
+/**
+ * Get backup path for profile-specific offline log storage
+ * @param {string} profileId - The profile ID
+ * @returns {string} - Path to backup file
+ */
+function getBackupPath(profileId) {
+    const baseDir = path.join(os.homedir(), '.dao-browser', 'profiles', profileId);
+    if (!fs.existsSync(baseDir)) {
+        fs.mkdirSync(baseDir, { recursive: true });
+    }
+    return path.join(baseDir, 'exam_log_backup.json');
+}
+
+/**
+ * Save pending logs to offline backup (when backend is unreachable)
+ * @param {string} profileId - The profile ID
+ */
+function saveOfflineBackup(profileId) {
+    if (!currentSession || pendingLogs.length === 0) {
+        return;
+    }
+    
+    try {
+        const backupPath = getBackupPath(profileId);
+        const backupData = {
+            session_id: currentSession.session_id,
+            student: {
+                name: currentSession.student_name || 'Unknown',
+                roll_number: currentSession.roll_number || 'Unknown'
+            },
+            pending_logs: [...pendingLogs],
+            last_backup: new Date().toISOString()
+        };
+        
+        fs.writeFileSync(backupPath, JSON.stringify(backupData, null, 2), 'utf8');
+    } catch (error) {
+        console.error('[LogSyncer] Failed to save offline backup:', error.message);
+    }
+}
+
+/**
+ * Check for and flush offline backup from previous session
+ * @param {string} profileId - The profile ID
+ */
+function checkAndFlushBackup(profileId) {
+    try {
+        const backupPath = getBackupPath(profileId);
+        
+        if (fs.existsSync(backupPath)) {
+            const backupData = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
+            
+            // Add backed-up logs to pending queue
+            pendingLogs.push(...backupData.pending_logs);
+            
+            // Delete backup file
+            fs.unlinkSync(backupPath);
+            
+            backupRestored = true;
+        }
+    } catch (error) {
+        console.error('[LogSyncer] Failed to restore backup:', error.message);
+    }
+}
+
+
 function addLogs(logs) {
     if (!logs || !logs.length) return;
     
@@ -72,12 +160,10 @@ function addLogs(logs) {
     if (pendingLogs.length > 1000) {
         pendingLogs = pendingLogs.slice(-500);
     }
-    
-    console.log(`[LogSyncer] Queued ${logs.length} logs (total pending: ${pendingLogs.length})`);
 }
 
 /**
- * Main sync function - posts logs to backend
+ * Main sync function - posts logs to backend with integrity hash
  */
 async function syncLogs() {
     if (!isRunning || !currentSession) {
@@ -87,23 +173,29 @@ async function syncLogs() {
     const logsToSend = [...pendingLogs]; // Copy
     const currentUrl = getCurrentUrl();
     
+    // Build payload
+    const payload = {
+        session_id: currentSession.session_id,
+        student: {
+            name: currentSession.student_name || 'Unknown',
+            roll_number: currentSession.roll_number || 'Unknown'
+        },
+        logs: logsToSend,
+        current_url: currentUrl,
+        status: 'active',
+        last_seen: new Date().toISOString()
+    };
+    
+    // Generate integrity hash
+    payload.payload_hash = generatePayloadHash(payload);
+    
     try {
         const response = await fetch(`${BACKEND_URL}/log`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                session_id: currentSession.session_id,
-                student: {
-                    name: currentSession.student_name || 'Unknown',
-                    roll_number: currentSession.roll_number || 'Unknown'
-                },
-                logs: logsToSend,
-                current_url: currentUrl,
-                status: 'active',
-                last_seen: new Date().toISOString()
-            })
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
@@ -111,23 +203,53 @@ async function syncLogs() {
         if (data.received) {
             // Success - clear sent logs from pending
             pendingLogs = pendingLogs.slice(logsToSend.length);
-            console.log(`[LogSyncer] Synced ${logsToSend.length} logs`);
+            lastSyncTime = Date.now();
         } else if (data.session_ended) {
             // Professor ended the exam!
-            console.log('[LogSyncer] Session ended by professor!');
             stop();
             
             if (onSessionEndedCallback) {
                 onSessionEndedCallback();
             }
-        } else {
-            console.warn('[LogSyncer] Sync failed:', data.error);
         }
         
     } catch (error) {
-        // Network error - keep logs in pending queue
-        console.warn('[LogSyncer] Network error, will retry:', error.message);
+        // Network error - save offline backup and keep retrying
+        // Save pending logs to offline backup file
+        if (currentProfileId) {
+            saveOfflineBackup(currentProfileId);
+        }
     }
+}
+
+/**
+ * Get last sync time (for connection status indicator)
+ * @returns {number|null} - Milliseconds, or null if never synced
+ */
+function getLastSyncTime() {
+    return lastSyncTime;
+}
+
+/**
+ * Get connection status (for exam banner UI)
+ * @returns {string} - 'synced', 'syncing', or 'offline'
+ */
+function getConnectionStatus() {
+    if (!isRunning) return 'offline';
+    
+    const timeSinceSync = lastSyncTime ? Date.now() - lastSyncTime : null;
+    
+    // If synced within last 15 seconds, consider it synced
+    if (timeSinceSync !== null && timeSinceSync < 15000) {
+        return 'synced';
+    }
+    
+    // If there are pending logs and it's been > 20s, likely offline
+    if (pendingLogs.length > 0 && timeSinceSync && timeSinceSync > 20000) {
+        return 'offline';
+    }
+    
+    return 'syncing';
 }
 
 /**
@@ -221,5 +343,7 @@ module.exports = {
     syncLogs,
     checkSessionStatus,
     notifySubmit,
-    getStatus
+    getStatus,
+    getConnectionStatus,
+    getLastSyncTime
 };

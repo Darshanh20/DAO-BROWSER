@@ -1183,6 +1183,131 @@
     background: var(--border-subtle);
 }
 
+/* Exam Over Modal */
+.exam-over-modal {
+    max-width: 500px;
+    width: 90%;
+    padding: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+}
+
+.exam-over-modal .modal-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.exam-over-modal .modal-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+}
+
+.exam-over-content {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.exam-over-message {
+    text-align: center;
+}
+
+.exam-over-message p {
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.exam-over-message .text-secondary {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.exam-over-section h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.download-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.download-btn i {
+    font-size: 16px;
+}
+
+.download-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.download-btn.btn-secondary {
+    background: var(--bg-element);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+}
+
+.download-btn.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+}
+
+.exam-over-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.exam-over-actions button {
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
 
 /* ==================== SETTINGS EXAM MODE PAGE ==================== */
 .exam-mode-features {
@@ -1561,6 +1686,11 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
     color: #3b82f6;
 }
 
+.summary-icon.alert {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
 .summary-data {
     display: flex;
     flex-direction: column;
@@ -1645,7 +1775,9 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 }
 
 .student-overview-table .alert-row {
-    background: rgba(239, 68, 68, 0.05);
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-left: 3px solid #ef4444;
+    font-weight: 500;
 }
 
 .student-overview-table .count-cell {
@@ -1655,6 +1787,28 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 
 .student-overview-table .count-cell.high {
     color: #ef4444;
+}
+
+.student-overview-table .alert-cell {
+    text-align: center;
+    font-weight: 600;
+}
+
+.alert-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.alert-badge.normal {
+    color: var(--text-secondary);
+    background: transparent;
 }
 
 .status-badge {

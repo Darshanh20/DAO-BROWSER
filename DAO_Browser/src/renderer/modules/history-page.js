@@ -29,7 +29,6 @@ function getCurrentProfileId() {
     // Try to get from ProfileSwitcher instance first (most reliable)
     if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
         profileId = window.profileSwitcher.currentProfile.id;
-        console.log(`[History Page] Using ProfileSwitcher profile ID: ${profileId}`);
         return profileId;
     }
     
@@ -37,13 +36,10 @@ function getCurrentProfileId() {
     const storedProfileId = localStorage.getItem('dao_current_profile_id');
     if (storedProfileId && !isNaN(parseInt(storedProfileId)) && parseInt(storedProfileId) > 0) {
         profileId = parseInt(storedProfileId);
-        console.log(`[History Page] Using localStorage profile ID: ${profileId}`);
     } else {
-        console.log(`[History Page] No valid profile ID found (localStorage: ${storedProfileId}), using default: ${profileId}`);
         
         // Try to sync with ProfileSwitcher if available but no currentProfile yet
         if (window.profileSwitcher && typeof window.profileSwitcher.loadProfiles === 'function') {
-            console.log(`[History Page] Attempting to refresh ProfileSwitcher...`);
             window.profileSwitcher.loadProfiles().catch(err => {
                 console.warn('[History Page] Failed to refresh ProfileSwitcher:', err);
             });
@@ -55,7 +51,6 @@ function getCurrentProfileId() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('History page loaded');
     
     // Update profile indicator
     updateProfileIndicator();
@@ -76,7 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Setup profile switch event listener
 function setupProfileSwitchListener() {
     document.addEventListener('profileSwitched', async (e) => {
-        console.log('[History Page] Profile switched, reloading history for new profile:', e.detail.profile.id);
         
         // Update localStorage immediately to ensure consistency
         localStorage.setItem('dao_current_profile_id', e.detail.profile.id.toString());
@@ -94,7 +88,6 @@ function setupProfileSwitchListener() {
         // Small delay to ensure profile switch is complete
         setTimeout(async () => {
             console.log('[History Page] Reloading data after profile switch...');
-            await loadHistory();
             await loadStats();
         }, 100);
     });
@@ -118,8 +111,6 @@ function updateProfileIndicator() {
     profileNameEl.textContent = `Viewing history for: ${profileName}`;
     indicatorEl.style.display = 'flex';
     
-    console.log(`[History Page] Profile indicator updated: ${profileName} (ID: ${profileId})`);
-}
 
 function setupEventListeners() {
     // Search input with debounce
@@ -166,7 +157,6 @@ async function loadHistory() {
         const profileId = getCurrentProfileId();
         console.log(`[History Page] Loading history for profile ${profileId}, page ${currentPage}`);
         
-        // Call backend directly via HTTP with profile_id
         const response = await fetch(`http://localhost:5000/api/history/all?page=${currentPage}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
         
@@ -174,8 +164,7 @@ async function loadHistory() {
             console.log(`[History Page] Loaded ${result.data.length} history entries for profile ${profileId}`);
             displayHistory(result.data);
             updatePagination(result.pagination);
-        } else {
-            console.error('[History Page] Failed to load history:', result.error);
+        } elconsole.error('[History Page] Failed to load history:', result.error);
             showError('Failed to load history: ' + result.error);
         }
     } catch (error) {
@@ -206,7 +195,6 @@ async function searchHistory(query) {
 }
 
 function displayHistory(entries) {
-    console.log(`[History Page] Displaying ${entries.length} entries`);
     
     historyContainer.innerHTML = '';
     
