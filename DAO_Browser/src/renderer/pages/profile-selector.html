@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Select Profile - D.A.O. Browser</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="../css/theme.css">
+    <!-- Profile Selector CSS -->
+    <link rel="stylesheet" href="../css/profile-selector.css">
+    <style>
+        /* Smooth page transitions */
+        html.preload {
+            opacity: 1;
+        }
+
+        html:not(.preload) body {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="profile-selector-page">
+    <div class="profile-selector-container">
+        <!-- Header Section -->
+        <div class="profile-selector-header">
+            <div class="header-content">
+                <h1 class="app-name">D.A.O. Browser</h1>
+                <p class="app-subtitle">Select a profile to continue</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="profile-selector-content">
+            <!-- Profiles Grid -->
+            <div class="profiles-grid" id="profilesGrid">
+                <!-- Profile cards will be inserted here -->
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading profiles...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Profile Modal -->
+        <div id="addProfileModal" class="modal hidden">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create New Profile</h2>
+                    <button class="modal-close-btn" id="closeModalBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="addProfileForm" class="add-profile-form">
+                    <div class="form-group">
+                        <label for="profileName">Profile Name</label>
+                        <input type="text" id="profileName" name="name" placeholder="e.g., My Profile" required
+                            minlength="2" maxlength="50">
+                        <p class="form-hint">2-50 characters, letters and numbers only</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="displayName">Display Name</label>
+                        <input type="text" id="displayName" name="display_name" placeholder="e.g., John Doe" required
+                            minlength="2" maxlength="50">
+                        <p class="form-hint">How your profile appears in the browser</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="avatarColor">Avatar Color (Optional)</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="avatarColor" name="avatar_color" value="#4A90E2">
+                            <span class="color-preview" id="colorPreview"></span>
+                        </div>
+                        <p class="form-hint">Choose a color for your profile avatar</p>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelFormBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteConfirmModal" class="modal hidden">
+            <div class="modal-overlay"></div>
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h2>Delete Profile?</h2>
+                </div>
+                <div class="modal-body">
+                    <p id="deleteMessage">Are you sure you want to delete this profile? This action cannot be undone.</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Remove preload class after page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.documentElement.classList.remove('preload');
+            }, 100);
+        });
+    </script>
+    <script src="../services/profileApi.js"></script>
+    <script src="../components/ProfileSelector.js"></script>
+</body>
+
+</html>

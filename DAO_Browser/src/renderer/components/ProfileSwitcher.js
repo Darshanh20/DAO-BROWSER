@@ -103,14 +103,14 @@ class ProfileSwitcher {
         
         try {
             // Load all profiles
-            const profilesResult = await profileAPI.listProfiles();
+            const profilesResult = await profileAPIClient.listProfiles();
             if (profilesResult.success) {
                 this.profiles = profilesResult.data;
                 console.log(`✅ Loaded ${this.profiles.length} profiles`);
             }
 
             // Load active profile
-            const activeResult = await profileAPI.getActiveProfile();
+            const activeResult = await profileAPIClient.getActiveProfile();
             if (activeResult.success) {
                 this.currentProfile = activeResult.data;
                 this.updateCurrentProfileDisplay();
@@ -236,7 +236,7 @@ class ProfileSwitcher {
             this.nameEl.textContent = 'Switching...';
             
             // Activate profile on backend
-            const result = await profileAPI.activateProfile(profileId);
+            const result = await profileAPIClient.activateProfile(profileId);
             
             if (result.success) {
                 this.currentProfile = result.data;

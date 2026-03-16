@@ -136,3 +136,35 @@ contextBridge.exposeInMainWorld('examModeAPI', {
         return () => ipcRenderer.removeListener('examMode:urlBlocked', listener);
     }
 });
+
+// Expose Profile Management API
+contextBridge.exposeInMainWorld('profileAPI', {
+    // Get all profiles
+    getAllProfiles: () => ipcRenderer.invoke('profile:getAll'),
+    
+    // Get single profile
+    getProfile: (profileId) => ipcRenderer.invoke('profile:get', profileId),
+    
+    // Create new profile
+    createProfile: (name, displayName, avatarColor = '#4A90E2') => 
+        ipcRenderer.invoke('profile:create', name, displayName, avatarColor),
+    
+    // Update profile
+    updateProfile: (profileId, updates) => 
+        ipcRenderer.invoke('profile:update', profileId, updates),
+    
+    // Delete profile
+    deleteProfile: (profileId) => ipcRenderer.invoke('profile:delete', profileId),
+    
+    // Activate/switch to profile
+    activateProfile: (profileId) => ipcRenderer.invoke('profile:activate', profileId),
+    
+    // Get currently active profile
+    getActiveProfile: () => ipcRenderer.invoke('profile:getActive'),
+    
+    // Select profile and transition to main browser window
+    selectProfile: (profileId) => ipcRenderer.invoke('profile:select', profileId),
+    
+    // Get profile statistics
+    getProfileStats: (profileId) => ipcRenderer.invoke('profile:getStats', profileId)
+});

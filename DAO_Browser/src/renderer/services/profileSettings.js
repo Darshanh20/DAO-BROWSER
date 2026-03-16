@@ -31,8 +31,8 @@ class ProfileSettingsService {
     
     async loadCurrentProfile() {
         try {
-            if (typeof profileAPI !== 'undefined') {
-                const result = await profileAPI.getActiveProfile();
+            if (typeof profileAPIClient !== 'undefined') {
+                const result = await profileAPIClient.getActiveProfile();
                 if (result.success && result.data) {
                     this.currentProfileId = result.data.id;
                     console.log('[ProfileSettings] Loaded profile:', this.currentProfileId);
