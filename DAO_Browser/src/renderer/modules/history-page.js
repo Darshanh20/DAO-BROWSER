@@ -70,22 +70,49 @@ async function getCurrentProfileId() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    
+    // Always clear cache on page load to ensure fresh data
+    cachedProfileId = null;
+
     // Update profile indicator
     await updateProfileIndicator();
-    
+
     // Load initial history
     await loadHistory();
-    
+
     // Load statistics
     await loadStats();
-    
+
     // Setup event listeners
     setupEventListeners();
-    
+
     // Listen for profile switches to reload history
     setupProfileSwitchListener();
+
+    // Setup visibility change listener to refresh when tab becomes visible
+    setupVisibilityListener();
 });
+
+// Setup visibility change listener to auto-refresh when page becomes visible
+function setupVisibilityListener() {
+    document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible') {
+            console.log('[History Page] Page became visible, refreshing data...');
+            // Clear cache to get fresh data
+            cachedProfileId = null;
+            await loadHistory();
+            await loadStats();
+        }
+    });
+
+    // Also refresh on window focus (for when switching between tabs)
+    window.addEventListener('focus', async () => {
+        console.log('[History Page] Window focused, refreshing data...');
+        // Clear cache to get fresh data
+        cachedProfileId = null;
+        await loadHistory();
+        await loadStats();
+    });
+}
 
 // Setup profile switch event listener
 function setupProfileSwitchListener() {
@@ -133,7 +160,7 @@ async function updateProfileIndicator() {
     
     profileNameEl.textContent = `Viewing history for: ${profileName}`;
     indicatorEl.style.display = 'flex';
-    
+}
 
 function setupEventListeners() {
     // Search input with debounce

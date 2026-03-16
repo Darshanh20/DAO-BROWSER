@@ -385,6 +385,12 @@ class Tab {
         if (!this.url || this.url === 'about:blank' || this.url.startsWith('dao://')) {
             return;
         }
+
+        // Don't track internal file:// pages (history, shortcuts, error, etc.)
+        if (this.url.startsWith('file://')) {
+            console.log('[History] Skipping internal file:// page:', this.url);
+            return;
+        }
         
         try {
             // Get page title (fallback to URL if no title)

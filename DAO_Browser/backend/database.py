@@ -114,8 +114,10 @@ def add_history(url: str, title: str = None, favicon_url: str = None, visit_dura
             ''', (url, title, favicon_url, visit_duration, current_time, profile_id))
             entry_id = cursor.lastrowid
             print(f"[History DB] Inserted new entry (ID: {entry_id}, profile: {profile_id})")
-        
-        
+
+        # IMPORTANT: Commit the transaction to save changes
+        conn.commit()
+
         # Fetch the complete entry
         cursor.execute('SELECT * FROM browsing_history WHERE id = ?', (entry_id,))
         entry = dict(cursor.fetchone())
