@@ -127,7 +127,6 @@ function createWindow() {
     // Load profile selector landing page on startup
     mainWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
     mainWindow.maximize();
-    mainWindow.webContents.openDevTools();
 
     // Register the dao-blocked:// protocol to serve the block page
     const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
@@ -1069,22 +1068,67 @@ ipcMain.handle('profile:select', async (event, profileId) => {
         const activateResponse = await fetch(`http://localhost:5000/api/profiles/${profileId}/activate`, {
             method: 'POST'
         });
-        
+
         if (!activateResponse.ok) {
             return { success: false, error: 'Failed to activate profile' };
         }
 
         console.log(`🔄 Switching to profile: ${profileId}`);
-        
+
         // Load the main browser window
         if (mainWindow) {
             mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
             mainWindow.show();
         }
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error selecting profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Open a new window for a different profile
+ipcMain.handle('profile:openNewWindow', async (event, profileId) => {
+    try {
+        // Get profile info first
+        const profileResponse = await fetch(`http://localhost:5000/api/profiles/${profileId}`);
+        const profileData = await profileResponse.json();
+
+        if (!profileData.success) {
+            return { success: false, error: 'Failed to get profile info' };
+        }
+
+        const profile = profileData.data;
+        console.log(`🪟 Opening new window for profile: ${profile.display_name} (ID: ${profileId})`);
+
+        // Create a new browser window for this profile
+        const newWindow = new BrowserWindow({
+            width: 1400,
+            height: 900,
+            minWidth: 800,
+            minHeight: 600,
+            autoHideMenuBar: true,
+            title: `D.A.O. Browser - ${profile.display_name}`,
+            webPreferences: {
+                preload: path.join(__dirname, '../preload/preload.js'),
+                contextIsolation: true,
+                nodeIntegration: false,
+                webviewTag: true
+            }
+        });
+
+        // Store the profile ID for this window
+        newWindow.profileId = profileId;
+
+        // Load the main browser page with profile ID in hash (so it's available immediately)
+        const indexPath = path.join(__dirname, '../renderer/index.html');
+        newWindow.loadURL(`file://${indexPath}#profileId=${profileId}`);
+        newWindow.maximize();
+
+        return { success: true, profileId };
+    } catch (error) {
+        console.error('❌ Error opening new profile window:', error);
         return { success: false, error: error.message };
     }
 });

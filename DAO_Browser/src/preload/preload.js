@@ -164,6 +164,9 @@ contextBridge.exposeInMainWorld('profileAPI', {
     
     // Select profile and transition to main browser window
     selectProfile: (profileId) => ipcRenderer.invoke('profile:select', profileId),
+
+    // Open a new window for a different profile
+    openNewWindow: (profileId) => ipcRenderer.invoke('profile:openNewWindow', profileId),
     
     // Get profile statistics
     getProfileStats: (profileId) => ipcRenderer.invoke('profile:getStats', profileId)

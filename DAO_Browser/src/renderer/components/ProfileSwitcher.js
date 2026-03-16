@@ -10,10 +10,32 @@ class ProfileSwitcher {
         this.isOpen = false;
         this.isLoading = false;
         this.isExamLocked = false;
-        
+
+        // Check for profile ID in URL hash (used when opening new window for a profile)
+        this.checkUrlProfileId();
+
         this.init();
         this.loadProfiles();
         this.setupExamLockListener();
+    }
+
+    /**
+     * Check URL hash for profile ID (e.g., #profileId=123)
+     * This is used when a new window is opened for a specific profile
+     */
+    checkUrlProfileId() {
+        const hash = window.location.hash;
+        if (hash && hash.includes('profileId=')) {
+            const match = hash.match(/profileId=(\d+)/);
+            if (match && match[1]) {
+                const profileId = match[1];
+                console.log(`📌 Profile ID from URL hash: ${profileId}`);
+                // Set it in localStorage immediately so loadProfiles() will use it
+                localStorage.setItem('dao_current_profile_id', profileId);
+                // Clear the hash to avoid confusion on refresh
+                history.replaceState(null, '', window.location.pathname);
+            }
+        }
     }
 
     init() {
@@ -100,7 +122,7 @@ class ProfileSwitcher {
 
     async loadProfiles() {
         this.setLoading(true);
-        
+
         try {
             // Load all profiles
             const profilesResult = await profileAPIClient.listProfiles();
@@ -109,31 +131,32 @@ class ProfileSwitcher {
                 console.log(`✅ Loaded ${this.profiles.length} profiles`);
             }
 
-            // Load active profile
-            const activeResult = await profileAPIClient.getActiveProfile();
-            if (activeResult.success) {
-                this.currentProfile = activeResult.data;
-                this.updateCurrentProfileDisplay();
-                
-                // Store current profile ID in localStorage for other pages (like history)
-                localStorage.setItem('dao_current_profile_id', this.currentProfile.id.toString());
-                
-                // Notify main process about current profile for exam mode URL filtering
-                if (window.examModeAPI) {
-                    window.examModeAPI.setProfileId(this.currentProfile.id.toString()).catch(err => {
-                        console.warn('[ProfileSwitcher] Failed to set initial profile ID:', err);
-                    });
+            // First, check if this window has a specific profile set in localStorage
+            const storedProfileId = localStorage.getItem('dao_current_profile_id');
+
+            if (storedProfileId && this.profiles.length > 0) {
+                // Find the profile from our loaded list
+                const windowProfile = this.profiles.find(p => p.id.toString() === storedProfileId);
+                if (windowProfile) {
+                    this.currentProfile = windowProfile;
+                    this.updateCurrentProfileDisplay();
+
+                    // Notify main process about current profile for exam mode URL filtering
+                    if (window.examModeAPI) {
+                        window.examModeAPI.setProfileId(storedProfileId).catch(err => {
+                            console.warn('[ProfileSwitcher] Failed to set profile ID:', err);
+                        });
+                    }
+
+                    console.log(`✅ Window profile (from localStorage): ${this.currentProfile.display_name} (ID: ${this.currentProfile.id})`);
+                } else {
+                    // Stored profile ID doesn't exist anymore, fall back to active profile
+                    console.warn(`⚠️ Stored profile ID ${storedProfileId} not found, falling back to active profile`);
+                    await this.loadActiveProfileFromBackend();
                 }
-                
-                console.log(`✅ Active profile: ${this.currentProfile.display_name} (ID: ${this.currentProfile.id})`);
             } else {
-                console.warn('❌ No active profile found, this might indicate a setup issue');
-                // If no active profile, try to activate the first available profile
-                if (this.profiles.length > 0) {
-                    const firstProfile = this.profiles[0];
-                    console.log(`🔄 Attempting to activate first profile: ${firstProfile.display_name}`);
-                    await this.switchProfile(firstProfile.id);
-                }
+                // No stored profile, get active profile from backend
+                await this.loadActiveProfileFromBackend();
             }
 
             this.renderDropdown();
@@ -142,6 +165,36 @@ class ProfileSwitcher {
             this.renderError('Failed to load profiles');
         } finally {
             this.setLoading(false);
+        }
+    }
+
+    async loadActiveProfileFromBackend() {
+        const activeResult = await profileAPIClient.getActiveProfile();
+        if (activeResult.success) {
+            this.currentProfile = activeResult.data;
+            this.updateCurrentProfileDisplay();
+
+            // Store current profile ID in localStorage for this window
+            localStorage.setItem('dao_current_profile_id', this.currentProfile.id.toString());
+
+            // Notify main process about current profile for exam mode URL filtering
+            if (window.examModeAPI) {
+                window.examModeAPI.setProfileId(this.currentProfile.id.toString()).catch(err => {
+                    console.warn('[ProfileSwitcher] Failed to set initial profile ID:', err);
+                });
+            }
+
+            console.log(`✅ Active profile (from backend): ${this.currentProfile.display_name} (ID: ${this.currentProfile.id})`);
+        } else {
+            console.warn('❌ No active profile found, this might indicate a setup issue');
+            // If no active profile, try to use the first available profile
+            if (this.profiles.length > 0) {
+                const firstProfile = this.profiles[0];
+                this.currentProfile = firstProfile;
+                localStorage.setItem('dao_current_profile_id', firstProfile.id.toString());
+                this.updateCurrentProfileDisplay();
+                console.log(`🔄 Using first available profile: ${firstProfile.display_name}`);
+            }
         }
     }
 
@@ -231,41 +284,31 @@ class ProfileSwitcher {
 
         try {
             this.setLoading(true);
-            
+
             // Show switching state
-            this.nameEl.textContent = 'Switching...';
-            
-            // Activate profile on backend
-            const result = await profileAPIClient.activateProfile(profileId);
-            
+            this.nameEl.textContent = 'Opening...';
+
+            // Open a new window for the selected profile
+            const result = await window.profileAPI.openNewWindow(profileId);
+
             if (result.success) {
-                this.currentProfile = result.data;
+                console.log(`✅ Opened new window for profile ID: ${profileId}`);
+                this.showNotification('Opening profile in new window...', 'success');
+
+                // Restore current profile display (we're staying in this window)
                 this.updateCurrentProfileDisplay();
-                
-                // Store current profile ID in localStorage for other pages (like history)
-                localStorage.setItem('dao_current_profile_id', this.currentProfile.id.toString());
-                
-                console.log(`✅ Switched to profile: ${this.currentProfile.display_name} (ID: ${profileId})`);
-                
-                // Emit profile switch event for other components
-                this.emitProfileSwitchEvent(this.currentProfile);
-                
-                // Reload profile list to update states
-                await this.loadProfiles();
-                
-                // Optional: Show success notification
-                this.showNotification(`Switched to ${this.currentProfile.display_name}`, 'success');
             } else {
-                throw new Error(result.error || 'Failed to switch profile');
+                throw new Error(result.error || 'Failed to open new window');
             }
         } catch (error) {
             console.error('Failed to switch profile:', error);
-            this.showNotification('Failed to switch profile', 'error');
-            
+            this.showNotification('Failed to open profile window', 'error');
+
             // Restore original display
             this.updateCurrentProfileDisplay();
         } finally {
             this.setLoading(false);
+            this.closeDropdown();
         }
     }
 

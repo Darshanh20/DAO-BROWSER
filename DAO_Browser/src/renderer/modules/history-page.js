@@ -23,22 +23,43 @@ let searchQuery = '';
 let searchTimeout;
 let cachedProfileId = null; // Cache the profile ID to avoid repeated fetches
 
+// Get profile ID from URL hash (e.g., #profileId=123)
+function getProfileIdFromHash() {
+    const hash = window.location.hash;
+    if (hash && hash.includes('profileId=')) {
+        const match = hash.match(/profileId=(\d+)/);
+        if (match && match[1]) {
+            return parseInt(match[1]);
+        }
+    }
+    return null;
+}
+
 // Get current profile ID with multiple fallback sources
 async function getCurrentProfileId() {
     // Return cached value if available
     if (cachedProfileId && cachedProfileId > 0) {
         return cachedProfileId;
     }
-    
+
     let profileId = 1; // Default fallback
-    
-    // Try to get from ProfileSwitcher instance first (most reliable for main page context)
+
+    // FIRST: Check URL hash (most reliable for webview context)
+    const hashProfileId = getProfileIdFromHash();
+    if (hashProfileId && hashProfileId > 0) {
+        profileId = hashProfileId;
+        cachedProfileId = profileId;
+        console.log(`[History Page] Got profile from URL hash: ${profileId}`);
+        return profileId;
+    }
+
+    // Try to get from ProfileSwitcher instance (for main page context)
     if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
         profileId = window.profileSwitcher.currentProfile.id;
         cachedProfileId = profileId;
         return profileId;
     }
-    
+
     // Try localStorage as fallback
     const storedProfileId = localStorage.getItem('dao_current_profile_id');
     if (storedProfileId && !isNaN(parseInt(storedProfileId)) && parseInt(storedProfileId) > 0) {
@@ -46,22 +67,7 @@ async function getCurrentProfileId() {
         cachedProfileId = profileId;
         return profileId;
     }
-    
-    // Fetch from backend API (most reliable for history page in separate tab context)
-    try {
-        const response = await fetch('http://localhost:5000/api/profiles/active');
-        const result = await response.json();
-        
-        if (result.success && result.data && result.data.id) {
-            profileId = result.data.id;
-            cachedProfileId = profileId;
-            console.log(`[History Page] Got profile from API: ID ${profileId} (${result.data.display_name})`);
-            return profileId;
-        }
-    } catch (error) {
-        console.warn('[History Page] Failed to fetch active profile from API:', error);
-    }
-    
+
     // If we got here, none of the methods worked, use default
     console.warn('[History Page] Using default profile ID: 1');
     cachedProfileId = profileId;
@@ -147,17 +153,28 @@ function setupProfileSwitchListener() {
 async function updateProfileIndicator() {
     const indicatorEl = document.getElementById('profile-indicator');
     const profileNameEl = document.getElementById('current-profile-name');
-    
+
     if (!indicatorEl || !profileNameEl) return;
-    
+
     const profileId = await getCurrentProfileId();
     let profileName = `Profile ${profileId}`;
-    
-    // Try to get the actual profile name
+
+    // Try to get the actual profile name from ProfileSwitcher
     if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
         profileName = window.profileSwitcher.currentProfile.display_name;
+    } else {
+        // Fetch profile name from API (for webview context)
+        try {
+            const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`);
+            const result = await response.json();
+            if (result.success && result.data && result.data.display_name) {
+                profileName = result.data.display_name;
+            }
+        } catch (error) {
+            console.warn('[History Page] Failed to fetch profile name:', error);
+        }
     }
-    
+
     profileNameEl.textContent = `Viewing history for: ${profileName}`;
     indicatorEl.style.display = 'flex';
 }
