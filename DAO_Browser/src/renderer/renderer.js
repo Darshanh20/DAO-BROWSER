@@ -97,6 +97,11 @@ class Tab {
         this.navigationId = 0; // Unique ID for each real navigation
         this.documentLoadComplete = false; // Lock loader after main document loads
         this.lastHistoryStateUrl = null; // Track history API changes to distinguish from real nav
+        
+        // Summary state per tab
+        this.summaryOpen = false;
+        this.summaryData = null;
+        this.articleData = null;
 
         console.log(`Creating tab ${id}...`);
 
@@ -105,6 +110,7 @@ class Tab {
         this.webview.id = `webview-${id}`;
         this.webview.classList.add('webview-tab');
         this.webview.style.display = 'none';
+<<<<<<< HEAD
         this.webview.src = this.url;
         
         // Configure webview attributes for proper rendering
@@ -116,7 +122,15 @@ class Tab {
         // Set up webview preload script for Ctrl+F support
         this.setupWebviewPreload();
         
+=======
+        
+        // Initially set to about:blank, will navigate after preload is set
+        this.webview.src = 'about:blank';
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
         contentArea.appendChild(this.webview);
+        
+        // Set preload script then navigate to actual URL
+        this.setupWebviewPreloadAndNavigate(this.url);
 
         // Create tab button in UI
         this.tabElement = document.createElement('div');
@@ -152,6 +166,7 @@ class Tab {
         this.setupWebviewListeners();
     }
 
+<<<<<<< HEAD
     async setupWebviewPreload() {
         try {
             // Get the webview preload script path from main process
@@ -160,6 +175,32 @@ class Tab {
             console.log(`[Tab ${this.id}] Webview preload set`);
         } catch (error) {
             console.error(`[Tab ${this.id}] Failed to set webview preload:`, error);
+=======
+    async setupWebviewPreloadAndNavigate(targetUrl) {
+        // Set preload script for webview to enable access to electron APIs
+        try {
+            const preloadPath = await window.electronAPI.paths.getPath('renderer');
+            const preloadScript = preloadPath.replace(/\\/g, '/').replace('/renderer', '/preload/preload.js');
+            
+            // Set webview attributes for proper API access
+            this.webview.setAttribute('preload', `file:///${preloadScript}`);
+            this.webview.setAttribute('nodeintegration', 'false');
+            this.webview.setAttribute('nodeintegrationinsubframes', 'false');
+            this.webview.setAttribute('webpreferences', 'contextIsolation=true');
+            
+            console.log(`Webview preload set: ${preloadScript}`);
+            
+            // Now navigate to the target URL if it's not about:blank
+            if (targetUrl && targetUrl !== 'about:blank') {
+                this.webview.src = targetUrl;
+            }
+        } catch (error) {
+            console.error('Failed to set webview preload:', error);
+            // Navigate anyway even if preload fails
+            if (targetUrl && targetUrl !== 'about:blank') {
+                this.webview.src = targetUrl;
+            }
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
         }
     }
 
@@ -265,6 +306,16 @@ class Tab {
                 this.completeLoading();
             }
             
+<<<<<<< HEAD
+=======
+            // Add to browsing history
+            this.addToHistory();
+            
+            // Inject Ctrl+F handler into webview
+            console.log(`[WebView ${this.id}] DOM ready, injecting Ctrl+F handler...`);
+            this.injectCtrlFHandler();
+            
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
             // Always update navigation buttons
             updateNavigationButtons();
         });
@@ -352,6 +403,106 @@ class Tab {
         return url;
     }
 
+<<<<<<< HEAD
+=======
+    async addToHistory() {
+        // Don't track internal pages or blank pages
+        if (!this.url || this.url === 'about:blank' || this.url.startsWith('dao://')) {
+            return;
+        }
+
+        // Don't track internal file:// pages (history, shortcuts, error, etc.)
+        if (this.url.startsWith('file://')) {
+            console.log('[History] Skipping internal file:// page:', this.url);
+            return;
+        }
+        
+        try {
+            // Get page title (fallback to URL if no title)
+            const title = this.title && this.title !== 'New Tab' ? this.title : this.url;
+            
+            // Try to get favicon
+            let faviconUrl = '';
+            try {
+                const urlObj = new URL(this.url);
+                faviconUrl = `${urlObj.protocol}//${urlObj.hostname}/favicon.ico`;
+            } catch (e) {
+                console.log('[History] Could not extract favicon URL');
+            }
+            
+            // Get current profile ID - use multiple sources for reliability
+            let profileId = 1;  // Default profile
+            
+            // Try to get from ProfileSwitcher instance first (most reliable)
+            if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
+                profileId = window.profileSwitcher.currentProfile.id;
+                console.log(`[History] Using ProfileSwitcher profile ID: ${profileId}`);
+            } else {
+                // Try localStorage as fallback
+                const storedProfileId = localStorage.getItem('dao_current_profile_id');
+                if (storedProfileId && !isNaN(parseInt(storedProfileId)) && parseInt(storedProfileId) > 0) {
+                    profileId = parseInt(storedProfileId);
+                    console.log(`[History] Using localStorage profile ID: ${profileId}`);
+                } else {
+                    console.log(`[History] Using default profile ID: ${profileId}`);
+                }
+            }
+            
+            console.log(`[History] Adding entry: ${title} (URL: ${this.url}, Profile: ${profileId})`);
+            
+            // Add to history via backend
+            const result = await window.historyAPI.addHistory({
+                url: this.url,
+                title: title,
+                favicon_url: faviconUrl,
+                visit_duration: 0,
+                profile_id: profileId
+            });
+            
+            if (result.success) {
+                console.log(`[History] Successfully added: ${title} (Profile: ${profileId})`);
+            } else {
+                console.error(`[History] Failed to add entry:`, result.error);
+            }
+        } catch (error) {
+            // Log but don't fail if backend is not available
+            console.error('[History] Error adding to history:', error);
+        }
+    }
+
+    injectCtrlFHandler() {
+        // Inject Ctrl+F handler into webview's isolated context
+        const script = `
+            (function() {
+                console.log('[WebView Ctrl+F] Handler injection started');
+                
+                // Send Ctrl+F event to parent window
+                document.addEventListener('keydown', function(e) {
+                    if (e.ctrlKey && e.key === 'f') {
+                        console.log('[WebView Ctrl+F] Ctrl+F pressed, sending to parent');
+                        e.preventDefault();
+                        
+                        // Use postMessage to communicate with parent
+                        window.parent.postMessage(
+                            { type: 'WEBVIEW_CTRL_F', tabId: '${this.id}' },
+                            '*'
+                        );
+                    }
+                });
+                
+                console.log('[WebView Ctrl+F] Handler injection complete');
+            })();
+        `;
+        
+        try {
+            this.webview.executeJavaScript(script);
+            console.log(`[WebView ${this.id}] Ctrl+F handler injected successfully`);
+        } catch (error) {
+            console.error(`[WebView ${this.id}] Failed to inject Ctrl+F handler:`, error);
+        }
+    }
+
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
     close() {
         // Clear any pending loading timeout and reset flags
         if (this.loadingStopTimeout) {
@@ -419,6 +570,26 @@ function switchToTab(tabId) {
             progressBar.classList.add('active', 'loading');
             loadingSpinner.classList.add('visible');
         }
+
+        // Restore or hide summary panel based on tab state
+        if (tab.summaryOpen && tab.summaryData) {
+            // Restore summary for this tab
+            openSummaryPanel();
+            showSummaryContent(tab.summaryData);
+            lastArticleData = tab.articleData;
+        } else {
+            // Hide summary panel
+            closeSummaryPanel();
+            lastArticleData = null;
+        }
+
+        // Auto-focus the top address bar when switching tabs
+        setTimeout(() => {
+            if (addressBar) {
+                addressBar.focus();
+                addressBar.select();
+            }
+        }, 50);
     }
 }
 
@@ -593,6 +764,20 @@ document.addEventListener('keydown', async (e) => {
         } else {
             console.warn('[Ctrl+F] FindBar not initialized yet');
         }
+    }
+
+    // Ctrl+H - Open browsing history
+    if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
+        console.log('[Ctrl+H] History shortcut triggered');
+        openHistoryPage();
+    }
+
+    // Ctrl+Shift+S - Summarize article
+    if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        console.log('[Ctrl+Shift+S] Summarize shortcut triggered');
+        summarizeArticle();
     }
 
     // Alt+ArrowLeft - Go back
@@ -835,6 +1020,76 @@ try {
 setInterval(() => {
     updateNavigationButtons();
 }, 500);
+
+// ==================== PROFILE SWITCH - BROWSER RESET ====================
+
+/**
+ * Reset the browser state when switching profiles
+ * Closes all tabs and creates a fresh new tab
+ */
+function resetBrowserForProfileSwitch(profileName) {
+    console.log(`[Profile Switch] Resetting browser for profile: ${profileName}`);
+    
+    // Close all existing tabs
+    while (tabs.length > 0) {
+        const tab = tabs[0];
+        
+        // Remove webview from DOM
+        if (tab.webview && tab.webview.parentNode) {
+            tab.webview.remove();
+        }
+        
+        // Remove tab element from DOM
+        if (tab.tabElement && tab.tabElement.parentNode) {
+            tab.tabElement.remove();
+        }
+        
+        // Remove from array
+        tabs.shift();
+    }
+    
+    // Reset state
+    activeTabId = null;
+    
+    // Clear address bar
+    if (addressBar) {
+        addressBar.value = '';
+    }
+    
+    // Hide loading indicators
+    if (progressBar) {
+        progressBar.classList.remove('active', 'loading');
+    }
+    if (loadingSpinner) {
+        loadingSpinner.classList.remove('visible');
+    }
+    
+    // Close summary panel
+    if (typeof closeSummaryPanel === 'function') {
+        closeSummaryPanel();
+    }
+    
+    // Show welcome screen
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'flex';
+    }
+    
+    // Create a fresh new tab
+    createNewTab();
+    
+    console.log(`[Profile Switch] Browser reset complete for profile: ${profileName}`);
+}
+
+// Listen for profile switch events
+document.addEventListener('profileSwitched', (e) => {
+    const profile = e.detail.profile;
+    if (profile) {
+        resetBrowserForProfileSwitch(profile.display_name || profile.name);
+    }
+});
+
+// Make function available globally
+window.resetBrowserForProfileSwitch = resetBrowserForProfileSwitch;
 
 // ==================== PRODUCTIVITY DASHBOARD MODULE ====================
 
@@ -1214,3 +1469,419 @@ addLinkForm.addEventListener('submit', (e) => {
 
 // Initialize quick links on page load
 loadQuickLinks();
+
+// ==================== HISTORY FEATURE ====================
+
+const historyBtn = document.getElementById('history-btn');
+
+// Open history in a new tab
+async function openHistoryPage() {
+    console.log('[History] Opening history tab');
+
+    try {
+        const rendererPath = await window.electronAPI.paths.getPath('renderer');
+
+        // Get current profile ID to pass to history page
+        let profileId = 1;
+        if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
+            profileId = window.profileSwitcher.currentProfile.id;
+        } else {
+            const storedId = localStorage.getItem('dao_current_profile_id');
+            if (storedId) profileId = parseInt(storedId);
+        }
+
+        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html#profileId=${profileId}`;
+
+        // Create a new tab with the history page
+        const historyTab = createNewTab(historyPageUrl);
+        historyTab.title = 'Browsing History';
+        historyTab.tabTitleElement.textContent = 'Browsing History';
+
+        console.log(`[History] History tab opened for profile ID: ${profileId}`);
+    } catch (err) {
+        console.error('[History] Failed to open history tab:', err);
+    }
+}
+
+// History button click handler
+if (historyBtn) {
+    historyBtn.addEventListener('click', () => {
+        console.log('[History] Button clicked');
+        openHistoryPage();
+    });
+} else {
+    console.error('[History] ❌ History button element not found!');
+}
+
+// ==================== ARTICLE SUMMARIZATION FEATURE ====================
+
+// Summary Panel Elements
+const summarizeBtn = document.getElementById('summarize-btn');
+const summaryPanel = document.getElementById('summary-panel');
+const closeSummaryBtn = document.getElementById('close-summary-btn');
+const copySummaryBtn = document.getElementById('copy-summary-btn');
+const summaryLoading = document.getElementById('summary-loading');
+const summaryError = document.getElementById('summary-error');
+const summaryErrorMessage = document.getElementById('summary-error-message');
+const summaryContent = document.getElementById('summary-content');
+const summaryList = document.getElementById('summary-list');
+const summarySentencesCount = document.getElementById('summary-sentences-count');
+const sentenceCountSelect = document.getElementById('sentence-count-select');
+
+// Initialize Content Extractor
+const contentExtractor = new ContentExtractor();
+
+// State
+let isSummarizing = false;
+let summaryPanelOpen = false;
+let lastArticleData = null; // Store last extracted article for re-summarization
+
+// Check if summarization service is available on startup
+async function checkSummarizationService() {
+    try {
+        const result = await window.api.checkSummarizationService();
+        if (!result.available) {
+            console.warn('⚠️ Summarization service not available. Make sure Python backend is running on port 5000.');
+        } else {
+            console.log('✅ Summarization service is available');
+        }
+    } catch (error) {
+        console.error('Failed to check summarization service:', error);
+    }
+}
+
+// Open summary panel
+function openSummaryPanel() {
+    summaryPanel.classList.remove('hidden');
+    summaryPanelOpen = true;
+    
+    // Add active state to button
+    if (summarizeBtn) {
+        summarizeBtn.classList.add('active');
+    }
+    
+    // Adjust content area to make room for panel
+    if (contentArea) {
+        contentArea.style.width = '70%';
+    }
+    
+    // Save state to current tab
+    const activeTab = getActiveTab();
+    if (activeTab) {
+        activeTab.summaryOpen = true;
+    }
+}
+
+// Close summary panel
+function closeSummaryPanel() {
+    summaryPanel.classList.add('hidden');
+    summaryPanelOpen = false;
+    
+    // Remove active state from button
+    if (summarizeBtn) {
+        summarizeBtn.classList.remove('active');
+    }
+    
+    // Restore content area to full width
+    if (contentArea) {
+        contentArea.style.width = '100%';
+    }
+    
+    // Save state to current tab
+    const activeTab = getActiveTab();
+    if (activeTab) {
+        activeTab.summaryOpen = false;
+    }
+}
+
+// Show loading state
+function showSummaryLoading() {
+    summaryLoading.classList.remove('hidden');
+    summaryError.classList.add('hidden');
+    summaryContent.classList.add('hidden');
+}
+
+// Show error state
+function showSummaryError(message) {
+    summaryLoading.classList.add('hidden');
+    summaryError.classList.remove('hidden');
+    summaryContent.classList.add('hidden');
+    summaryErrorMessage.textContent = message;
+}
+
+// Show summary content
+function showSummaryContent(summaryData) {
+    summaryLoading.classList.add('hidden');
+    summaryError.classList.add('hidden');
+    summaryContent.classList.remove('hidden');
+
+    // Clear previous summary
+    summaryList.innerHTML = '';
+
+    // Update sentence count with processing time
+    const count = summaryData.summary.length;
+    let countText = `${count} key point${count !== 1 ? 's' : ''}`;
+    if (summaryData.processing_time) {
+        countText += ` • ${summaryData.processing_time}s`;
+    }
+    summarySentencesCount.textContent = countText;
+
+    // Add summary bullets
+    summaryData.summary.forEach((sentence, index) => {
+        const li = document.createElement('li');
+        li.textContent = sentence;
+        summaryList.appendChild(li);
+    });
+}
+
+// Extract article from current webview
+async function extractArticleFromWebview() {
+    const activeTab = getActiveTab();
+    if (!activeTab || !activeTab.webview) {
+        throw new Error('No active tab');
+    }
+
+    // Check if on about:blank or welcome screen
+    if (activeTab.url === 'about:blank' || !activeTab.url) {
+        throw new Error('Please navigate to an article page first');
+    }
+
+    // Execute content extraction in the webview
+    try {
+        const result = await activeTab.webview.executeJavaScript(`
+            (function() {
+                // Content extraction code
+                const articleSelectors = [
+                    'article',
+                    '[role="main"]',
+                    'main',
+                    '.article-content',
+                    '.post-content',
+                    '.entry-content',
+                    '#article',
+                    '#content'
+                ];
+
+                const excludeSelectors = [
+                    'nav', 'header', 'footer', 'aside',
+                    '.sidebar', '.advertisement', '.ad',
+                    '.social-share', '.comments', '.related-posts',
+                    'script', 'style', 'iframe', 'noscript'
+                ];
+
+                // Find article element
+                let articleElement = null;
+                for (const selector of articleSelectors) {
+                    const el = document.querySelector(selector);
+                    if (el && el.textContent.trim().length > 200) {
+                        articleElement = el;
+                        break;
+                    }
+                }
+
+                if (!articleElement) {
+                    articleElement = document.body;
+                }
+
+                // Clone and clean
+                const clone = articleElement.cloneNode(true);
+                
+                // Remove unwanted elements
+                excludeSelectors.forEach(selector => {
+                    clone.querySelectorAll(selector).forEach(el => el.remove());
+                });
+
+                // Extract text from paragraphs
+                const paragraphs = clone.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+                const textParts = [];
+                paragraphs.forEach(p => {
+                    const text = p.textContent.trim();
+                    if (text.length > 0) {
+                        textParts.push(text);
+                    }
+                });
+
+                const text = textParts.join('\\n\\n');
+
+                return {
+                    success: text.length >= 100,
+                    text: text,
+                    title: document.title || '',
+                    wordCount: text.split(/\\s+/).length,
+                    charCount: text.length
+                };
+            })();
+        `);
+
+        if (!result.success) {
+            throw new Error('Article too short or no article content found on this page');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Content extraction error:', error);
+        throw new Error('Failed to extract article content: ' + error.message);
+    }
+}
+
+// Main summarize function
+async function summarizeArticle() {
+    if (isSummarizing) {
+        console.log('Already summarizing...');
+        return;
+    }
+
+    try {
+        isSummarizing = true;
+        
+        // Open panel and show loading
+        openSummaryPanel();
+        showSummaryLoading();
+
+        // Check if service is available
+        const serviceCheck = await window.api.checkSummarizationService();
+        if (!serviceCheck.available) {
+            throw new Error('Summarization service is not running. Please start the Python backend server (python backend/summarizer.py)');
+        }
+
+        // Extract article content (only if not re-summarizing)
+        if (!lastArticleData) {
+            console.log('Extracting article content...');
+            lastArticleData = await extractArticleFromWebview();
+            console.log(`Extracted ${lastArticleData.wordCount} words, ${lastArticleData.charCount} characters`);
+        }
+
+        // Get selected sentence count
+        const sentenceCount = sentenceCountSelect ? parseInt(sentenceCountSelect.value) : 5;
+        console.log(`Using sentence count: ${sentenceCount}`);
+
+        // Send to backend for summarization
+        console.log('Sending to summarization service...');
+        const result = await window.api.summarizeArticle({
+            text: lastArticleData.text,
+            sentences: sentenceCount
+        });
+
+        if (!result.success) {
+            throw new Error(result.message || result.error || 'Summarization failed');
+        }
+
+        console.log('Summary generated successfully:', result.data);
+        
+        // Save to current tab
+        const activeTab = getActiveTab();
+        if (activeTab) {
+            activeTab.summaryData = result.data;
+            activeTab.articleData = lastArticleData;
+        }
+        
+        // Display summary
+        showSummaryContent(result.data);
+
+    } catch (error) {
+        console.error('Summarization error:', error);
+        showSummaryError(error.message);
+    } finally {
+        isSummarizing = false;
+    }
+}
+
+// Copy summary to clipboard
+async function copySummaryToClipboard() {
+    try {
+        const summaryItems = summaryList.querySelectorAll('li');
+        const summaryText = Array.from(summaryItems)
+            .map((li, index) => `${index + 1}. ${li.textContent}`)
+            .join('\n');
+
+        await navigator.clipboard.writeText(summaryText);
+        
+        // Show feedback
+        const originalIcon = copySummaryBtn.querySelector('i');
+        const originalClass = originalIcon.className;
+        originalIcon.className = 'fa-solid fa-check';
+        
+        setTimeout(() => {
+            originalIcon.className = originalClass;
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Failed to copy summary:', error);
+        alert('Failed to copy summary to clipboard');
+    }
+}
+
+// Event listeners
+if (summarizeBtn) {
+    summarizeBtn.addEventListener('click', () => {
+        lastArticleData = null; // Reset to extract fresh content
+        summarizeArticle();
+    });
+}
+
+if (closeSummaryBtn) {
+    closeSummaryBtn.addEventListener('click', () => {
+        closeSummaryPanel();
+        lastArticleData = null; // Clear cached data when closing
+        
+        // Clear from current tab
+        const activeTab = getActiveTab();
+        if (activeTab) {
+            activeTab.summaryData = null;
+            activeTab.articleData = null;
+        }
+    });
+}
+
+if (copySummaryBtn) {
+    copySummaryBtn.addEventListener('click', copySummaryToClipboard);
+}
+
+// Re-summarize when sentence count changes
+if (sentenceCountSelect) {
+    sentenceCountSelect.addEventListener('change', () => {
+        if (lastArticleData && summaryPanelOpen) {
+            console.log('Re-summarizing with new sentence count...');
+            summarizeArticle();
+        }
+    });
+}
+
+// Check service on startup
+checkSummarizationService();
+
+// ==================== PROFILE SYSTEM INITIALIZATION ====================
+
+// Initialize profile components
+function initializeProfileComponents() {
+    console.log('[ProfileSystem] Initializing profile components...');
+    
+    try {
+        // Initialize ProfileSwitcher
+        if (typeof ProfileSwitcher !== 'undefined') {
+            window.profileSwitcher = new ProfileSwitcher();
+            console.log('[ProfileSystem] ProfileSwitcher initialized');
+        } else {
+            console.warn('[ProfileSystem] ProfileSwitcher class not found');
+        }
+        
+        // Initialize ProfileManager
+        if (typeof ProfileManager !== 'undefined') {
+            window.profileManager = new ProfileManager();
+            console.log('[ProfileSystem] ProfileManager initialized');
+        } else {
+            console.warn('[ProfileSystem] ProfileManager class not found');
+        }
+        
+        console.log('[ProfileSystem] Profile components initialization complete');
+    } catch (error) {
+        console.error('[ProfileSystem] Error initializing profile components:', error);
+    }
+}
+
+// Initialize profile components when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeProfileComponents);
+} else {
+    initializeProfileComponents();
+}

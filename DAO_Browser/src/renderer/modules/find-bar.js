@@ -88,6 +88,7 @@ class FindBar {
         style.id = 'findbar-highlight-styles';
         style.textContent = `
             .${this.highlightClass} {
+<<<<<<< HEAD
                 background-color: #ffff00 !important;
                 color: #000000 !important;
                 border-radius: 2px;
@@ -97,6 +98,16 @@ class FindBar {
                 color: #000000 !important;
                 border-radius: 2px;
                 box-shadow: 0 0 0 2px rgba(255, 150, 50, 0.4);
+=======
+                background-color: rgba(46, 204, 113, 0.2) !important;
+                color: #0a0a0a !important;
+                border-radius: 2px;
+            }
+            .${this.activeHighlightClass} {
+                background-color: #2ecc71 !important;
+                color: #0a0a0a !important;
+                border-radius: 2px;
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
             }
         `;
         document.head.appendChild(style);

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Error - D.A.O. Browser</title>
+    <title>Site Blocked - D.A.O. Browser</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -31,7 +31,7 @@
         }
 
         /* Container for centered content */
-        .error-container {
+        .blocked-container {
             width: 100%;
             max-width: 560px;
             text-align: center;
@@ -47,7 +47,7 @@
             align-items: center;
             gap: 8px;
             background: transparent;
-            border: 1px solid #1a2a3a;
+            border: 1px solid #3a1a1a;
             border-radius: 20px;
             padding: 8px 16px;
             margin-bottom: 32px;
@@ -55,21 +55,15 @@
             font-weight: 600;
             letter-spacing: 1px;
             text-transform: uppercase;
-            color: #3b82f6;
+            color: #e74c3c;
         }
 
         .status-dot {
             width: 6px;
             height: 6px;
-            background: #3b82f6;
+            background: #e74c3c;
             border-radius: 50%;
             flex-shrink: 0;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
         }
 
         /* Title */
@@ -92,14 +86,14 @@
             margin-right: auto;
         }
 
-        /* URL section */
+        /* URL row */
         .url-section {
             width: 100%;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
             text-align: left;
         }
 
-        .section-label {
+        .url-label {
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
@@ -119,28 +113,6 @@
             line-height: 1.5;
         }
 
-        /* Error details section */
-        .error-section {
-            width: 100%;
-            margin-bottom: 24px;
-            text-align: left;
-        }
-
-        .error-display {
-            font-family: 'Monaco', 'Courier New', monospace;
-            font-size: 13px;
-            color: #666666;
-            padding-left: 16px;
-            border-left: 2px solid #3b82f6;
-            word-break: break-all;
-            line-height: 1.5;
-        }
-
-        .error-code {
-            color: #3b82f6;
-            font-weight: 600;
-        }
-
         /* Thin divider */
         .divider {
             width: 40px;
@@ -149,8 +121,8 @@
             margin: 0 auto 32px;
         }
 
-        /* Info row */
-        .info-row {
+        /* Reason row */
+        .reason-row {
             display: flex;
             align-items: flex-start;
             gap: 12px;
@@ -158,27 +130,27 @@
             text-align: left;
         }
 
-        .info-icon {
+        .reason-icon {
             font-size: 16px;
-            color: #3b6894;
+            color: #8a4040;
             flex-shrink: 0;
             margin-top: 2px;
         }
 
-        .info-text {
+        .reason-text {
             font-size: 13px;
-            color: #3b6894;
+            color: #8a4040;
             line-height: 1.5;
         }
 
-        /* Button */
-        .btn-reload {
+        /* Go Back Safely button */
+        .btn-back {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             background: transparent;
             border: 1px solid #2a2a2a;
-            color: #39ff14;
+            color: #c8f542;
             padding: 12px 24px;
             border-radius: 6px;
             font-size: 14px;
@@ -190,12 +162,12 @@
             font-family: inherit;
         }
 
-        .btn-reload:hover {
-            background: #0a1a00;
-            border-color: #39ff14;
+        .btn-back:hover {
+            background: #0f1a00;
+            border-color: #c8f542;
         }
 
-        .btn-reload:active {
+        .btn-back:active {
             opacity: 0.85;
         }
 
@@ -219,7 +191,7 @@
                 padding: 20px;
             }
 
-            .error-container {
+            .blocked-container {
                 max-width: 100%;
             }
 
@@ -233,30 +205,28 @@
                 margin-bottom: 32px;
             }
 
-            .url-section,
-            .error-section {
-                margin-bottom: 20px;
+            .url-section {
+                margin-bottom: 24px;
             }
 
-            .section-label {
+            .url-label {
                 font-size: 10px;
             }
 
-            .url-display,
-            .error-display {
+            .url-display {
                 font-size: 12px;
                 padding-left: 12px;
             }
 
-            .info-row {
+            .reason-row {
                 margin-bottom: 40px;
             }
 
-            .info-text {
+            .reason-text {
                 font-size: 12px;
             }
 
-            .btn-reload {
+            .btn-back {
                 padding: 10px 20px;
                 font-size: 13px;
             }
@@ -269,104 +239,54 @@
 </head>
 
 <body>
-    <div class="error-container">
+    <div class="blocked-container">
         <!-- Status Pill -->
         <div class="status-pill">
             <span class="status-dot"></span>
-            Connection Error
+            Access Blocked
         </div>
 
         <!-- Title -->
-        <h1>Page Unavailable</h1>
+        <h1>Site Blocked</h1>
 
         <!-- Subtitle -->
-        <p class="subtitle">Unable to establish a connection to this page.</p>
+        <p class="subtitle">This page has been restricted by your browser's content filter.</p>
 
         <!-- URL Section -->
         <div class="url-section">
-            <label class="section-label">Requested URL</label>
-            <div class="url-display" id="error-url-display">Unknown</div>
-        </div>
-
-        <!-- Error Section -->
-        <div class="error-section">
-            <label class="section-label">Error Details</label>
-            <div class="error-display">
-                <span class="error-code" id="error-code-display">ERR_UNKNOWN</span>
-                <span id="error-message-display"></span>
-            </div>
+            <label class="url-label">URL</label>
+            <div class="url-display" id="blocked-url-display">Unknown</div>
         </div>
 
         <!-- Divider -->
         <div class="divider"></div>
 
-        <!-- Info Row -->
-        <div class="info-row">
-            <i class="fas fa-circle-info info-icon"></i>
-            <div class="info-text" id="error-hint">Check your internet connection and try again.</div>
+        <!-- Reason Row -->
+        <div class="reason-row">
+            <i class="fas fa-triangle-exclamation reason-icon"></i>
+            <div class="reason-text">Inappropriate content detected</div>
         </div>
 
-        <!-- Reload Button -->
-        <button class="btn-reload" onclick="reloadPage()">
-            <i class="fas fa-rotate-right"></i>
-            Try Again
+        <!-- Go Back Button -->
+        <button class="btn-back" onclick="goBack()">
+            <i class="fas fa-arrow-left"></i>
+            Go Back Safely
         </button>
     </div>
 
     <!-- Footer -->
-    <div class="footer">D.A.O. Browser</div>
+    <div class="footer">Protected by D.A.O. Browser</div>
 
     <script>
-        // Extract URL parameters
+        // Extract blocked URL from query params
         const params = new URLSearchParams(window.location.search);
-        const errorCode = params.get('code') || 'UNKNOWN';
-        const errorMessage = params.get('message') || 'An unexpected error occurred';
-        const errorUrl = params.get('url') || 'Unknown URL';
+        const blockedUrl = params.get('url') || 'Unknown URL';
+        document.getElementById('blocked-url-display').textContent = blockedUrl;
 
-        // Error hints based on error code
-        const errorHints = {
-            '-106': 'This site may be blocked by your firewall or network settings.',
-            '-105': 'The server could not be found. Check the URL and try again.',
-            '-104': 'The connection was reset. The server may be temporarily unavailable.',
-            '-103': 'Too many redirects. The page may have a configuration issue.',
-            '-102': 'Connection refused. The server is not accepting connections.',
-            '-101': 'Connection reset. Try refreshing the page.',
-            '-100': 'Connection closed. The server ended the connection unexpectedly.',
-            '-3': 'Navigation was cancelled.',
-            '-2': 'The request failed. Check your connection.',
-            '-1': 'Network error. Verify your internet connection.',
-            '-7': 'Connection timed out. The server took too long to respond.',
-            '-21': 'Network changed during the request. Try again.',
-            '-137': 'Name resolution failed. DNS could not resolve this address.',
-            '-118': 'Connection timed out.',
-        };
-
-        // Update DOM
-        document.getElementById('error-url-display').textContent = errorUrl;
-        document.getElementById('error-code-display').textContent = `ERR_${Math.abs(parseInt(errorCode)) || errorCode}`;
-
-        if (errorMessage && errorMessage !== 'An unexpected error occurred') {
-            document.getElementById('error-message-display').textContent = ` - ${errorMessage}`;
-        }
-
-        const hint = errorHints[errorCode] || 'Check your internet connection and try again.';
-        document.getElementById('error-hint').textContent = hint;
-
-        // Button function
-        function reloadPage() {
-            window.location.reload();
-        }
-
-        // Allow back navigation
         function goBack() {
             if (window.history.length > 1) {
                 window.history.back();
             }
-        }
-
-        // Expose goBack to parent window for keyboard shortcuts
-        if (window.parent && window.parent !== window) {
-            window.parent.errorPageGoBack = goBack;
         }
     </script>
 </body>

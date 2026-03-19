@@ -1,0 +1,119 @@
+/* ==================== UPDATED DESIGN SYSTEM ==================== */
+/* CSS Variables for the browser UI (unified design system) */
+
+:root {
+    /* Core Colors - Minimal Dark Theme */
+    --color-bg: #0a0a0a;
+    --color-surface: #111111;
+    --color-surface-2: #1a1a1a;
+    --color-border: #2a2a2a;
+    --color-primary: #2ecc71;
+    --color-primary-glow: #2ecc71;
+    --color-text-primary: #e0e0e0;
+    --color-text-secondary: #888888;
+    --color-text-muted: #555555;
+    --color-heading: #ffffff;
+    --color-tag: #1a2a1a;
+    
+    /* Legacy mappings for compatibility */
+    --bg-dark: var(--color-bg);
+    --bg-panel: var(--color-surface);
+    --bg-element: var(--color-surface-2);
+    --bg-hover: #222222;
+    --bg-input: var(--color-surface);
+    --bg-modal: var(--color-bg);
+    --bg-sidebar: var(--color-surface);
+    
+    --accent-blue: var(--color-primary);
+    --accent-blue-hover: #3dd681;
+    --accent-blue-active: #2ecc71;
+    --accent-blue-light: rgba(46, 204, 113, 0.1);
+    --accent-blue-dark: #27ae60;
+    --accent-cyan: #1abc9c;
+    --accent-purple: #9b59b6;
+    --accent-green: #2ecc71;
+    --accent-glow: transparent;
+    
+    --text-primary: var(--color-text-primary);
+    --text-secondary: var(--color-text-secondary);
+    --text-dim: var(--color-text-muted);
+    --text-muted: var(--color-text-muted);
+    --text-inverse: #000000;
+    
+    --border-subtle: var(--color-border);
+    --border-medium: var(--color-border);
+    --border-strong: var(--color-border);
+    
+    /* Status Colors */
+    --color-success: #2ecc71;
+    --color-warning: #f39c12;
+    --color-error: #e74c3c;
+    --color-info: var(--color-primary);
+    
+    /* Component Specific */
+    --tab-bg: transparent;
+    --tab-bg-active: var(--color-surface);
+    --tab-bg-hover: #222222;
+    --tab-text: var(--color-text-secondary);
+    --tab-text-active: #2ecc71;
+    
+    --toolbar-bg: var(--color-surface);
+    --toolbar-border: var(--color-border);
+    
+    --btn-bg: transparent;
+    --btn-bg-hover: #222222;
+    --btn-bg-active: var(--color-border);
+    --btn-text: var(--color-text-primary);
+    
+    --input-bg: var(--color-surface);
+    --input-border: var(--color-border);
+    --input-border-focus: var(--color-primary);
+    --input-text: var(--color-text-primary);
+    --input-placeholder: var(--color-text-muted);
+    
+    --scrollbar-track: var(--color-surface);
+    --scrollbar-thumb: #3a3a3a;
+    --scrollbar-thumb-hover: #2ecc71;
+    
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.7);
+    
+    --modal-overlay: rgba(10, 10, 10, 0.9);
+    --modal-bg: var(--color-bg);
+    --modal-border: var(--color-border);
+    
+    --summary-bg: var(--color-surface);
+    --summary-header: var(--color-bg);
+    --summary-border: var(--color-border);
+    
+    --progress-bg: var(--color-primary);
+    --progress-track: var(--color-border);
+    
+    --welcome-bg: var(--color-bg);
+    --welcome-card-bg: var(--color-surface);
+    --welcome-card-hover: #222222;
+    
+    /* Priority Badges */
+    --priority-high-bg: #2a1a1a;
+    --priority-high-text: #e74c3c;
+    --priority-medium-bg: #1a2a1a;
+    --priority-medium-text: #2ecc71;
+    --priority-low-bg: #2a2a1a;
+    --priority-low-text: #f39c12;
+    
+    /* Code Styling */
+    --code-text: #1abc9c;
+    --code-bg: #1a1a1a;
+    
+    /* Error Color */
+    --error-color: #e74c3c;
+    --error-bg: rgba(231, 76, 60, 0.1);
+}
+
+/* ==================== WEBVIEW ISOLATION ==================== */
+/* Ensure webviews don't inherit browser theme */
+#browser-container .webview-tab {
+    filter: none !important;
+    background: white !important;
+}

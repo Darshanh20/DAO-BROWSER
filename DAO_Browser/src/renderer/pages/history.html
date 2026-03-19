@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browsing History - D.A.O. Browser</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+        /* Design System Variables */
+        :root {
+            --color-bg: #0a0a0a;
+            --color-surface: #111111;
+            --color-surface-2: #1a1a1a;
+            --color-border: #2a2a2a;
+            --color-primary: #39ff14;
+            --color-primary-glow: #39ff14;
+            --color-text-primary: #e0e0e0;
+            --color-text-secondary: #888888;
+            --color-text-muted: #555555;
+            --color-heading: #ffffff;
+            --color-error: #ff003c;
+            --color-success: #39ff14;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            color: inherit;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text-primary);
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: var(--color-surface);
+            padding: 24px 40px;
+            border-bottom: 1px solid var(--color-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--color-heading);
+            border-left: 4px solid var(--color-primary);
+            padding-left: 16px;
+        }
+
+        .profile-indicator {
+            /* Removed - no longer showing profile indicator */
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            max-width: 700px;
+        }
+
+        .search-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            background: var(--color-surface-2);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            color: var(--color-text-primary);
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .search-input:focus {
+            border-color: var(--color-primary-glow);
+            box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-muted);
+            pointer-events: none;
+        }
+
+        .clear-btn {
+            padding: 12px 24px;
+            background: var(--color-error);
+            border: none;
+            border-radius: 8px;
+            color: var(--color-heading);
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .clear-btn:hover {
+            background: #dc2626;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--color-border);
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--color-primary-glow);
+        }
+
+        .content {
+            padding: 32px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .date-group {
+            margin-bottom: 32px;
+        }
+
+        .date-header {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--color-primary-glow);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .history-list {
+            list-style: none;
+        }
+
+        .history-item {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .history-item:hover {
+            background: var(--color-surface-2);
+            border-color: var(--color-primary-glow);
+            transform: translateX(4px);
+        }
+
+        .favicon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: var(--color-surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .favicon img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .favicon i {
+            font-size: 16px;
+            color: var(--color-primary-glow);
+        }
+
+        .history-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .history-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--color-text-primary);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-url {
+            font-size: 13px;
+            color: var(--color-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--color-text-muted);
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .visit-count {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .visit-time {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .delete-btn {
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .delete-btn:hover {
+            background: var(--color-error);
+            border-color: var(--color-error);
+            color: var(--color-heading);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--color-text-muted);
+        }
+
+        .loading i {
+            font-size: 40px;
+            animation: spin 1s linear infinite;
+            color: var(--color-primary-glow);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: var(--color-border);
+            margin-bottom: 20px;
+        }
+
+        .empty-state h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state p {
+            color: var(--color-text-muted);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 32px;
+            padding: 24px;
+        }
+
+        .pagination button {
+            padding: 10px 20px;
+            background: var(--color-surface-2);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--color-surface);
+            border-color: var(--color-primary-glow);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #991b1b;
+            color: var(--color-heading);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fa-solid fa-clock-rotate-left"></i> Browsing History</h1>
+        <div class="search-bar">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="search-input" class="search-input" placeholder="Search history by URL or title...">
+            </div>
+            <button id="clear-all-btn" class="clear-btn">
+                <i class="fa-solid fa-trash"></i>
+                Clear All
+            </button>
+        </div>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span>Total visits: <span class="stat-value" id="total-entries">0</span></span>
+            </div>
+            <div class="stat-item">
+                <i class="fa-solid fa-link"></i>
+                <span>Unique sites: <span class="stat-value" id="unique-urls">0</span></span>
+            </div>
+            <div class="stat-item">
+                <i class="fa-solid fa-clock"></i>
+                <span>Time spent: <span class="stat-value" id="total-time">0h</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div id="history-container">
+            <!-- History items will be loaded here -->
+        </div>
+
+        <div id="pagination" class="pagination" style="display: none;">
+            <button id="prev-page"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+            <span class="page-info">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
+            <button id="next-page">Next <i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <script src="../modules/history-page.js"></script>
+</body>
+</html>

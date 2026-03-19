@@ -7,15 +7,22 @@ class SettingsDialog {
         this.menuItems = document.querySelectorAll('.settings-menu-item');
         this.openShortcutsTabBtn = document.getElementById('open-shortcuts-tab');
         
-        // Settings storage key
+        // Settings storage key (fallback for non-profile mode)
         this.storageKey = 'dao-browser-settings';
         
-        // Load default settings
+        // Load default settings (profile-aware if service available)
         this.settings = this.loadSettings();
         
         this.init();
         this.attachSettingListeners();
         this.applySettings();
+        
+        // Listen for profile settings changes
+        document.addEventListener('profileSettingsLoaded', (e) => {
+            this.settings = e.detail.settings;
+            this.applySettings();
+            console.log('✅ Settings reloaded for profile:', e.detail.profileId);
+        });
     }
 
     init() {
@@ -54,8 +61,14 @@ class SettingsDialog {
         });
     }
 
-    // Settings persistence methods
+    // Settings persistence methods - now profile-aware
     loadSettings() {
+        // Use profile settings service if available
+        if (window.profileSettings) {
+            return window.profileSettings.getSettings();
+        }
+        
+        // Fallback to legacy localStorage
         const stored = localStorage.getItem(this.storageKey);
         return stored ? JSON.parse(stored) : {
             rememberHistory: true,
@@ -66,7 +79,13 @@ class SettingsDialog {
     }
 
     saveSettings() {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.settings));
+        // Use profile settings service if available
+        if (window.profileSettings) {
+            window.profileSettings.saveSettings(this.settings);
+        } else {
+            // Fallback to legacy localStorage
+            localStorage.setItem(this.storageKey, JSON.stringify(this.settings));
+        }
         console.log('✅ Settings saved', this.settings);
     }
 

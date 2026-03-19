@@ -56,19 +56,34 @@
     background: transparent;
     border: none;
     outline: none;
+<<<<<<< HEAD
     color: #e8eaed;
     font-size: 13px;
     width: 200px;
     padding: 6px 0;
     font-family: inherit;
+=======
+    transition: all 0.2s;
+}
+
+.find-input:focus {
+    border-color: #2ecc71;
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
 }
 
 .find-input::placeholder {
     color: #9aa0a6;
 }
 
+<<<<<<< HEAD
 .find-input::-webkit-search-cancel-button {
     display: none;
+=======
+/* Highlight when no matches found */
+.find-input.no-matches {
+    border-color: #ff003c;
+    background: rgba(255, 0, 60, 0.1);
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
 }
 
 /* Match Counter */
@@ -82,7 +97,11 @@
 }
 
 .find-counter.no-matches {
+<<<<<<< HEAD
     color: #f28b82;
+=======
+    color: #ff003c;
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
 }
 
 /* Divider */
@@ -109,6 +128,7 @@
     font-size: 14px;
 }
 
+<<<<<<< HEAD
 .find-btn:hover:not(:disabled) {
     background: #3c4043;
     color: #e8eaed;
@@ -116,6 +136,13 @@
 
 .find-btn:active:not(:disabled) {
     background: #4a4d51;
+=======
+.find-btn:hover,
+.find-btn-close:hover {
+    background: #222222;
+    color: #2ecc71;
+    border-color: #2ecc71;
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
 }
 
 .find-btn:disabled {
@@ -139,6 +166,7 @@
     color: #202124;
 }
 
+<<<<<<< HEAD
 /* Close Button */
 .find-close-btn {
     color: #9aa0a6;
@@ -153,6 +181,18 @@
 .find-nav-group {
     display: flex;
     gap: 2px;
+=======
+.find-option-btn.active {
+    background: transparent;
+    color: #2ecc71;
+    border-color: #2ecc71;
+}
+
+.find-option-btn.active:hover {
+    background: transparent;
+    color: #2ecc71;
+    border-color: #2ecc71;
+>>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
 }
 
 /* Responsive adjustments */
