@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard, webContents } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
 const { sessionManager } = require('./examMode/sessionManager');
@@ -25,6 +26,9 @@ const examLockdownProfiles = new Map(); // profileId -> { locked: boolean, sessi
 // Set of blocked ad domains (loaded from blocklists at startup)
 let blockedDomains = new Set();
 const initializedPartitions = new Set();
+const downloadTrackingSessions = new Set();
+let downloadHistory = [];
+let downloadHistoryFilePath = null;
 
 // Blocklist sources (hosts-file format) — domain-level only, won't break YouTube
 const BLOCKLIST_URLS = [
@@ -128,6 +132,171 @@ function sendToRequestWindow(details, channel, payload) {
     } else if (mainWindow && mainWindow.webContents) {
         mainWindow.webContents.send(channel, payload);
     }
+}
+
+function getFallbackFileName(downloadUrl) {
+    try {
+        const parsed = new URL(downloadUrl);
+        const lastSegment = decodeURIComponent(parsed.pathname.split('/').pop() || '');
+        if (lastSegment) {
+            return lastSegment;
+        }
+    } catch (error) {
+        // Fall through to default
+    }
+
+    return 'download';
+}
+
+function getSourceContextFromWebContents(sourceWebContents) {
+    if (!sourceWebContents) {
+        return { hostContents: null, profileId: 1 };
+    }
+
+    const hostContents = sourceWebContents.hostWebContents || sourceWebContents;
+    const profileContext = windowProfiles.get(hostContents.id);
+    return {
+        hostContents,
+        profileId: profileContext?.profileId || 1
+    };
+}
+
+function loadDownloadHistory() {
+    if (!downloadHistoryFilePath) {
+        return;
+    }
+
+    try {
+        if (!fs.existsSync(downloadHistoryFilePath)) {
+            downloadHistory = [];
+            return;
+        }
+
+        const raw = fs.readFileSync(downloadHistoryFilePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        downloadHistory = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error('[Downloads] Failed to load history:', error);
+        downloadHistory = [];
+    }
+}
+
+function saveDownloadHistory() {
+    if (!downloadHistoryFilePath) {
+        return;
+    }
+
+    try {
+        fs.writeFileSync(downloadHistoryFilePath, JSON.stringify(downloadHistory, null, 2), 'utf8');
+    } catch (error) {
+        console.error('[Downloads] Failed to persist history:', error);
+    }
+}
+
+function addDownloadEntry(entry) {
+    downloadHistory.unshift(entry);
+
+    // Keep the persisted history bounded.
+    if (downloadHistory.length > 500) {
+        downloadHistory = downloadHistory.slice(0, 500);
+    }
+
+    saveDownloadHistory();
+}
+
+function updateDownloadEntry(downloadId, updates) {
+    const entry = downloadHistory.find(item => item.id === downloadId);
+    if (!entry) {
+        return;
+    }
+
+    Object.assign(entry, updates);
+    saveDownloadHistory();
+}
+
+function sendDownloadEventToProfileWindows(channel, payload, profileId) {
+    profileWindows.forEach((profileWindow, mappedProfileId) => {
+        if (mappedProfileId !== profileId) {
+            return;
+        }
+
+        if (!profileWindow || profileWindow.isDestroyed()) {
+            return;
+        }
+
+        profileWindow.webContents.send(channel, payload);
+
+        // Forward to guest webviews hosted by this profile window so internal pages
+        // (like downloads.html opened in a webview tab) receive live updates too.
+        const hostContentsId = profileWindow.webContents.id;
+        webContents.getAllWebContents().forEach((contents) => {
+            if (contents.isDestroyed()) {
+                return;
+            }
+
+            if (contents.hostWebContents && contents.hostWebContents.id === hostContentsId) {
+                contents.send(channel, payload);
+            }
+        });
+    });
+}
+
+function attachDownloadTracking(targetSession) {
+    if (!targetSession || downloadTrackingSessions.has(targetSession)) {
+        return;
+    }
+
+    downloadTrackingSessions.add(targetSession);
+
+    targetSession.on('will-download', (event, item, sourceWebContents) => {
+        const { hostContents, profileId } = getSourceContextFromWebContents(sourceWebContents);
+        const downloadId = `dl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        const fileUrl = item.getURL();
+        const fileName = item.getFilename() || getFallbackFileName(fileUrl);
+        const startedAt = new Date().toISOString();
+
+        const downloadEntry = {
+            id: downloadId,
+            profileId,
+            fileName,
+            fileUrl,
+            status: 'downloading',
+            timestamp: startedAt
+        };
+
+        addDownloadEntry(downloadEntry);
+
+        if (hostContents && !hostContents.isDestroyed()) {
+            hostContents.send('downloads:started', downloadEntry);
+            hostContents.send('downloads:redirect', downloadEntry);
+        }
+
+        sendDownloadEventToProfileWindows('downloads:updated', downloadEntry, profileId);
+
+        item.on('done', (doneEvent, state) => {
+            const isCompleted = state === 'completed';
+            const updatedEntry = {
+                status: isCompleted ? 'completed' : 'failed'
+            };
+
+            if (!isCompleted) {
+                updatedEntry.error = state || 'Download failed';
+            }
+
+            updateDownloadEntry(downloadId, updatedEntry);
+
+            const payload = {
+                ...downloadEntry,
+                ...updatedEntry
+            };
+
+            if (hostContents && !hostContents.isDestroyed()) {
+                hostContents.send('downloads:updated', payload);
+            }
+
+            sendDownloadEventToProfileWindows('downloads:updated', payload, profileId);
+        });
+    });
 }
 
 async function callProfileApi(apiPath, method = 'GET', body = null) {
@@ -241,6 +410,7 @@ function attachRequestInterception(targetSession) {
     }
 
     initializedPartitions.add(targetSession);
+    attachDownloadTracking(targetSession);
     targetSession.webRequest.onBeforeRequest((details, callback) => {
         // 0. Check EXAM MODE FIRST (highest priority)
         const examResult = examUrlFilter.checkUrl(details.url, details.resourceType);
@@ -369,6 +539,7 @@ async function setupAdBlocker() {
     contentFilter.registerIpcHandlers();
 
     attachRequestInterception(session.defaultSession);
+    attachDownloadTracking(session.defaultSession);
 
     // Downloads are now allowed during exam mode
     // URL filtering (Phase 2) handles blocking non-whitelisted download sources
@@ -378,6 +549,9 @@ async function setupAdBlocker() {
 }
 
 app.whenReady().then(async () => {
+    downloadHistoryFilePath = path.join(app.getPath('userData'), 'download-history.json');
+    loadDownloadHistory();
+
     // Register the dao-blocked:// protocol to serve the block page
     const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
     protocol.registerFileProtocol('dao-blocked', (request, callback) => {
@@ -505,6 +679,24 @@ ipcMain.handle('app:getPath', (event, pathType) => {
         return path.join(__dirname, '../renderer');
     }
     return path.join(__dirname, '../');
+});
+
+// ==================== DOWNLOAD TRACKING ====================
+
+ipcMain.handle('downloads:getHistory', async (event, profileId = null) => {
+    const numericProfileId = Number(profileId);
+
+    if (numericProfileId && !Number.isNaN(numericProfileId)) {
+        return {
+            success: true,
+            data: downloadHistory.filter(item => Number(item.profileId) === numericProfileId)
+        };
+    }
+
+    return {
+        success: true,
+        data: downloadHistory
+    };
 });
 
 // IPC Handler for Article Summarization

@@ -27,6 +27,7 @@ console.log('contentArea:', contentArea);
 let tabs = [];
 let activeTabId = null;
 let nextTabId = 1;
+let lastNavigationState = { back: null, forward: null };
 let windowProfileContext = {
     profileId: 1,
     profileName: 'Default Profile'
@@ -412,6 +413,10 @@ class Tab {
         if (url && url.startsWith('file://')) {
             // Extract the path after file://
             const filePath = url.replace('file://', '');
+            // Check if it's a downloads page
+            if (filePath.includes('downloads.html')) {
+                return 'dao://downloads';
+            }
             // Check if it's a shortcuts page
             if (filePath.includes('shortcuts.html')) {
                 return 'dao://shortcuts';
@@ -682,17 +687,27 @@ async function updateNavigationButtons() {
             const canGoForward = await activeTab.webview.canGoForward();
             backBtn.disabled = !canGoBack;
             forwardBtn.disabled = !canGoForward;
-            console.log(`Navigation buttons updated - Back: ${canGoBack}, Forward: ${canGoForward}`);
+
+            if (lastNavigationState.back !== canGoBack || lastNavigationState.forward !== canGoForward) {
+                console.log(`Navigation buttons updated - Back: ${canGoBack}, Forward: ${canGoForward}`);
+                lastNavigationState = { back: canGoBack, forward: canGoForward };
+            }
         } catch (error) {
             console.error('Error updating navigation buttons:', error);
             // Fallback: disable buttons if there's an error
             backBtn.disabled = true;
             forwardBtn.disabled = true;
+            lastNavigationState = { back: false, forward: false };
         }
     } else {
         // No active tab, disable both buttons
         backBtn.disabled = true;
         forwardBtn.disabled = true;
+
+        if (lastNavigationState.back !== false || lastNavigationState.forward !== false) {
+            console.log('Navigation buttons updated - Back: false, Forward: false');
+            lastNavigationState = { back: false, forward: false };
+        }
     }
 }
 
@@ -1539,6 +1554,54 @@ loadQuickLinks();
 // ==================== HISTORY FEATURE ====================
 
 const historyBtn = document.getElementById('history-btn');
+const downloadsBtn = document.getElementById('downloads-btn');
+const DOWNLOADS_CACHE_KEY = 'dao_download_history_cache';
+const DOWNLOADS_CACHE_GLOBAL_KEY = 'dao_download_history_cache_global';
+
+async function refreshDownloadsCache() {
+    if (!window.downloadsAPI || typeof window.downloadsAPI.getHistory !== 'function') {
+        return;
+    }
+
+    try {
+        const scopedResult = await window.downloadsAPI.getHistory(windowProfileContext.profileId);
+        if (scopedResult && scopedResult.success && Array.isArray(scopedResult.data)) {
+            localStorage.setItem(DOWNLOADS_CACHE_KEY, JSON.stringify(scopedResult.data));
+        }
+
+        const globalResult = await window.downloadsAPI.getHistory();
+        if (globalResult && globalResult.success && Array.isArray(globalResult.data)) {
+            localStorage.setItem(DOWNLOADS_CACHE_GLOBAL_KEY, JSON.stringify(globalResult.data));
+        }
+    } catch (error) {
+        console.warn('[Downloads] Failed to refresh cache:', error);
+    }
+}
+
+function findInternalTabByPage(pageName) {
+    return tabs.find(tab => typeof tab.url === 'string' && tab.url.includes(`/pages/${pageName}`));
+}
+
+async function openDownloadsPage() {
+    try {
+        await refreshDownloadsCache();
+
+        const existingDownloadsTab = findInternalTabByPage('downloads.html');
+        if (existingDownloadsTab) {
+            switchToTab(existingDownloadsTab.id);
+            return;
+        }
+
+        const rendererPath = await window.electronAPI.paths.getPath('renderer');
+        const downloadsPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/downloads.html?profile_id=${windowProfileContext.profileId}`;
+
+        const downloadsTab = createNewTab(downloadsPageUrl);
+        downloadsTab.title = 'Downloads';
+        downloadsTab.tabTitleElement.textContent = 'Downloads';
+    } catch (error) {
+        console.error('[Downloads] Failed to open downloads page:', error);
+    }
+}
 
 // Open history in a new tab
 async function openHistoryPage() {
@@ -1567,6 +1630,42 @@ if (historyBtn) {
     });
 } else {
     console.error('[History] ❌ History button element not found!');
+}
+
+if (downloadsBtn) {
+    downloadsBtn.addEventListener('click', () => {
+        console.log('[Downloads] Button clicked');
+        openDownloadsPage();
+    });
+} else {
+    console.error('[Downloads] ❌ Downloads button element not found!');
+}
+
+if (window.downloadsAPI && typeof window.downloadsAPI.onRedirect === 'function') {
+    window.downloadsAPI.onRedirect(() => {
+        refreshDownloadsCache().catch(() => {
+            // Ignore cache refresh errors; page can still load via IPC fallback.
+        });
+        openDownloadsPage();
+    });
+}
+
+// Keep cache synchronized so downloads page (including cache fallback mode)
+// reflects status transitions like downloading -> completed in near real-time.
+if (window.downloadsAPI && typeof window.downloadsAPI.onStarted === 'function') {
+    window.downloadsAPI.onStarted(() => {
+        refreshDownloadsCache().catch(() => {
+            // Ignore cache refresh errors.
+        });
+    });
+}
+
+if (window.downloadsAPI && typeof window.downloadsAPI.onUpdated === 'function') {
+    window.downloadsAPI.onUpdated(() => {
+        refreshDownloadsCache().catch(() => {
+            // Ignore cache refresh errors.
+        });
+    });
 }
 
 // ==================== ARTICLE SUMMARIZATION FEATURE ====================

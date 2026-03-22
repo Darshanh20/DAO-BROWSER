@@ -55,6 +55,26 @@ contextBridge.exposeInMainWorld('historyAPI', {
     getStats: (profileId) => ipcRenderer.invoke('history:getStats', profileId)
 });
 
+// Expose downloads API
+contextBridge.exposeInMainWorld('downloadsAPI', {
+    getHistory: (profileId) => ipcRenderer.invoke('downloads:getHistory', profileId),
+    onStarted: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('downloads:started', listener);
+        return () => ipcRenderer.removeListener('downloads:started', listener);
+    },
+    onUpdated: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('downloads:updated', listener);
+        return () => ipcRenderer.removeListener('downloads:updated', listener);
+    },
+    onRedirect: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('downloads:redirect', listener);
+        return () => ipcRenderer.removeListener('downloads:redirect', listener);
+    }
+});
+
 // Expose Exam Mode API
 contextBridge.exposeInMainWorld('examModeAPI', {
     // Profile ID management for URL filtering
