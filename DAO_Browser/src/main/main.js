@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard, webContents } = require('electron');
 const path = require('path');
 const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
@@ -9,6 +9,9 @@ const logSyncer = require('./examMode/logSyncer');
 const { exportExamPDF } = require('./examMode/pdfExporter');
 
 let mainWindow;
+let selectorWindow;
+const profileWindows = new Map(); // profileId -> BrowserWindow
+const windowProfiles = new Map(); // webContentsId -> { profileId, profileName }
 
 // Ad-Blocker Statistics
 let totalBlocked = 0;
@@ -21,6 +24,7 @@ const examLockdownProfiles = new Map(); // profileId -> { locked: boolean, sessi
 
 // Set of blocked ad domains (loaded from blocklists at startup)
 let blockedDomains = new Set();
+const initializedPartitions = new Set();
 
 // Blocklist sources (hosts-file format) — domain-level only, won't break YouTube
 const BLOCKLIST_URLS = [
@@ -102,6 +106,102 @@ function isAdRequest(url) {
     }
 }
 
+function getBrowserWindowForEvent(event) {
+    return BrowserWindow.fromWebContents(event.sender) || mainWindow || null;
+}
+
+function getPartitionForProfile(profileId) {
+    return `persist:${profileId}`;
+}
+
+function sendToRequestWindow(details, channel, payload) {
+    if (!details.webContentsId) {
+        if (mainWindow && mainWindow.webContents) {
+            mainWindow.webContents.send(channel, payload);
+        }
+        return;
+    }
+
+    const targetContents = webContents.fromId(details.webContentsId);
+    if (targetContents && !targetContents.isDestroyed()) {
+        targetContents.send(channel, payload);
+    } else if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send(channel, payload);
+    }
+}
+
+async function callProfileApi(apiPath, method = 'GET', body = null) {
+    const http = require('http');
+
+    return new Promise((resolve, reject) => {
+        const postData = body ? JSON.stringify(body) : null;
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: apiPath,
+            method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            timeout: 5000
+        };
+
+        if (postData) {
+            options.headers['Content-Length'] = Buffer.byteLength(postData);
+        }
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                try {
+                    const parsed = data ? JSON.parse(data) : {};
+                    resolve(parsed);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Profile API request timed out'));
+        });
+
+        if (postData) {
+            req.write(postData);
+        }
+        req.end();
+    });
+}
+
+async function getProfileById(profileId) {
+    const result = await callProfileApi(`/api/profiles/${profileId}`);
+    if (!result.success) {
+        throw new Error(result.error || 'Profile not found');
+    }
+    return result.data;
+}
+
+async function activateProfile(profileId) {
+    try {
+        await callProfileApi(`/api/profiles/${profileId}/activate`, 'POST');
+    } catch (error) {
+        console.warn(`[ProfileWindow] Failed to activate profile ${profileId}:`, error.message);
+    }
+}
+
+async function touchProfile(profileId) {
+    try {
+        await callProfileApi(`/api/profiles/${profileId}/touch`, 'POST');
+    } catch (error) {
+        console.warn(`[ProfileWindow] Failed to update last_used_at for profile ${profileId}:`, error.message);
+    }
+}
+
 // Register custom protocol scheme BEFORE app is ready
 // This allows safe redirects from HTTPS to our block page
 protocol.registerSchemesAsPrivileged([
@@ -109,53 +209,39 @@ protocol.registerSchemesAsPrivileged([
     { scheme: 'dao-exam-blocked', privileges: { standard: true, secure: true } }
 ]);
 
-function createWindow() {
-    mainWindow = new BrowserWindow({
-        width: 1400,
-        height: 900,
-        minWidth: 800,
+function createProfileSelectorWindow() {
+    if (selectorWindow && !selectorWindow.isDestroyed()) {
+        selectorWindow.focus();
+        return;
+    }
+
+    selectorWindow = new BrowserWindow({
+        width: 1100,
+        height: 760,
+        minWidth: 900,
         minHeight: 600,
         autoHideMenuBar: true,
+        title: 'D.A.O. Browser - Select Profile',
         webPreferences: {
             preload: path.join(__dirname, '../preload/preload.js'),
             contextIsolation: true,
-            nodeIntegration: false,
-            webviewTag: true
+            nodeIntegration: false
         }
     });
 
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-    mainWindow.maximize();
-    mainWindow.webContents.openDevTools();
-
-    // Register the dao-blocked:// protocol to serve the block page
-    const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
-    protocol.registerFileProtocol('dao-blocked', (request, callback) => {
-        callback({ path: blockPagePath });
+    selectorWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
+    selectorWindow.on('closed', () => {
+        selectorWindow = null;
     });
-
-    // Register the dao-exam-blocked:// protocol for exam mode block page
-    const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
-    protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
-        callback({ path: examBlockPagePath });
-    });
-
-    // Setup ad-blocker
-    setupAdBlocker();
 }
 
-async function setupAdBlocker() {
-    // Load both blocklists in parallel
-    await Promise.all([
-        loadBlocklists(),
-        contentFilter.loadContentBlocklists()
-    ]);
+function attachRequestInterception(targetSession) {
+    if (!targetSession || initializedPartitions.has(targetSession)) {
+        return;
+    }
 
-    // Register content filter IPC handlers
-    contentFilter.registerIpcHandlers();
-
-    // Intercept all network requests in the default session
-    session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    initializedPartitions.add(targetSession);
+    targetSession.webRequest.onBeforeRequest((details, callback) => {
         // 0. Check EXAM MODE FIRST (highest priority)
         const examResult = examUrlFilter.checkUrl(details.url, details.resourceType);
         if (examResult.examActive && examResult.blocked) {
@@ -166,19 +252,17 @@ async function setupAdBlocker() {
                     reason: examResult.reason || 'Not allowed during exam',
                     blockType: examResult.blockType || 'unknown'
                 });
-                
-                // Send IPC event to renderer to log the blocked URL
+
+                // Send IPC event to the originating renderer to log the blocked URL
                 console.log('[ExamFilter] Blocked URL:', details.url, 'Reason:', examResult.reason);
-                if (mainWindow && mainWindow.webContents) {
-                    mainWindow.webContents.send('examMode:urlBlocked', {
-                        type: 'blocked_url_attempt',
-                        url: details.url,
-                        reason: examResult.reason || 'Not allowed during exam',
-                        blockType: examResult.blockType || 'unknown',
-                        timestamp: new Date().toISOString()
-                    });
-                }
-                
+                sendToRequestWindow(details, 'examMode:urlBlocked', {
+                    type: 'blocked_url_attempt',
+                    url: details.url,
+                    reason: examResult.reason || 'Not allowed during exam',
+                    blockType: examResult.blockType || 'unknown',
+                    timestamp: new Date().toISOString()
+                });
+
                 callback({ redirectURL: `dao-exam-blocked://blocked?${params.toString()}` });
             } else {
                 // Cancel sub-resources silently
@@ -186,7 +270,7 @@ async function setupAdBlocker() {
             }
             return;
         }
-        
+
         // 1. Check content filter (redirect to block page)
         const contentResult = contentFilter.checkRequest(details.url);
         if (contentResult === 'blocked') {
@@ -211,6 +295,80 @@ async function setupAdBlocker() {
             callback({ cancel: false });
         }
     });
+}
+
+async function createOrFocusProfileWindow(profileId) {
+    const existing = profileWindows.get(profileId);
+    if (existing && !existing.isDestroyed()) {
+        existing.focus();
+        return { success: true, focusedExisting: true };
+    }
+
+    const profile = await getProfileById(profileId);
+    const partition = getPartitionForProfile(profileId);
+    const profileWindow = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 800,
+        minHeight: 600,
+        autoHideMenuBar: true,
+        title: `D.A.O. Browser - ${profile.display_name}`,
+        webPreferences: {
+            preload: path.join(__dirname, '../preload/preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            webviewTag: true,
+            partition
+        }
+    });
+
+    mainWindow = profileWindow;
+    profileWindows.set(profileId, profileWindow);
+    windowProfiles.set(profileWindow.webContents.id, {
+        profileId,
+        profileName: profile.display_name
+    });
+
+    attachRequestInterception(session.fromPartition(partition));
+
+    await activateProfile(profileId);
+    await profileWindow.loadFile(path.join(__dirname, '../renderer/index.html'), {
+        query: {
+            profileId: String(profileId),
+            profileName: profile.display_name
+        }
+    });
+    profileWindow.maximize();
+
+    profileWindow.on('focus', async () => {
+        mainWindow = profileWindow;
+        await activateProfile(profileId);
+    });
+
+    profileWindow.on('closed', async () => {
+        profileWindows.delete(profileId);
+        windowProfiles.delete(profileWindow.webContents.id);
+        await touchProfile(profileId);
+    });
+
+    if (selectorWindow && !selectorWindow.isDestroyed()) {
+        selectorWindow.close();
+    }
+
+    return { success: true, focusedExisting: false };
+}
+
+async function setupAdBlocker() {
+    // Load both blocklists in parallel
+    await Promise.all([
+        loadBlocklists(),
+        contentFilter.loadContentBlocklists()
+    ]);
+
+    // Register content filter IPC handlers
+    contentFilter.registerIpcHandlers();
+
+    attachRequestInterception(session.defaultSession);
 
     // Downloads are now allowed during exam mode
     // URL filtering (Phase 2) handles blocking non-whitelisted download sources
@@ -219,11 +377,32 @@ async function setupAdBlocker() {
     console.log('✅ Ad-Blocker + Content Filter + Exam Mode Filter initialized');
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+    // Register the dao-blocked:// protocol to serve the block page
+    const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
+    protocol.registerFileProtocol('dao-blocked', (request, callback) => {
+        callback({ path: blockPagePath });
+    });
+
+    // Register the dao-exam-blocked:// protocol for exam mode block page
+    const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
+    protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
+        callback({ path: examBlockPagePath });
+    });
+
+    await setupAdBlocker();
+    createProfileSelectorWindow();
+});
 
 // Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+        createProfileSelectorWindow();
+    }
 });
 
 // IPC Handlers for Ad-Blocker Statistics
@@ -246,6 +425,52 @@ ipcMain.handle('adBlocker:resetSession', () => {
     sessionBlocked = 0;
     console.log('Session stats reset');
     return sessionBlocked;
+});
+
+// Profile window management IPC
+ipcMain.handle('profileSelector:profileSelected', async (event, profileId) => {
+    try {
+        const numericProfileId = Number(profileId);
+        if (!numericProfileId || Number.isNaN(numericProfileId)) {
+            return { success: false, error: 'Invalid profile ID' };
+        }
+
+        return await createOrFocusProfileWindow(numericProfileId);
+    } catch (error) {
+        console.error('[ProfileSelector] Failed to open profile window:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('profileWindow:open', async (event, profileId) => {
+    try {
+        const numericProfileId = Number(profileId);
+        if (!numericProfileId || Number.isNaN(numericProfileId)) {
+            return { success: false, error: 'Invalid profile ID' };
+        }
+
+        return await createOrFocusProfileWindow(numericProfileId);
+    } catch (error) {
+        console.error('[ProfileWindow] Failed to open profile window:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('profileWindow:getContext', async (event) => {
+    let context = windowProfiles.get(event.sender.id);
+
+    if (!context && event.sender.hostWebContents) {
+        context = windowProfiles.get(event.sender.hostWebContents.id);
+    }
+
+    if (!context) {
+        return { success: false, error: 'Window profile context not found' };
+    }
+
+    return {
+        success: true,
+        data: context
+    };
 });
 
 // IPC Handler for fetching (bypasses CORS)
@@ -506,15 +731,20 @@ ipcMain.handle('history:getAll', async (event, page = 1, limit = 50, profileId =
 });
 
 // IPC Handler to search history
-ipcMain.handle('history:search', async (event, query, limit = 50) => {
+ipcMain.handle('history:search', async (event, query, limit = 50, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
         const encodedQuery = encodeURIComponent(query);
+        let requestPath = `/api/history/search?q=${encodedQuery}&limit=${limit}`;
+        if (profileId) {
+            requestPath += `&profile_id=${profileId}`;
+        }
+
         const options = {
             hostname: 'localhost',
             port: 5000,
-            path: `/api/history/search?q=${encodedQuery}&limit=${limit}`,
+            path: requestPath,
             method: 'GET',
             timeout: 5000
         };
@@ -593,14 +823,19 @@ ipcMain.handle('history:delete', async (event, entryId) => {
 });
 
 // IPC Handler to clear all history
-ipcMain.handle('history:clear', async () => {
+ipcMain.handle('history:clear', async (event, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
+        let requestPath = '/api/history/clear';
+        if (profileId) {
+            requestPath += `?profile_id=${profileId}`;
+        }
+
         const options = {
             hostname: 'localhost',
             port: 5000,
-            path: '/api/history/clear',
+            path: requestPath,
             method: 'DELETE',
             timeout: 5000
         };
@@ -636,14 +871,19 @@ ipcMain.handle('history:clear', async () => {
 });
 
 // IPC Handler to get history stats
-ipcMain.handle('history:getStats', async () => {
+ipcMain.handle('history:getStats', async (event, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
+        let requestPath = '/api/history/stats';
+        if (profileId) {
+            requestPath += `?profile_id=${profileId}`;
+        }
+
         const options = {
             hostname: 'localhost',
             port: 5000,
-            path: '/api/history/stats',
+            path: requestPath,
             method: 'GET',
             timeout: 5000
         };
@@ -763,7 +1003,10 @@ ipcMain.handle('examMode:joinSession', async (event, configPath, password, stude
         if (result.session) {
             logSyncer.start(result.session, profileId, () => {
                 // Callback when professor ends session
-                mainWindow.webContents.send('examMode:sessionEndedByProfessor', { profileId });
+                const targetWindow = profileWindows.get(profileId);
+                if (targetWindow && !targetWindow.isDestroyed()) {
+                    targetWindow.webContents.send('examMode:sessionEndedByProfessor', { profileId });
+                }
             });
         }
     }
@@ -826,7 +1069,8 @@ ipcMain.handle('examMode:getSessionsDirectory', async () => {
 
 // Show save dialog for session file download
 ipcMain.handle('examMode:showSaveDialog', async (event, defaultFileName) => {
-    const result = await dialog.showSaveDialog(mainWindow, {
+    const targetWindow = getBrowserWindowForEvent(event);
+    const result = await dialog.showSaveDialog(targetWindow, {
         title: 'Save Exam Session File',
         defaultPath: defaultFileName,
         filters: [
@@ -849,8 +1093,9 @@ ipcMain.handle('examMode:saveFileToPath', async (event, sourcePath, destPath) =>
 });
 
 // Show open dialog for session file upload
-ipcMain.handle('examMode:showOpenDialog', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+ipcMain.handle('examMode:showOpenDialog', async (event) => {
+    const targetWindow = getBrowserWindowForEvent(event);
+    const result = await dialog.showOpenDialog(targetWindow, {
         title: 'Select Exam Session File',
         filters: [
             { name: 'JSON Files', extensions: ['json'] },
@@ -862,8 +1107,9 @@ ipcMain.handle('examMode:showOpenDialog', async () => {
 });
 
 // Show open dialog for multiple log files (Professor logs view)
-ipcMain.handle('examMode:showOpenDialogMultiple', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+ipcMain.handle('examMode:showOpenDialogMultiple', async (event) => {
+    const targetWindow = getBrowserWindowForEvent(event);
+    const result = await dialog.showOpenDialog(targetWindow, {
         title: 'Select Student Log Files',
         filters: [
             { name: 'Activity Log Files', extensions: ['json'] },

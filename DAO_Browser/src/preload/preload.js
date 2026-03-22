@@ -28,6 +28,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fetchNews: (url, options) => ipcRenderer.invoke('app:fetch', url, options)
 });
 
+// Expose startup profile selector API
+contextBridge.exposeInMainWorld('profileSelector', {
+    profileSelected: (profileId) => ipcRenderer.invoke('profileSelector:profileSelected', profileId)
+});
+
+// Expose profile window management API
+contextBridge.exposeInMainWorld('profileWindows', {
+    openProfileWindow: (profileId) => ipcRenderer.invoke('profileWindow:open', profileId),
+    getContext: () => ipcRenderer.invoke('profileWindow:getContext')
+});
+
 // Expose summarization API
 contextBridge.exposeInMainWorld('api', {
     summarizeArticle: (articleData) => ipcRenderer.invoke('summarize:article', articleData),

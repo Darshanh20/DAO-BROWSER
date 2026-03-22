@@ -27,6 +27,50 @@ console.log('contentArea:', contentArea);
 let tabs = [];
 let activeTabId = null;
 let nextTabId = 1;
+let windowProfileContext = {
+    profileId: 1,
+    profileName: 'Default Profile'
+};
+
+const bootstrapQuery = new URLSearchParams(window.location.search);
+const queryProfileId = Number(bootstrapQuery.get('profileId'));
+const queryProfileName = bootstrapQuery.get('profileName');
+if (queryProfileId && !Number.isNaN(queryProfileId)) {
+    windowProfileContext.profileId = queryProfileId;
+}
+if (queryProfileName) {
+    windowProfileContext.profileName = queryProfileName;
+}
+
+function getWindowProfilePartition() {
+    return `persist:${windowProfileContext.profileId || 1}`;
+}
+
+async function initializeWindowProfileContext() {
+    try {
+        if ((!windowProfileContext.profileId || windowProfileContext.profileId === 1) &&
+            window.profileWindows && typeof window.profileWindows.getContext === 'function') {
+            const contextResult = await window.profileWindows.getContext();
+            if (contextResult.success && contextResult.data?.profileId) {
+                windowProfileContext = {
+                    profileId: Number(contextResult.data.profileId),
+                    profileName: contextResult.data.profileName || 'Profile'
+                };
+            }
+        }
+    } catch (error) {
+        console.warn('[ProfileContext] Failed to resolve profile context:', error);
+    }
+
+    localStorage.setItem('dao_current_profile_id', String(windowProfileContext.profileId));
+    document.title = `D.A.O. Browser - ${windowProfileContext.profileName}`;
+
+    if (window.examModeAPI) {
+        window.examModeAPI.setProfileId(String(windowProfileContext.profileId)).catch((error) => {
+            console.warn('[ProfileContext] Failed to sync profile ID to exam mode:', error);
+        });
+    }
+}
 
 // ==================== WEBVIEW POSTMESSAGE HANDLER ====================
 // Listen for messages from webviews about Ctrl+F and other events
@@ -125,6 +169,7 @@ class Tab {
         this.webview.id = `webview-${id}`;
         this.webview.classList.add('webview-tab');
         this.webview.style.display = 'none';
+        this.webview.setAttribute('partition', getWindowProfilePartition());
         
         // Initially set to about:blank, will navigate after preload is set
         this.webview.src = 'about:blank';
@@ -172,14 +217,17 @@ class Tab {
         try {
             const preloadPath = await window.electronAPI.paths.getPath('renderer');
             const preloadScript = preloadPath.replace(/\\/g, '/').replace('/renderer', '/preload/preload.js');
+            const partition = getWindowProfilePartition();
             
             // Set webview attributes for proper API access
+            this.webview.setAttribute('partition', partition);
             this.webview.setAttribute('preload', `file:///${preloadScript}`);
             this.webview.setAttribute('nodeintegration', 'false');
             this.webview.setAttribute('nodeintegrationinsubframes', 'false');
             this.webview.setAttribute('webpreferences', 'contextIsolation=true');
             
             console.log(`Webview preload set: ${preloadScript}`);
+            console.log(`Webview partition set: ${partition}`);
             
             // Now navigate to the target URL if it's not about:blank
             if (targetUrl && targetUrl !== 'about:blank') {
@@ -406,8 +454,14 @@ class Tab {
             }
             
             // Get current profile ID - use multiple sources for reliability
-            let profileId = 1;  // Default profile
+            let profileId = windowProfileContext.profileId || 1;
             
+            // Prefer window profile context because each window is profile-scoped
+            if (windowProfileContext.profileId) {
+                profileId = windowProfileContext.profileId;
+                console.log(`[History] Using window profile context ID: ${profileId}`);
+            }
+
             // Try to get from ProfileSwitcher instance first (most reliable)
             if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
                 profileId = window.profileSwitcher.currentProfile.id;
@@ -1013,12 +1067,15 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize with first tab
 console.log('About to create first tab...');
-try {
-    createNewTab();
-    console.log('First tab created successfully');
-} catch (error) {
-    console.error('Error creating first tab:', error);
-}
+(async () => {
+    try {
+        await initializeWindowProfileContext();
+        createNewTab();
+        console.log('First tab created successfully');
+    } catch (error) {
+        console.error('Error creating first tab:', error);
+    }
+})();
 
 // Periodically update navigation button states to keep them in sync with webview history
 setInterval(() => {
@@ -1484,7 +1541,7 @@ async function openHistoryPage() {
     
     try {
         const rendererPath = await window.electronAPI.paths.getPath('renderer');
-        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html`;
+        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html?profile_id=${windowProfileContext.profileId}`;
         
         // Create a new tab with the history page
         const historyTab = createNewTab(historyPageUrl);

@@ -109,10 +109,27 @@ class ProfileSwitcher {
                 console.log(`✅ Loaded ${this.profiles.length} profiles`);
             }
 
-            // Load active profile
-            const activeResult = await profileAPI.getActiveProfile();
-            if (activeResult.success) {
-                this.currentProfile = activeResult.data;
+            // Determine current profile for this specific window first
+            let resolvedCurrentProfile = null;
+            if (window.profileWindows && typeof window.profileWindows.getContext === 'function') {
+                const contextResult = await window.profileWindows.getContext();
+                if (contextResult.success && contextResult.data?.profileId) {
+                    resolvedCurrentProfile = this.profiles.find(
+                        (profile) => profile.id === Number(contextResult.data.profileId)
+                    ) || null;
+                }
+            }
+
+            // Fallback to backend active profile if window context is unavailable
+            if (!resolvedCurrentProfile) {
+                const activeResult = await profileAPI.getActiveProfile();
+                if (activeResult.success) {
+                    resolvedCurrentProfile = activeResult.data;
+                }
+            }
+
+            if (resolvedCurrentProfile) {
+                this.currentProfile = resolvedCurrentProfile;
                 this.updateCurrentProfileDisplay();
                 
                 // Store current profile ID in localStorage for other pages (like history)
@@ -127,12 +144,10 @@ class ProfileSwitcher {
                 
                 console.log(`✅ Active profile: ${this.currentProfile.display_name} (ID: ${this.currentProfile.id})`);
             } else {
-                console.warn('❌ No active profile found, this might indicate a setup issue');
-                // If no active profile, try to activate the first available profile
+                console.warn('❌ No current profile found for this window, falling back to first profile');
                 if (this.profiles.length > 0) {
-                    const firstProfile = this.profiles[0];
-                    console.log(`🔄 Attempting to activate first profile: ${firstProfile.display_name}`);
-                    await this.switchProfile(firstProfile.id);
+                    this.currentProfile = this.profiles[0];
+                    this.updateCurrentProfileDisplay();
                 }
             }
 
@@ -175,7 +190,7 @@ class ProfileSwitcher {
                         <div class="profile-info">
                             <div class="profile-name">${this.escapeHtml(profile.display_name)}</div>
                             <div class="profile-meta">
-                                ${isActive ? 'Active' : 'Last used: ' + this.formatDate(profile.last_used_at)}
+                                ${isActive ? 'Current Window' : 'Last used: ' + this.formatDate(profile.last_used_at)}
                             </div>
                         </div>
                         ${isActive ? '<div class="profile-status-indicator"></div>' : ''}
@@ -230,40 +245,26 @@ class ProfileSwitcher {
         if (this.isLoading) return;
 
         try {
+            if (!profileId || profileId === this.currentProfile?.id) {
+                return;
+            }
+
             this.setLoading(true);
             
-            // Show switching state
-            this.nameEl.textContent = 'Switching...';
-            
-            // Activate profile on backend
-            const result = await profileAPI.activateProfile(profileId);
+            // Open or focus isolated profile window in main process
+            const result = await window.profileWindows.openProfileWindow(profileId);
             
             if (result.success) {
-                this.currentProfile = result.data;
-                this.updateCurrentProfileDisplay();
-                
-                // Store current profile ID in localStorage for other pages (like history)
-                localStorage.setItem('dao_current_profile_id', this.currentProfile.id.toString());
-                
-                console.log(`✅ Switched to profile: ${this.currentProfile.display_name} (ID: ${profileId})`);
-                
-                // Emit profile switch event for other components
-                this.emitProfileSwitchEvent(this.currentProfile);
-                
-                // Reload profile list to update states
-                await this.loadProfiles();
-                
-                // Optional: Show success notification
-                this.showNotification(`Switched to ${this.currentProfile.display_name}`, 'success');
+                const selectedProfile = this.profiles.find((profile) => profile.id === profileId);
+                const profileName = selectedProfile?.display_name || 'selected profile';
+                console.log(`✅ Opened/focused profile window: ${profileName} (ID: ${profileId})`);
+                this.showNotification(`Opened ${profileName} in a separate window`, 'success');
             } else {
-                throw new Error(result.error || 'Failed to switch profile');
+                throw new Error(result.error || 'Failed to open profile window');
             }
         } catch (error) {
-            console.error('Failed to switch profile:', error);
-            this.showNotification('Failed to switch profile', 'error');
-            
-            // Restore original display
-            this.updateCurrentProfileDisplay();
+            console.error('Failed to open profile window:', error);
+            this.showNotification('Failed to open profile window', 'error');
         } finally {
             this.setLoading(false);
         }

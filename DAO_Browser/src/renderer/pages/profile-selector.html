@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D.A.O. Browser - Select Profile</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Theming & Styling -->
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/profile-selector.css">
+</head>
+<body>
+    <div id="selector-container" class="selector-container">
+        <!-- Header -->
+        <header class="selector-header">
+            <div class="header-left">
+                <div class="logo-area">
+                    <i class="fas fa-shield-alt logo-icon"></i>
+                    <h1 class="app-title">D.A.O. Browser</h1>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="selector-main">
+            <div class="intro-section">
+                <h2>Select Your Profile</h2>
+                <p class="intro-text">Choose a profile to continue browsing</p>
+            </div>
+
+            <!-- Profiles Grid -->
+            <div id="profiles-grid" class="profiles-grid">
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Loading profiles...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Profile Modal -->
+    <div id="create-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Profile</h2>
+                <button class="modal-close" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="create-form" class="profile-form">
+                <div class="form-group">
+                    <label for="new-profile-name">Profile Name</label>
+                    <input
+                        type="text"
+                        id="new-profile-name"
+                        class="form-input"
+                        placeholder="e.g., Work, Personal, Research"
+                        required
+                        maxlength="50"
+                    >
+                    <div class="form-error" id="name-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Avatar Color</label>
+                    <div class="color-picker">
+                        <div class="color-option" data-color="#2ecc71" style="background-color: #2ecc71;" title="Green">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="color-option" data-color="#1abc9c" style="background-color: #1abc9c;" title="Teal">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="color-option" data-color="#e74c3c" style="background-color: #e74c3c;" title="Red">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="color-option" data-color="#f39c12" style="background-color: #f39c12;" title="Orange">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="color-option" data-color="#9c27b0" style="background-color: #9c27b0;" title="Purple">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="color-option" data-color="#3498db" style="background-color: #3498db;" title="Blue">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="color-option" data-color="#16a085" style="background-color: #16a085;" title="Dark Teal">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="color-option" data-color="#888888" style="background-color: #888888;" title="Gray">
+                            <i class="fas fa-check"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-preview">
+                    <p class="form-preview-label">Preview:</p>
+                    <div class="profile-preview">
+                        <div class="profile-avatar" id="preview-avatar" style="background-color: #2ecc71;">A</div>
+                        <span id="preview-name">Anonymous</span>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        <span>Create Profile</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary modal-close">
+                        <span>Cancel</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal hidden">
+        <div class="modal-content modal-delete">
+            <div class="modal-icon delete-icon">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h2>Delete Profile?</h2>
+            <p class="delete-text">Are you sure you want to delete <strong id="delete-profile-name"></strong>?</p>
+            <p class="delete-warning">This action cannot be undone. All profile data will be permanently deleted.</p>
+            <div class="form-actions">
+                <button id="confirm-delete-btn" class="btn btn-danger">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Delete Profile</span>
+                </button>
+                <button id="cancel-delete-btn" class="btn btn-secondary">
+                    <span>Cancel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="notification hidden"></div>
+
+    <!-- Scripts -->
+    <script src="../services/profileApi.js"></script>
+    <script src="profile-selector.js"></script>
+</body>
+</html>

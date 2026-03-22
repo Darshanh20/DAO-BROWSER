@@ -22,6 +22,7 @@ let totalPages = 1;
 let searchQuery = '';
 let searchTimeout;
 let cachedProfileId = null; // Cache the profile ID to avoid repeated fetches
+const pageQueryParams = new URLSearchParams(window.location.search);
 
 // Get current profile ID with multiple fallback sources
 async function getCurrentProfileId() {
@@ -31,6 +32,13 @@ async function getCurrentProfileId() {
     }
     
     let profileId = 1; // Default fallback
+
+    // Respect profile_id query param when page is opened from a specific profile window
+    const queryProfileId = parseInt(pageQueryParams.get('profile_id'), 10);
+    if (!isNaN(queryProfileId) && queryProfileId > 0) {
+        cachedProfileId = queryProfileId;
+        return queryProfileId;
+    }
     
     // Try to get from ProfileSwitcher instance first (most reliable for main page context)
     if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
@@ -47,22 +55,7 @@ async function getCurrentProfileId() {
         return profileId;
     }
     
-    // Fetch from backend API (most reliable for history page in separate tab context)
-    try {
-        const response = await fetch('http://localhost:5000/api/profiles/active');
-        const result = await response.json();
-        
-        if (result.success && result.data && result.data.id) {
-            profileId = result.data.id;
-            cachedProfileId = profileId;
-            console.log(`[History Page] Got profile from API: ID ${profileId} (${result.data.display_name})`);
-            return profileId;
-        }
-    } catch (error) {
-        console.warn('[History Page] Failed to fetch active profile from API:', error);
-    }
-    
-    // If we got here, none of the methods worked, use default
+    // If we got here, none of the profile-scoped methods worked, use default
     console.warn('[History Page] Using default profile ID: 1');
     cachedProfileId = profileId;
     return profileId;

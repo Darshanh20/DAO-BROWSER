@@ -31,11 +31,30 @@ class ProfileSettingsService {
     
     async loadCurrentProfile() {
         try {
+            if (window.profileWindows && typeof window.profileWindows.getContext === 'function') {
+                const contextResult = await window.profileWindows.getContext();
+                if (contextResult.success && contextResult.data?.profileId) {
+                    this.currentProfileId = Number(contextResult.data.profileId);
+                    console.log('[ProfileSettings] Loaded window profile context:', this.currentProfileId);
+                    this.applyCurrentProfileSettings();
+                    return;
+                }
+            }
+
+            const storedProfileId = parseInt(localStorage.getItem('dao_current_profile_id'), 10);
+            if (!isNaN(storedProfileId) && storedProfileId > 0) {
+                this.currentProfileId = storedProfileId;
+                console.log('[ProfileSettings] Loaded localStorage profile:', this.currentProfileId);
+                this.applyCurrentProfileSettings();
+                return;
+            }
+
             if (typeof profileAPI !== 'undefined') {
                 const result = await profileAPI.getActiveProfile();
                 if (result.success && result.data) {
                     this.currentProfileId = result.data.id;
-                    console.log('[ProfileSettings] Loaded profile:', this.currentProfileId);
+                    console.log('[ProfileSettings] Loaded fallback active profile:', this.currentProfileId);
+                    this.applyCurrentProfileSettings();
                 }
             }
         } catch (error) {
