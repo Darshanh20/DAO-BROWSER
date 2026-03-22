@@ -1026,7 +1026,12 @@ if (settingsBtn) {
     settingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (window.settingsDialog) {
-            window.settingsDialog.open();
+            const settingsDialogEl = document.getElementById('settings-dialog');
+            if (settingsDialogEl && !settingsDialogEl.classList.contains('hidden')) {
+                window.settingsDialog.close();
+            } else {
+                window.settingsDialog.open();
+            }
         }
     });
 }
