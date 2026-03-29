@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/profile-manager.css">
     <link rel="stylesheet" href="css/exam-mode.css">
     <link rel="stylesheet" href="css/focus-mode.css">
+    <link rel="stylesheet" href="css/address-bar-omnibox.css">
     <script>
         // Remove preload class after page loads to enable smooth transitions
         window.addEventListener('load', () => {
@@ -58,14 +59,16 @@
                 </button>
             </div>
 
-            <!-- Address Bar Pill -->
-            <div class="url-container">
-                <i class="fa-solid fa-lock lock-icon"></i>
-                <input type="text" id="address-bar" placeholder="Search DAO or type a URL">
-                <span class="url-badge">
-                    <i class="fa-solid fa-shield-cat"></i> PROTECTED
-                </span>
-                <i class="fa-regular fa-star bookmark-star"></i>
+            <!-- Address Bar Pill with Omnibox -->
+            <div class="url-container-wrapper">
+                <div class="url-container">
+                    <i class="fa-solid fa-lock lock-icon"></i>
+                    <input type="text" id="address-bar" placeholder="Search DAO or type a URL">
+                    <span class="url-badge">
+                        <i class="fa-solid fa-shield-cat"></i> PROTECTED
+                    </span>
+                    <i class="fa-regular fa-star bookmark-star"></i>
+                </div>
             </div>
 
             <!-- Go Button (Hidden visually, triggered by Enter, kept for logic) -->
@@ -1281,6 +1284,7 @@
     
     <script src="modules/find-bar.js"></script>
     <script src="modules/settings-dialog.js"></script>
+    <script src="modules/address-bar-omnibox.js"></script>
     <script src="utils/contentExtractor.js"></script>
     <script src="services/profileApi.js"></script>
     <script src="services/profileSettings.js"></script>

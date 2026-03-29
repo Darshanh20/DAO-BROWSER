@@ -33,6 +33,60 @@ let windowProfileContext = {
     profileName: 'Default Profile'
 };
 
+// ==================== TAB BAR DRAG-AND-DROP SUPPORT ====================
+let tabBarDragActive = false;
+
+tabsContainer.addEventListener('dragover', (e) => {
+    // Must prevent default to allow drop
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    
+    // Only activate if dragging a URI
+    const hasUri = e.dataTransfer.types.includes('text/uri-list') || 
+                   e.dataTransfer.types.includes('text/plain');
+    
+    if (hasUri && !tabBarDragActive) {
+        tabBarDragActive = true;
+        tabsContainer.classList.add('drag-over');
+        console.log('[Tab Drag] Drag over tab bar - highlighting');
+    }
+});
+
+tabsContainer.addEventListener('dragleave', (e) => {
+    // Only remove highlight if leaving the tab container itself
+    if (e.target === tabsContainer) {
+        tabBarDragActive = false;
+        tabsContainer.classList.remove('drag-over');
+        console.log('[Tab Drag] Left tab bar - removing highlight');
+    }
+});
+
+tabsContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    tabBarDragActive = false;
+    tabsContainer.classList.remove('drag-over');
+    
+    // Get the URL from drag data
+    const url = e.dataTransfer.getData('text/uri-list') || 
+                e.dataTransfer.getData('text/plain');
+    
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        console.log('[Tab Drag] Drop detected, opening URL:', url);
+        const newTab = createNewTab(url);
+        switchToTab(newTab.id);
+    } else if (url) {
+        console.warn('[Tab Drag] Dropped URL is not HTTP(S):', url);
+    }
+});
+
+// Clean up highlight if drag ends without drop
+tabsContainer.addEventListener('dragend', () => {
+    tabBarDragActive = false;
+    tabsContainer.classList.remove('drag-over');
+});
+
 const bootstrapQuery = new URLSearchParams(window.location.search);
 const queryProfileId = Number(bootstrapQuery.get('profileId'));
 const queryProfileName = bootstrapQuery.get('profileName');
@@ -70,6 +124,11 @@ async function initializeWindowProfileContext() {
         window.examModeAPI.setProfileId(String(windowProfileContext.profileId)).catch((error) => {
             console.warn('[ProfileContext] Failed to sync profile ID to exam mode:', error);
         });
+    }
+    
+    // Update omnibox profile if available
+    if (window.updateOmniboxProfile) {
+        window.updateOmniboxProfile(windowProfileContext.profileId);
     }
 }
 
@@ -360,6 +419,10 @@ class Tab {
             console.log(`[WebView ${this.id}] DOM ready, injecting Ctrl+F handler...`);
             this.injectCtrlFHandler();
             
+            // Inject link drag handler into webview
+            console.log(`[WebView ${this.id}] DOM ready, injecting link drag handler...`);
+            this.injectLinkDragHandler();
+            
             // Always update navigation buttons
             updateNavigationButtons();
         });
@@ -577,6 +640,62 @@ class Tab {
             console.log(`[WebView ${this.id}] Ctrl+F handler injected successfully`);
         } catch (error) {
             console.error(`[WebView ${this.id}] Failed to inject Ctrl+F handler:`, error);
+        }
+    }
+
+    injectLinkDragHandler() {
+        // Inject dragstart handler on all <a> tags in webview
+        const script = `
+            (function() {
+                console.log('[WebView Link Drag] Handler injection started');
+                
+                // Track active drag to prevent multiple registrations
+                let dragHandlersInjected = false;
+                
+                function setupLinkDragListeners() {
+                    if (dragHandlersInjected) return;
+                    dragHandlersInjected = true;
+                    
+                    document.addEventListener('dragstart', function(e) {
+                        const link = e.target.closest('a[href]');
+                        if (link && link.href) {
+                            console.log('[WebView Link Drag] Dragging link:', link.href);
+                            e.dataTransfer.effectAllowed = 'copy';
+                            e.dataTransfer.setData('text/uri-list', link.href);
+                            e.dataTransfer.setData('text/plain', link.href);
+                            // Optional: Set a custom drag image
+                            const dragImage = new Image();
+                            dragImage.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3Ctext x="0" y="20" font-size="20"%3E%F0%9F%94—%3C/text%3E%3C/svg%3E';
+                            e.dataTransfer.setDragImage(dragImage, 12, 12);
+                        }
+                    }, true);
+                    
+                    console.log('[WebView Link Drag] Handler injection complete');
+                }
+                
+                // Setup immediately if DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', setupLinkDragListeners);
+                } else {
+                    setupLinkDragListeners();
+                }
+                
+                // Re-inject on dynamic content loads (for SPAs)
+                const observer = new MutationObserver(() => {
+                    setupLinkDragListeners();
+                });
+                observer.observe(document.body, { 
+                    childList: true, 
+                    subtree: true 
+                });
+            })();
+        `;
+        
+        try {
+            this.webview.executeJavaScript(script);
+            console.log(`[WebView ${this.id}] Link drag handler injected successfully`);
+        } catch (error) {
+            console.error(`[WebView ${this.id}] Failed to inject link drag handler:`, error);
         }
     }
 
@@ -2078,9 +2197,42 @@ function initializeProfileComponents() {
     }
 }
 
+// ==================== ADDRESS BAR OMNIBOX INITIALIZATION ====================
+let omnibox = null;
+
+function initializeAddressBarOmnibox() {
+    try {
+        // Create omnibox instance
+        omnibox = new AddressBarOmnibox(
+            '#address-bar',
+            '.url-container-wrapper'
+        );
+        
+        console.log('[Renderer] Address bar omnibox initialized');
+    } catch (error) {
+        console.error('[Renderer] Failed to initialize address bar omnibox:', error);
+    }
+}
+
+/**
+ * Update omnibox profile (called when profile context changes)
+ */
+function updateOmniboxProfile(profileId) {
+    if (omnibox) {
+        omnibox.setProfileId(profileId);
+    }
+}
+
+// Expose globally so ProfileSwitcher can call it
+window.updateOmniboxProfile = updateOmniboxProfile;
+
 // Initialize profile components when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeProfileComponents);
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeProfileComponents();
+        initializeAddressBarOmnibox();
+    });
 } else {
     initializeProfileComponents();
+    initializeAddressBarOmnibox();
 }
