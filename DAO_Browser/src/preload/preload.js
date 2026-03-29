@@ -167,3 +167,37 @@ contextBridge.exposeInMainWorld('examModeAPI', {
         return () => ipcRenderer.removeListener('examMode:urlBlocked', listener);
     }
 });
+
+// Expose Focus Mode API
+contextBridge.exposeInMainWorld('focusModeAPI', {
+    startSession: (profileId) =>
+        ipcRenderer.invoke('focusMode:startSession', profileId),
+    endSession: (profileId) =>
+        ipcRenderer.invoke('focusMode:endSession', profileId),
+    getActiveSession: (profileId) =>
+        ipcRenderer.invoke('focusMode:getActiveSession', profileId),
+    startBreak: (profileId) =>
+        ipcRenderer.invoke('focusMode:startBreak', profileId),
+    getHistory: (profileId, limit = 100) =>
+        ipcRenderer.invoke('focusMode:getHistory', profileId, limit),
+    getBlocklistMeta: () =>
+        ipcRenderer.invoke('focusMode:getBlocklistMeta'),
+
+    onUrlBlocked: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('focusMode:urlBlocked', listener);
+        return () => ipcRenderer.removeListener('focusMode:urlBlocked', listener);
+    },
+
+    onStateChanged: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('focusMode:stateChanged', listener);
+        return () => ipcRenderer.removeListener('focusMode:stateChanged', listener);
+    },
+
+    onBreakChanged: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('focusMode:breakChanged', listener);
+        return () => ipcRenderer.removeListener('focusMode:breakChanged', listener);
+    }
+});

@@ -179,7 +179,13 @@ def index():
             '/api/history/search': 'GET - Search history',
             '/api/history/stats': 'GET - Get history statistics',
             '/api/history/:id': 'DELETE - Delete history entry',
-            '/api/history/clear': 'DELETE - Clear all history'
+            '/api/history/clear': 'DELETE - Clear all history',
+            '/api/focus/start': 'POST - Start focus session',
+            '/api/focus/visit': 'POST - Log visited site for active focus session',
+            '/api/focus/blocked': 'POST - Log blocked attempt for active focus session',
+            '/api/focus/break': 'POST - Log a focus break interval',
+            '/api/focus/end': 'POST - End focus session and return stats',
+            '/api/focus/history': 'GET - Get past focus sessions'
         },
         'usage': {
             'summarize': {
@@ -404,6 +410,187 @@ def get_history_statistics():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ==================== FOCUS MODE API ENDPOINTS ====================
+
+@app.route('/api/focus/start', methods=['POST'])
+def start_focus_session():
+    """
+    Start a focus mode session.
+
+    Expected JSON body:
+    {
+        "profile_id": 1,
+        "started_at": "2026-03-24 10:10:10" (optional)
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        profile_id = data.get('profile_id', 1)
+        started_at = data.get('started_at')
+
+        if not isinstance(profile_id, int) or profile_id <= 0:
+            profile_id = 1
+
+        result = database.start_focus_session(profile_id, started_at)
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        logger.error(f"Error starting focus session: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/focus/visit', methods=['POST'])
+def log_focus_visit():
+    """
+    Log a visited site for a focus session.
+
+    Expected JSON body:
+    {
+        "session_id": 10,
+        "url": "https://example.com",
+        "domain": "example.com",
+        "visited_at": "2026-03-24 10:11:30" (optional)
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        session_id = data.get('session_id')
+        url = data.get('url', '').strip()
+        domain = data.get('domain', '').strip().lower()
+        visited_at = data.get('visited_at')
+
+        if not session_id or not isinstance(session_id, int):
+            return jsonify({'success': False, 'error': 'session_id is required'}), 400
+        if not url or not domain:
+            return jsonify({'success': False, 'error': 'url and domain are required'}), 400
+
+        result = database.log_focus_site_visit(session_id, url, domain, visited_at)
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        logger.error(f"Error logging focus visit: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/focus/blocked', methods=['POST'])
+def log_focus_blocked_attempt():
+    """
+    Log a blocked navigation attempt for a focus session.
+
+    Expected JSON body:
+    {
+        "session_id": 10,
+        "url": "https://social.example.com",
+        "domain": "social.example.com",
+        "reason": "Social media blocked during Focus Mode",
+        "attempted_at": "2026-03-24 10:12:30" (optional)
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        session_id = data.get('session_id')
+        url = data.get('url', '').strip()
+        domain = data.get('domain', '').strip().lower()
+        reason = data.get('reason', 'Blocked during Focus Mode')
+        attempted_at = data.get('attempted_at')
+
+        if not session_id or not isinstance(session_id, int):
+            return jsonify({'success': False, 'error': 'session_id is required'}), 400
+        if not url or not domain:
+            return jsonify({'success': False, 'error': 'url and domain are required'}), 400
+
+        result = database.log_focus_blocked_attempt(session_id, url, domain, reason, attempted_at)
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        logger.error(f"Error logging focus blocked attempt: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/focus/break', methods=['POST'])
+def log_focus_break():
+    """
+    Log a focus mode break interval.
+
+    Expected JSON body:
+    {
+        "session_id": 10,
+        "break_started_at": "2026-03-24 10:20:00",
+        "break_ended_at": "2026-03-24 10:25:00",
+        "duration_seconds": 300
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        session_id = data.get('session_id')
+        break_started_at = data.get('break_started_at')
+        break_ended_at = data.get('break_ended_at')
+        duration_seconds = data.get('duration_seconds', 300)
+
+        if not session_id or not isinstance(session_id, int):
+            return jsonify({'success': False, 'error': 'session_id is required'}), 400
+        if not break_started_at or not break_ended_at:
+            return jsonify({'success': False, 'error': 'break_started_at and break_ended_at are required'}), 400
+
+        if not isinstance(duration_seconds, int) or duration_seconds < 1:
+            duration_seconds = 300
+
+        result = database.log_focus_break(session_id, break_started_at, break_ended_at, duration_seconds)
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        logger.error(f"Error logging focus break: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/focus/end', methods=['POST'])
+def end_focus_session():
+    """
+    End a focus session and return stats report.
+
+    Expected JSON body:
+    {
+        "session_id": 10,
+        "ended_at": "2026-03-24 10:45:00" (optional)
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        session_id = data.get('session_id')
+        ended_at = data.get('ended_at')
+
+        if not session_id or not isinstance(session_id, int):
+            return jsonify({'success': False, 'error': 'session_id is required'}), 400
+
+        result = database.end_focus_session(session_id, ended_at)
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        logger.error(f"Error ending focus session: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/focus/history', methods=['GET'])
+def get_focus_history():
+    """
+    Fetch focus session history for a profile.
+
+    Query params:
+    - profile_id: profile id (default 1)
+    - limit: max rows to return (default 100)
+    """
+    try:
+        profile_id = request.args.get('profile_id', default=1, type=int)
+        limit = request.args.get('limit', default=100, type=int)
+
+        result = database.get_focus_history(profile_id, limit)
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        logger.error(f"Error fetching focus history: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("=" * 60)

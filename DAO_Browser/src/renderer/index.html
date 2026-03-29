@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="css/profile-switcher.css">
     <link rel="stylesheet" href="css/profile-manager.css">
     <link rel="stylesheet" href="css/exam-mode.css">
+    <link rel="stylesheet" href="css/focus-mode.css">
     <script>
         // Remove preload class after page loads to enable smooth transitions
         window.addEventListener('load', () => {
@@ -72,6 +73,12 @@
 
             <!-- Window Controls / Extras -->
             <div class="window-controls">
+                <div id="focus-toolbar-widget" class="focus-toolbar-widget hidden" title="Focus Mode Active">
+                    <span class="focus-toolbar-dot"></span>
+                    <span id="focus-toolbar-stopwatch" class="focus-toolbar-stopwatch">00:00:00</span>
+                    <button id="focus-break-btn" class="focus-break-btn" type="button">Take a Break</button>
+                    <span id="focus-break-countdown" class="focus-break-countdown hidden">05:00</span>
+                </div>
                 <button class="icon-btn"><i class="fa-solid fa-puzzle-piece"></i></button>
                 <button id="history-btn" class="icon-btn" title="Browsing History (Ctrl+H)">
                     <i class="fa-solid fa-clock-rotate-left"></i>
@@ -266,6 +273,10 @@
                                 <i class="fa-solid fa-shield-halved"></i>
                                 <span>Privacy & Security</span>
                             </button>
+                            <button class="settings-menu-item" data-page="focusmode">
+                                <i class="fa-solid fa-bullseye"></i>
+                                <span>Focus Mode</span>
+                            </button>
                             <button class="settings-menu-item" data-page="exammode">
                                 <i class="fa-solid fa-graduation-cap"></i>
                                 <span>Exam Mode</span>
@@ -316,6 +327,39 @@
                                         <input type="checkbox">
                                         <span>Block Tracking Scripts</span>
                                     </label>
+                                </div>
+                            </div>
+
+                            <!-- Focus Mode Page -->
+                            <div id="focusmode-page" class="settings-page">
+                                <h3>Focus Mode</h3>
+                                <p class="page-description">
+                                    Focus Mode blocks social distractions while keeping your browser workflow normal.
+                                    You can take timed breaks and review session history any time.
+                                </p>
+                                <div class="focus-mode-features">
+                                    <div class="feature-item">
+                                        <i class="fa-solid fa-ban"></i>
+                                        <span>Blocks social media domains using StevenBlack hosts list</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fa-solid fa-stopwatch"></i>
+                                        <span>Live stopwatch and break timer in the toolbar</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fa-solid fa-chart-column"></i>
+                                        <span>Tracks visits, blocked attempts, and break sessions</span>
+                                    </div>
+                                </div>
+                                <div class="focus-action-row">
+                                    <button id="launch-focus-mode-btn" class="btn-primary focus-launch-btn">
+                                        <i class="fa-solid fa-bullseye"></i>
+                                        Start Focus Mode
+                                    </button>
+                                    <button id="focus-history-btn" class="btn-secondary focus-history-btn" title="Focus History">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                        Focus History
+                                    </button>
                                 </div>
                             </div>
 
@@ -1247,6 +1291,7 @@
     <script src="components/ExamModeLockdown.js"></script>
     <script src="components/ExamLogsPage.js"></script>
     <script src="components/ExamModeManager.js"></script>
+    <script src="components/FocusModeManager.js"></script>
     <script src="renderer.js"></script>
 </body>
 

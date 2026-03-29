@@ -8,6 +8,7 @@ const configValidator = require('./examMode/configValidator');
 const examUrlFilter = require('./examMode/urlFilter');
 const logSyncer = require('./examMode/logSyncer');
 const { exportExamPDF } = require('./examMode/pdfExporter');
+const { focusModeManager } = require('./focusMode/manager');
 
 let mainWindow;
 let selectorWindow;
@@ -27,6 +28,7 @@ const examLockdownProfiles = new Map(); // profileId -> { locked: boolean, sessi
 let blockedDomains = new Set();
 const initializedPartitions = new Set();
 const downloadTrackingSessions = new Set();
+const blockedProtocolsRegisteredSessions = new WeakSet();
 let downloadHistory = [];
 let downloadHistoryFilePath = null;
 
@@ -134,6 +136,53 @@ function sendToRequestWindow(details, channel, payload) {
     }
 }
 
+function buildBlockedRedirectUrl(mode, details, meta = {}) {
+    // Central routing for blocked pages:
+    // 1) exam => exam blocked page
+    // 2) focus => focus blocked page
+    // 3) adult/content => generic error page style
+    if (mode === 'exam') {
+        const params = new URLSearchParams({
+            url: details.url,
+            reason: meta.reason || 'Not allowed during exam',
+            blockType: meta.blockType || 'unknown'
+        });
+        return `dao-exam-blocked://blocked?${params.toString()}`;
+    }
+
+    if (mode === 'focus') {
+        const params = new URLSearchParams({
+            url: details.url,
+            reason: meta.reason || 'Blocked during Focus Mode',
+            domain: meta.domain || 'unknown'
+        });
+        return `dao-focus-blocked://blocked?${params.toString()}`;
+    }
+
+    const params = new URLSearchParams({
+        code: 'CONTENT_BLOCKED',
+        message: 'Site blocked by content filter',
+        url: details.url,
+        hint: 'This website is restricted by your protection settings.'
+    });
+    return `dao-blocked://error?${params.toString()}`;
+}
+
+function getProfileIdForRequest(details) {
+    if (!details || !details.webContentsId) {
+        return 1;
+    }
+
+    const targetContents = webContents.fromId(details.webContentsId);
+    if (!targetContents || targetContents.isDestroyed()) {
+        return 1;
+    }
+
+    const host = targetContents.hostWebContents || targetContents;
+    const context = windowProfiles.get(host.id);
+    return Number(context?.profileId) || 1;
+}
+
 function getFallbackFileName(downloadUrl) {
     try {
         const parsed = new URL(downloadUrl);
@@ -237,6 +286,68 @@ function sendDownloadEventToProfileWindows(channel, payload, profileId) {
             if (contents.hostWebContents && contents.hostWebContents.id === hostContentsId) {
                 contents.send(channel, payload);
             }
+        });
+    });
+}
+
+function sendEventToProfileWindows(channel, payload, profileId) {
+    profileWindows.forEach((profileWindow, mappedProfileId) => {
+        if (mappedProfileId !== profileId) {
+            return;
+        }
+
+        if (!profileWindow || profileWindow.isDestroyed()) {
+            return;
+        }
+
+        profileWindow.webContents.send(channel, payload);
+
+        const hostContentsId = profileWindow.webContents.id;
+        webContents.getAllWebContents().forEach((contents) => {
+            if (contents.isDestroyed()) {
+                return;
+            }
+
+            if (contents.hostWebContents && contents.hostWebContents.id === hostContentsId) {
+                contents.send(channel, payload);
+            }
+        });
+    });
+}
+
+function showFocusIntroWindow() {
+    return new Promise((resolve) => {
+        const introWindow = new BrowserWindow({
+            fullscreen: true,
+            frame: false,
+            transparent: false,
+            alwaysOnTop: true,
+            resizable: false,
+            skipTaskbar: true,
+            backgroundColor: '#061024',
+            webPreferences: {
+                contextIsolation: true,
+                nodeIntegration: false
+            }
+        });
+
+        const introPath = path.join(__dirname, '../renderer/pages/focus-intro.html');
+        introWindow.loadFile(introPath);
+
+        const closeIntro = () => {
+            if (!introWindow.isDestroyed()) {
+                introWindow.close();
+            }
+            resolve();
+        };
+
+        introWindow.once('ready-to-show', () => {
+            introWindow.show();
+            setTimeout(closeIntro, 2600);
+        });
+
+        introWindow.on('closed', () => {
+            resolve();
         });
     });
 }
@@ -375,7 +486,8 @@ async function touchProfile(profileId) {
 // This allows safe redirects from HTTPS to our block page
 protocol.registerSchemesAsPrivileged([
     { scheme: 'dao-blocked', privileges: { standard: true, secure: true } },
-    { scheme: 'dao-exam-blocked', privileges: { standard: true, secure: true } }
+    { scheme: 'dao-exam-blocked', privileges: { standard: true, secure: true } },
+    { scheme: 'dao-focus-blocked', privileges: { standard: true, secure: true } }
 ]);
 
 function createProfileSelectorWindow() {
@@ -404,12 +516,47 @@ function createProfileSelectorWindow() {
     });
 }
 
+function registerBlockedProtocolsForSession(targetSession) {
+    if (!targetSession || blockedProtocolsRegisteredSessions.has(targetSession)) {
+        return;
+    }
+
+    const sessionProtocol = targetSession.protocol;
+    if (!sessionProtocol || typeof sessionProtocol.registerFileProtocol !== 'function') {
+        return;
+    }
+
+    const blockPagePath = path.join(__dirname, '../renderer/pages/error.html');
+    const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
+    const focusBlockPagePath = path.join(__dirname, '../renderer/pages/focus-blocked.html');
+
+    const tryRegister = (scheme, filePath) => {
+        try {
+            sessionProtocol.registerFileProtocol(scheme, (request, callback) => {
+                callback({ path: filePath });
+            });
+        } catch (error) {
+            const message = String(error?.message || '').toLowerCase();
+            if (!message.includes('register') && !message.includes('already')) {
+                console.warn(`[Protocol] Failed to register ${scheme} for session:`, error.message || error);
+            }
+        }
+    };
+
+    tryRegister('dao-blocked', blockPagePath);
+    tryRegister('dao-exam-blocked', examBlockPagePath);
+    tryRegister('dao-focus-blocked', focusBlockPagePath);
+
+    blockedProtocolsRegisteredSessions.add(targetSession);
+}
+
 function attachRequestInterception(targetSession) {
     if (!targetSession || initializedPartitions.has(targetSession)) {
         return;
     }
 
     initializedPartitions.add(targetSession);
+    registerBlockedProtocolsForSession(targetSession);
     attachDownloadTracking(targetSession);
     targetSession.webRequest.onBeforeRequest((details, callback) => {
         // 0. Check EXAM MODE FIRST (highest priority)
@@ -417,12 +564,6 @@ function attachRequestInterception(targetSession) {
         if (examResult.examActive && examResult.blocked) {
             // For navigation requests, redirect to exam blocked page
             if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
-                const params = new URLSearchParams({
-                    url: details.url,
-                    reason: examResult.reason || 'Not allowed during exam',
-                    blockType: examResult.blockType || 'unknown'
-                });
-
                 // Send IPC event to the originating renderer to log the blocked URL
                 console.log('[ExamFilter] Blocked URL:', details.url, 'Reason:', examResult.reason);
                 sendToRequestWindow(details, 'examMode:urlBlocked', {
@@ -433,7 +574,12 @@ function attachRequestInterception(targetSession) {
                     timestamp: new Date().toISOString()
                 });
 
-                callback({ redirectURL: `dao-exam-blocked://blocked?${params.toString()}` });
+                callback({
+                    redirectURL: buildBlockedRedirectUrl('exam', details, {
+                        reason: examResult.reason,
+                        blockType: examResult.blockType
+                    })
+                });
             } else {
                 // Cancel sub-resources silently
                 callback({ cancel: true });
@@ -441,19 +587,50 @@ function attachRequestInterception(targetSession) {
             return;
         }
 
-        // 1. Check content filter (redirect to block page)
-        const contentResult = contentFilter.checkRequest(details.url);
-        if (contentResult === 'blocked') {
-            // For navigation requests, redirect to custom protocol block page
+        // 1.5 Check Focus Mode social blocklist (after exam mode, before other filters)
+        const requestProfileId = getProfileIdForRequest(details);
+        const focusResult = focusModeManager.checkRequest(details.url, details.resourceType, requestProfileId);
+        if (focusResult.focusActive && focusResult.blocked) {
+            focusModeManager.logBlockedAttempt(requestProfileId, details.url, focusResult.reason).catch(() => {});
+
             if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
-                callback({ redirectURL: `dao-blocked://blocked?url=${encodeURIComponent(details.url)}` });
+                sendToRequestWindow(details, 'focusMode:urlBlocked', {
+                    type: 'blocked_url_attempt',
+                    url: details.url,
+                    reason: focusResult.reason,
+                    domain: focusResult.domain,
+                    timestamp: new Date().toISOString()
+                });
+
+                callback({
+                    redirectURL: buildBlockedRedirectUrl('focus', details, {
+                        reason: focusResult.reason,
+                        domain: focusResult.domain
+                    })
+                });
             } else {
                 callback({ cancel: true });
             }
             return;
         }
 
-        // 2. Check ad-blocker
+        if ((details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') && focusResult.focusActive) {
+            focusModeManager.logVisit(requestProfileId, details.url).catch(() => {});
+        }
+
+        // 2. Check content filter (redirect to block page)
+        const contentResult = contentFilter.checkRequest(details.url);
+        if (contentResult === 'blocked') {
+            // For navigation requests, redirect to custom protocol block page
+            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+                callback({ redirectURL: buildBlockedRedirectUrl('adult', details) });
+            } else {
+                callback({ cancel: true });
+            }
+            return;
+        }
+
+        // 3. Check ad-blocker
         if (adBlockerEnabled && isAdRequest(details.url)) {
             sessionBlocked++;
             totalBlocked++;
@@ -552,8 +729,13 @@ app.whenReady().then(async () => {
     downloadHistoryFilePath = path.join(app.getPath('userData'), 'download-history.json');
     loadDownloadHistory();
 
-    // Register the dao-blocked:// protocol to serve the block page
-    const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
+    focusModeManager.setCacheDirectory(app.getPath('userData'));
+    focusModeManager.setNotifier((channel, payload, profileId) => {
+        sendEventToProfileWindows(channel, payload, profileId);
+    });
+
+    // Register the dao-blocked:// protocol to serve the generic error page
+    const blockPagePath = path.join(__dirname, '../renderer/pages/error.html');
     protocol.registerFileProtocol('dao-blocked', (request, callback) => {
         callback({ path: blockPagePath });
     });
@@ -562,6 +744,12 @@ app.whenReady().then(async () => {
     const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
     protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
         callback({ path: examBlockPagePath });
+    });
+
+    // Register the dao-focus-blocked:// protocol for focus mode block page
+    const focusBlockPagePath = path.join(__dirname, '../renderer/pages/focus-blocked.html');
+    protocol.registerFileProtocol('dao-focus-blocked', (request, callback) => {
+        callback({ path: focusBlockPagePath });
     });
 
     await setupAdBlocker();
@@ -644,6 +832,50 @@ ipcMain.handle('profileWindow:getContext', async (event) => {
     return {
         success: true,
         data: context
+    };
+});
+
+// ==================== FOCUS MODE IPC HANDLERS ====================
+
+ipcMain.handle('focusMode:startSession', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    const startResult = await focusModeManager.startSession(numericProfileId);
+
+    if (!startResult.success) {
+        return startResult;
+    }
+
+    if (!startResult.alreadyActive) {
+        await showFocusIntroWindow();
+    }
+
+    return startResult;
+});
+
+ipcMain.handle('focusMode:endSession', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.endSession(numericProfileId);
+});
+
+ipcMain.handle('focusMode:getActiveSession', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.getActiveSession(numericProfileId);
+});
+
+ipcMain.handle('focusMode:startBreak', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.startBreak(numericProfileId);
+});
+
+ipcMain.handle('focusMode:getHistory', async (event, profileId, limit = 100) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.getHistory(numericProfileId, limit);
+});
+
+ipcMain.handle('focusMode:getBlocklistMeta', async () => {
+    return {
+        success: true,
+        data: focusModeManager.getBlocklistMeta()
     };
 });
 

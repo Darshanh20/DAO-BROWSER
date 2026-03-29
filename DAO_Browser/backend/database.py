@@ -58,6 +58,70 @@ def init_database():
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_profile_id ON browsing_history(profile_id)
     ''')
+
+    # Focus mode sessions and telemetry
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS focus_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER DEFAULT 1,
+            started_at TIMESTAMP NOT NULL,
+            ended_at TIMESTAMP,
+            total_focus_seconds INTEGER DEFAULT 0,
+            total_sites_visited INTEGER DEFAULT 0,
+            blocked_attempts_count INTEGER DEFAULT 0,
+            breaks_taken INTEGER DEFAULT 0,
+            motivational_message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS focus_session_sites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            visited_at TIMESTAMP NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES focus_sessions(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS focus_session_blocked_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            reason TEXT,
+            attempted_at TIMESTAMP NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES focus_sessions(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS focus_session_breaks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            break_started_at TIMESTAMP NOT NULL,
+            break_ended_at TIMESTAMP NOT NULL,
+            duration_seconds INTEGER DEFAULT 300,
+            FOREIGN KEY (session_id) REFERENCES focus_sessions(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_focus_sessions_profile_id ON focus_sessions(profile_id)
+    ''')
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_focus_sites_session_id ON focus_session_sites(session_id)
+    ''')
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_focus_blocked_session_id ON focus_session_blocked_attempts(session_id)
+    ''')
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_focus_breaks_session_id ON focus_session_breaks(session_id)
+    ''')
     
     conn.commit()
     conn.close()
@@ -437,6 +501,273 @@ def get_history_stats(profile_id: int = None) -> Dict:
             }
         }
     
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def _generate_focus_message(total_focus_seconds: int) -> str:
+    """Build a short motivational message based on session length."""
+    minutes = max(1, round(total_focus_seconds / 60))
+    if minutes >= 45:
+        return f"Amazing focus! You crushed a {minutes}-minute session!"
+    if minutes >= 25:
+        return f"Great work! You stayed locked in for {minutes} minutes."
+    if minutes >= 10:
+        return f"Nice momentum! You completed a {minutes}-minute focus block."
+    return f"Solid start. Every focused minute counts ({minutes} min)."
+
+
+def start_focus_session(profile_id: int = 1, started_at: str = None) -> Dict:
+    """Create a focus session row and return the new session ID."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        normalized_profile_id = profile_id if isinstance(profile_id, int) and profile_id > 0 else 1
+        started = started_at or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        cursor.execute('''
+            INSERT INTO focus_sessions (profile_id, started_at)
+            VALUES (?, ?)
+        ''', (normalized_profile_id, started))
+
+        session_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'session_id': session_id,
+            'started_at': started,
+            'profile_id': normalized_profile_id
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def log_focus_site_visit(session_id: int, url: str, domain: str, visited_at: str = None) -> Dict:
+    """Persist a single visited site event for a focus session."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        timestamp = visited_at or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute('''
+            INSERT INTO focus_session_sites (session_id, url, domain, visited_at)
+            VALUES (?, ?, ?, ?)
+        ''', (session_id, url, domain, timestamp))
+
+        conn.commit()
+        conn.close()
+
+        return {'success': True}
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def log_focus_blocked_attempt(session_id: int, url: str, domain: str, reason: str = '', attempted_at: str = None) -> Dict:
+    """Persist a blocked site attempt for a focus session."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        timestamp = attempted_at or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute('''
+            INSERT INTO focus_session_blocked_attempts (session_id, url, domain, reason, attempted_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (session_id, url, domain, reason, timestamp))
+
+        conn.commit()
+        conn.close()
+
+        return {'success': True}
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def log_focus_break(session_id: int, break_started_at: str, break_ended_at: str, duration_seconds: int = 300) -> Dict:
+    """Persist one focus break interval."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO focus_session_breaks (session_id, break_started_at, break_ended_at, duration_seconds)
+            VALUES (?, ?, ?, ?)
+        ''', (session_id, break_started_at, break_ended_at, duration_seconds))
+
+        conn.commit()
+        conn.close()
+
+        return {'success': True}
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def _get_focus_session_report(cursor, session_id: int) -> Dict:
+    """Fetch full report payload for a focus session using an open cursor."""
+    cursor.execute('SELECT * FROM focus_sessions WHERE id = ?', (session_id,))
+    session = cursor.fetchone()
+    if not session:
+        return {}
+
+    session_dict = dict(session)
+
+    cursor.execute('''
+        SELECT id, url, domain, visited_at
+        FROM focus_session_sites
+        WHERE session_id = ?
+        ORDER BY visited_at ASC
+    ''', (session_id,))
+    visited_sites = [dict(row) for row in cursor.fetchall()]
+
+    cursor.execute('''
+        SELECT id, url, domain, reason, attempted_at
+        FROM focus_session_blocked_attempts
+        WHERE session_id = ?
+        ORDER BY attempted_at ASC
+    ''', (session_id,))
+    blocked_attempts = [dict(row) for row in cursor.fetchall()]
+
+    cursor.execute('''
+        SELECT id, break_started_at, break_ended_at, duration_seconds
+        FROM focus_session_breaks
+        WHERE session_id = ?
+        ORDER BY break_started_at ASC
+    ''', (session_id,))
+    breaks = [dict(row) for row in cursor.fetchall()]
+
+    return {
+        **session_dict,
+        'visited_sites': visited_sites,
+        'blocked_attempts': blocked_attempts,
+        'breaks': breaks
+    }
+
+
+def end_focus_session(session_id: int, ended_at: str = None) -> Dict:
+    """Close a focus session and compute its aggregate statistics."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT started_at FROM focus_sessions WHERE id = ?', (session_id,))
+        existing = cursor.fetchone()
+        if not existing:
+            conn.close()
+            return {
+                'success': False,
+                'error': 'Focus session not found'
+            }
+
+        ended = ended_at or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        cursor.execute('''
+            SELECT COUNT(DISTINCT domain) AS unique_sites
+            FROM focus_session_sites
+            WHERE session_id = ?
+        ''', (session_id,))
+        unique_sites = cursor.fetchone()['unique_sites'] or 0
+
+        cursor.execute('''
+            SELECT COUNT(*) AS blocked_count
+            FROM focus_session_blocked_attempts
+            WHERE session_id = ?
+        ''', (session_id,))
+        blocked_count = cursor.fetchone()['blocked_count'] or 0
+
+        cursor.execute('''
+            SELECT COUNT(*) AS breaks_count
+            FROM focus_session_breaks
+            WHERE session_id = ?
+        ''', (session_id,))
+        breaks_count = cursor.fetchone()['breaks_count'] or 0
+
+        cursor.execute('''
+            SELECT CAST((julianday(?) - julianday(started_at)) * 86400 AS INTEGER) AS total_seconds
+            FROM focus_sessions
+            WHERE id = ?
+        ''', (ended, session_id))
+        total_focus_seconds = max(0, cursor.fetchone()['total_seconds'] or 0)
+
+        motivational_message = _generate_focus_message(total_focus_seconds)
+
+        cursor.execute('''
+            UPDATE focus_sessions
+            SET ended_at = ?,
+                total_focus_seconds = ?,
+                total_sites_visited = ?,
+                blocked_attempts_count = ?,
+                breaks_taken = ?,
+                motivational_message = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            ended,
+            total_focus_seconds,
+            unique_sites,
+            blocked_count,
+            breaks_count,
+            motivational_message,
+            session_id
+        ))
+
+        report = _get_focus_session_report(cursor, session_id)
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'data': report
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def get_focus_history(profile_id: int = 1, limit: int = 100) -> Dict:
+    """Return focus sessions with embedded report-style metrics."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        normalized_profile_id = profile_id if isinstance(profile_id, int) and profile_id > 0 else 1
+        normalized_limit = max(1, min(int(limit), 500))
+
+        cursor.execute('''
+            SELECT id
+            FROM focus_sessions
+            WHERE profile_id = ?
+            ORDER BY started_at DESC
+            LIMIT ?
+        ''', (normalized_profile_id, normalized_limit))
+
+        session_ids = [row['id'] for row in cursor.fetchall()]
+        items = [_get_focus_session_report(cursor, session_id) for session_id in session_ids]
+
+        conn.close()
+        return {
+            'success': True,
+            'data': items,
+            'count': len(items)
+        }
     except Exception as e:
         return {
             'success': False,

@@ -244,6 +244,24 @@ class Tab {
     }
 
     setupWebviewListeners() {
+        // Force target=_blank and window.open links into the current tab.
+        // This prevents OS-level handling prompts for custom in-app blocked pages.
+        this.webview.addEventListener('new-window', (e) => {
+            try {
+                if (typeof e.preventDefault === 'function') {
+                    e.preventDefault();
+                }
+
+                if (e.url) {
+                    this.documentLoadComplete = false;
+                    this.mainFrameNavigating = true;
+                    this.webview.src = e.url;
+                }
+            } catch (error) {
+                console.warn('[WebView] Failed to intercept new-window:', error);
+            }
+        });
+
         // STRICT: Only trigger loader on REAL document navigation (not SPA internal changes)
         // will-navigate fires for actual page loads, clicks that change main frame
         this.webview.addEventListener('will-navigate', (e) => {
@@ -505,7 +523,7 @@ class Tab {
     }
 
     injectCtrlFHandler() {
-        // Inject Ctrl+F handler into webview's isolated context
+        // Inject Ctrl+F handler and popup interception into webview context
         const script = `
             (function() {
                 console.log('[WebView Ctrl+F] Handler injection started');
@@ -523,6 +541,32 @@ class Tab {
                         );
                     }
                 });
+
+                // Force popup flows into same tab to avoid OS-level external protocol dialogs.
+                try {
+                    const originalOpen = window.open;
+                    window.open = function(url) {
+                        if (url) {
+                            window.location.href = url;
+                        }
+                        return null;
+                    };
+
+                    document.addEventListener('click', function(ev) {
+                        const anchor = ev.target && ev.target.closest ? ev.target.closest('a[target="_blank"]') : null;
+                        if (!anchor || !anchor.href) {
+                            return;
+                        }
+
+                        ev.preventDefault();
+                        window.location.href = anchor.href;
+                    }, true);
+
+                    // Keep reference to avoid aggressive dead-code removal in some sites
+                    window.__daoOriginalOpen = originalOpen;
+                } catch (popupError) {
+                    console.warn('[WebView Popup Intercept] Failed:', popupError);
+                }
                 
                 console.log('[WebView Ctrl+F] Handler injection complete');
             })();
