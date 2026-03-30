@@ -112,6 +112,11 @@
                     <i class="fa-solid fa-clock"></i>
                     <span id="exam-banner-countdown">00:00:00</span>
                 </div>
+                <div class="exam-banner-divider" id="exam-banner-sync-divider"></div>
+                <div class="exam-banner-sync" id="exam-banner-sync-status" title="Log sync status">
+                    <i id="exam-banner-sync-icon" class="fa-solid fa-circle-check"></i>
+                    <span id="exam-banner-sync-text" class="exam-sync-status-text">Synced</span>
+                </div>
                 <div class="exam-banner-divider" id="exam-banner-user-divider"></div>
                 <div class="exam-banner-user" id="exam-banner-user-info">
                     <i class="fa-solid fa-user"></i>
@@ -902,6 +907,41 @@
             </div>
         </div>
 
+        <!-- Exam Over Download Modal (Professor) -->
+        <div id="exam-over-download-modal" class="modal hidden">
+            <div class="modal-content exam-over-modal">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-flag-checkered"></i> Exam Ended</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="exam-over-content">
+                        <div class="exam-over-message">
+                            <p id="exam-over-title">Exam session has been ended successfully.</p>
+                            <p id="exam-over-details" class="text-secondary">43 students participated in this exam.</p>
+                        </div>
+                        
+                        <div class="exam-over-section">
+                            <h4>📋 Download Reports</h4>
+                            <div class="download-buttons">
+                                <button id="download-pdf-btn" class="btn-primary download-btn">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                    <span>Download PDF Report</span>
+                                </button>
+                                <button id="download-csv-btn" class="btn-secondary download-btn">
+                                    <i class="fa-solid fa-table"></i>
+                                    <span>Download CSV</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="exam-over-actions">
+                            <button id="skip-close-btn" class="btn-secondary">Skip & Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Submit Exam Confirmation Modal (Student) -->
         <div id="submit-exam-confirm-modal" class="modal hidden">
             <div class="modal-content confirm-modal">
@@ -966,6 +1006,34 @@
                                 <i class="fa-solid fa-file-csv"></i>
                                 Export CSV
                             </button>
+                            <button id="export-logs-pdf-btn" class="btn-secondary" disabled>
+                                <i class="fa-solid fa-file-pdf"></i>
+                                Export PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Alert Threshold Configuration -->
+                    <div class="logs-threshold-config">
+                        <span class="threshold-label">Alert Thresholds:</span>
+                        <div class="threshold-control">
+                            <label for="threshold-blocked">Blocked attempts exceed:</label>
+                            <select id="threshold-blocked" class="threshold-select">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        <div class="threshold-control">
+                            <label for="threshold-devtools">DevTools attempts exceed:</label>
+                            <select id="threshold-devtools" class="threshold-select">
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                                <option value="5">5</option>
+                            </select>
                         </div>
                     </div>
 
@@ -999,6 +1067,13 @@
                                 <span class="summary-label">Students Loaded</span>
                             </div>
                         </div>
+                        <div class="summary-card alert-card">
+                            <div class="summary-icon alert"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <div class="summary-data">
+                                <span class="summary-value" id="summary-alerts">0</span>
+                                <span class="summary-label">Alerts</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Student Overview (shown when "All Students" selected) -->
@@ -1014,11 +1089,12 @@
                                         <th>Blocked</th>
                                         <th>Window</th>
                                         <th>DevTools</th>
+                                        <th>Alert</th>
                                     </tr>
                                 </thead>
                                 <tbody id="student-overview-tbody">
                                     <tr class="empty-row">
-                                        <td colspan="6">No student logs loaded. Click "Load Student Logs" to import log files.</td>
+                                        <td colspan="7">No student logs loaded. Click "Load Student Logs" to import log files.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1161,6 +1237,7 @@
     <script src="utils/contentExtractor.js"></script>
     <script src="services/profileApi.js"></script>
     <script src="services/profileSettings.js"></script>
+    <script src="examMode/exportHelpers.js"></script>
     <script src="components/ProfileSwitcher.js"></script>
     <script src="components/ProfileManager.js"></script>
     <script src="components/ExamSessionBanner.js"></script>

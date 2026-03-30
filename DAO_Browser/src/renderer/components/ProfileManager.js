@@ -68,13 +68,13 @@ class ProfileManager {
         
         try {
             // Load all profiles
-            const profilesResult = await profileAPI.listProfiles();
+            const profilesResult = await profileAPIClient.listProfiles();
             if (profilesResult.success) {
                 this.profiles = profilesResult.data;
             }
 
             // Load current active profile
-            const activeResult = await profileAPI.getActiveProfile();
+            const activeResult = await profileAPIClient.getActiveProfile();
             if (activeResult.success) {
                 this.currentProfile = activeResult.data;
             }
@@ -276,7 +276,7 @@ class ProfileManager {
     async activateProfile(profile) {
         try {
             this.setLoading(true);
-            const result = await profileAPI.activateProfile(profile.id);
+            const result = await profileAPIClient.activateProfile(profile.id);
             
             if (result.success) {
                 this.currentProfile = result.data;
@@ -414,7 +414,7 @@ class ProfileManager {
             const formData = new FormData(form);
             const displayName = form.querySelector('#profile-display-name').value.trim();
             const name = form.querySelector('#profile-name').value.trim();
-            const selectedColor = form.querySelector('.color-option.selected')?.dataset.color || '#4A90E2';
+            const selectedColor = form.querySelector('.color-option.selected')?.dataset.color || '#2ecc71';
             
             // Validation
             if (!displayName || displayName.length < 2) {
@@ -435,9 +435,9 @@ class ProfileManager {
 
             let result;
             if (this.mode === 'create') {
-                result = await profileAPI.createProfile(profileData);
+                result = await profileAPIClient.createProfile(profileData);
             } else {
-                result = await profileAPI.updateProfile(this.selectedProfile.id, profileData);
+                result = await profileAPIClient.updateProfile(this.selectedProfile.id, profileData);
             }
 
             if (result.success) {
@@ -504,7 +504,7 @@ class ProfileManager {
         try {
             this.setLoading(true);
             
-            const result = await profileAPI.deleteProfile(profile.id);
+            const result = await profileAPIClient.deleteProfile(profile.id);
             
             if (result.success) {
                 this.showNotification(`Profile "${profile.display_name}" deleted`, 'success');
@@ -536,7 +536,7 @@ class ProfileManager {
 
     async exportProfile(profile) {
         try {
-            const result = await profileAPI.exportProfile(profile.id);
+            const result = await profileAPIClient.exportProfile(profile.id);
             
             if (result.success) {
                 const data = JSON.stringify(result.data, null, 2);

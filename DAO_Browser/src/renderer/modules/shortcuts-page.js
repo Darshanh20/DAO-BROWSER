@@ -42,7 +42,7 @@ class ShortcutsPage {
                     navigator.clipboard.writeText(text).then(() => {
                         // Visual feedback
                         const originalBg = card.style.background;
-                        card.style.background = 'rgba(96, 165, 250, 0.2)';
+                        card.style.background = 'rgba(57, 255, 20, 0.1)';
                         setTimeout(() => {
                             card.style.background = originalBg;
                         }, 300);

@@ -21,68 +21,117 @@ let currentPage = 1;
 let totalPages = 1;
 let searchQuery = '';
 let searchTimeout;
+let cachedProfileId = null; // Cache the profile ID to avoid repeated fetches
+
+// Get profile ID from URL hash (e.g., #profileId=123)
+function getProfileIdFromHash() {
+    const hash = window.location.hash;
+    if (hash && hash.includes('profileId=')) {
+        const match = hash.match(/profileId=(\d+)/);
+        if (match && match[1]) {
+            return parseInt(match[1]);
+        }
+    }
+    return null;
+}
 
 // Get current profile ID with multiple fallback sources
-function getCurrentProfileId() {
+async function getCurrentProfileId() {
+    // Return cached value if available
+    if (cachedProfileId && cachedProfileId > 0) {
+        return cachedProfileId;
+    }
+
     let profileId = 1; // Default fallback
-    
-    // Try to get from ProfileSwitcher instance first (most reliable)
-    if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
-        profileId = window.profileSwitcher.currentProfile.id;
-        console.log(`[History Page] Using ProfileSwitcher profile ID: ${profileId}`);
+
+    // FIRST: Check URL hash (most reliable for webview context)
+    const hashProfileId = getProfileIdFromHash();
+    if (hashProfileId && hashProfileId > 0) {
+        profileId = hashProfileId;
+        cachedProfileId = profileId;
+        console.log(`[History Page] Got profile from URL hash: ${profileId}`);
         return profileId;
     }
-    
+
+    // Try to get from ProfileSwitcher instance (for main page context)
+    if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
+        profileId = window.profileSwitcher.currentProfile.id;
+        cachedProfileId = profileId;
+        return profileId;
+    }
+
     // Try localStorage as fallback
     const storedProfileId = localStorage.getItem('dao_current_profile_id');
     if (storedProfileId && !isNaN(parseInt(storedProfileId)) && parseInt(storedProfileId) > 0) {
         profileId = parseInt(storedProfileId);
-        console.log(`[History Page] Using localStorage profile ID: ${profileId}`);
-    } else {
-        console.log(`[History Page] No valid profile ID found (localStorage: ${storedProfileId}), using default: ${profileId}`);
-        
-        // Try to sync with ProfileSwitcher if available but no currentProfile yet
-        if (window.profileSwitcher && typeof window.profileSwitcher.loadProfiles === 'function') {
-            console.log(`[History Page] Attempting to refresh ProfileSwitcher...`);
-            window.profileSwitcher.loadProfiles().catch(err => {
-                console.warn('[History Page] Failed to refresh ProfileSwitcher:', err);
-            });
-        }
+        cachedProfileId = profileId;
+        return profileId;
     }
-    
+
+    // If we got here, none of the methods worked, use default
+    console.warn('[History Page] Using default profile ID: 1');
+    cachedProfileId = profileId;
     return profileId;
 }
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('History page loaded');
-    
+    // Always clear cache on page load to ensure fresh data
+    cachedProfileId = null;
+
     // Update profile indicator
-    updateProfileIndicator();
-    
+    await updateProfileIndicator();
+
     // Load initial history
     await loadHistory();
-    
+
     // Load statistics
     await loadStats();
-    
+
     // Setup event listeners
     setupEventListeners();
-    
+
     // Listen for profile switches to reload history
     setupProfileSwitchListener();
+
+    // Setup visibility change listener to refresh when tab becomes visible
+    setupVisibilityListener();
 });
+
+// Setup visibility change listener to auto-refresh when page becomes visible
+function setupVisibilityListener() {
+    document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible') {
+            console.log('[History Page] Page became visible, refreshing data...');
+            // Clear cache to get fresh data
+            cachedProfileId = null;
+            await loadHistory();
+            await loadStats();
+        }
+    });
+
+    // Also refresh on window focus (for when switching between tabs)
+    window.addEventListener('focus', async () => {
+        console.log('[History Page] Window focused, refreshing data...');
+        // Clear cache to get fresh data
+        cachedProfileId = null;
+        await loadHistory();
+        await loadStats();
+    });
+}
 
 // Setup profile switch event listener
 function setupProfileSwitchListener() {
     document.addEventListener('profileSwitched', async (e) => {
-        console.log('[History Page] Profile switched, reloading history for new profile:', e.detail.profile.id);
         
         // Update localStorage immediately to ensure consistency
         localStorage.setItem('dao_current_profile_id', e.detail.profile.id.toString());
         
+        // Clear cached profile ID to force refresh from API
+        cachedProfileId = null;
+        
         // Update profile indicator
-        updateProfileIndicator();
+        await updateProfileIndicator();
         
         // Reset pagination and search
         currentPage = 1;
@@ -101,24 +150,33 @@ function setupProfileSwitchListener() {
 }
 
 // Update the profile indicator in the UI
-function updateProfileIndicator() {
+async function updateProfileIndicator() {
     const indicatorEl = document.getElementById('profile-indicator');
     const profileNameEl = document.getElementById('current-profile-name');
-    
+
     if (!indicatorEl || !profileNameEl) return;
-    
-    const profileId = getCurrentProfileId();
+
+    const profileId = await getCurrentProfileId();
     let profileName = `Profile ${profileId}`;
-    
-    // Try to get the actual profile name
+
+    // Try to get the actual profile name from ProfileSwitcher
     if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
         profileName = window.profileSwitcher.currentProfile.display_name;
+    } else {
+        // Fetch profile name from API (for webview context)
+        try {
+            const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`);
+            const result = await response.json();
+            if (result.success && result.data && result.data.display_name) {
+                profileName = result.data.display_name;
+            }
+        } catch (error) {
+            console.warn('[History Page] Failed to fetch profile name:', error);
+        }
     }
-    
+
     profileNameEl.textContent = `Viewing history for: ${profileName}`;
     indicatorEl.style.display = 'flex';
-    
-    console.log(`[History Page] Profile indicator updated: ${profileName} (ID: ${profileId})`);
 }
 
 function setupEventListeners() {
@@ -163,10 +221,9 @@ async function loadHistory() {
     showLoading();
     
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         console.log(`[History Page] Loading history for profile ${profileId}, page ${currentPage}`);
         
-        // Call backend directly via HTTP with profile_id
         const response = await fetch(`http://localhost:5000/api/history/all?page=${currentPage}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
         
@@ -188,7 +245,7 @@ async function searchHistory(query) {
     showLoading();
     
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         // Call backend directly via HTTP with profile_id
         const response = await fetch(`http://localhost:5000/api/history/search?q=${encodeURIComponent(query)}&limit=50&profile_id=${profileId}`);
         const result = await response.json();
@@ -206,7 +263,6 @@ async function searchHistory(query) {
 }
 
 function displayHistory(entries) {
-    console.log(`[History Page] Displaying ${entries.length} entries`);
     
     historyContainer.innerHTML = '';
     
@@ -452,7 +508,7 @@ async function deleteHistoryEntry(entryId) {
 
 async function clearAllHistory() {
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         console.log(`[History Page] Clearing history for profile: ${profileId}`);
         
         // Call backend directly via HTTP with profile_id
@@ -478,7 +534,7 @@ async function clearAllHistory() {
 
 async function loadStats() {
     try {
-        const profileId = getCurrentProfileId();
+        const profileId = await getCurrentProfileId();
         console.log(`[History Page] Loading stats for profile: ${profileId}`);
         
         // Call backend directly via HTTP with profile_id
@@ -532,7 +588,7 @@ function showLoading() {
 }
 
 function showEmptyState() {
-    const profileId = getCurrentProfileId();
+    const profileId = cachedProfileId || 1; // Use cached value since this is called after async operations
     const profileName = window.profileSwitcher?.currentProfile?.display_name || `Profile ${profileId}`;
     
     historyContainer.innerHTML = `

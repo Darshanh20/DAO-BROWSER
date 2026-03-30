@@ -2,32 +2,37 @@
 /* CSS Variables for the browser UI (unified design system) */
 
 :root {
-    /* Core Colors */
-    --color-bg: #0a0f1e;
-    --color-surface: #0d1530;
-    --color-surface-2: #111c3a;
-    --color-border: #1e2d5a;
-    --color-primary: #3b82f6;
-    --color-primary-glow: #60a5fa;
-    --color-text-primary: #e8edf8;
-    --color-text-secondary: #94a3b8;
-    --color-text-muted: #4a5980;
+    /* Core Colors - Minimal Dark Theme */
+    --color-bg: #0a0a0a;
+    --color-surface: #111111;
+    --color-surface-2: #1a1a1a;
+    --color-border: #2a2a2a;
+    --color-primary: #2ecc71;
+    --color-primary-glow: #2ecc71;
+    --color-text-primary: #e0e0e0;
+    --color-text-secondary: #888888;
+    --color-text-muted: #555555;
     --color-heading: #ffffff;
-    --color-tag: #1d3a6b;
+    --color-tag: #1a2a1a;
     
     /* Legacy mappings for compatibility */
     --bg-dark: var(--color-bg);
     --bg-panel: var(--color-surface);
     --bg-element: var(--color-surface-2);
-    --bg-hover: var(--color-surface-2);
+    --bg-hover: #222222;
     --bg-input: var(--color-surface);
     --bg-modal: var(--color-bg);
     --bg-sidebar: var(--color-surface);
     
-    --accent-blue: var(--color-primary-glow);
-    --accent-blue-hover: var(--color-primary);
-    --accent-blue-active: var(--color-primary);
-    --accent-glow: rgba(96, 165, 250, 0.2);
+    --accent-blue: var(--color-primary);
+    --accent-blue-hover: #3dd681;
+    --accent-blue-active: #2ecc71;
+    --accent-blue-light: rgba(46, 204, 113, 0.1);
+    --accent-blue-dark: #27ae60;
+    --accent-cyan: #1abc9c;
+    --accent-purple: #9b59b6;
+    --accent-green: #2ecc71;
+    --accent-glow: transparent;
     
     --text-primary: var(--color-text-primary);
     --text-secondary: var(--color-text-secondary);
@@ -40,23 +45,23 @@
     --border-strong: var(--color-border);
     
     /* Status Colors */
-    --color-success: #4ade80;
-    --color-warning: #fb923c;
-    --color-error: #ef4444;
+    --color-success: #2ecc71;
+    --color-warning: #f39c12;
+    --color-error: #e74c3c;
     --color-info: var(--color-primary);
     
     /* Component Specific */
     --tab-bg: transparent;
     --tab-bg-active: var(--color-surface);
-    --tab-bg-hover: var(--color-surface-2);
+    --tab-bg-hover: #222222;
     --tab-text: var(--color-text-secondary);
-    --tab-text-active: var(--color-text-primary);
+    --tab-text-active: #2ecc71;
     
     --toolbar-bg: var(--color-surface);
     --toolbar-border: var(--color-border);
     
-    --btn-bg: var(--color-surface-2);
-    --btn-bg-hover: var(--color-surface-2);
+    --btn-bg: transparent;
+    --btn-bg-hover: #222222;
     --btn-bg-active: var(--color-border);
     --btn-text: var(--color-text-primary);
     
@@ -67,14 +72,14 @@
     --input-placeholder: var(--color-text-muted);
     
     --scrollbar-track: var(--color-surface);
-    --scrollbar-thumb: var(--color-border);
-    --scrollbar-thumb-hover: var(--color-primary-glow);
+    --scrollbar-thumb: #3a3a3a;
+    --scrollbar-thumb-hover: #2ecc71;
     
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.7);
     
-    --modal-overlay: rgba(10, 15, 30, 0.75);
+    --modal-overlay: rgba(10, 10, 10, 0.9);
     --modal-bg: var(--color-bg);
     --modal-border: var(--color-border);
     
@@ -87,19 +92,23 @@
     
     --welcome-bg: var(--color-bg);
     --welcome-card-bg: var(--color-surface);
-    --welcome-card-hover: var(--color-surface-2);
+    --welcome-card-hover: #222222;
     
     /* Priority Badges */
-    --priority-high-bg: #1d3a6b;
-    --priority-high-text: #60a5fa;
-    --priority-medium-bg: #1a2e1a;
-    --priority-medium-text: #4ade80;
-    --priority-low-bg: #2a1a0a;
-    --priority-low-text: #fb923c;
+    --priority-high-bg: #2a1a1a;
+    --priority-high-text: #e74c3c;
+    --priority-medium-bg: #1a2a1a;
+    --priority-medium-text: #2ecc71;
+    --priority-low-bg: #2a2a1a;
+    --priority-low-text: #f39c12;
     
     /* Code Styling */
-    --code-text: #a5f3fc;
-    --code-bg: #0c1f3f;
+    --code-text: #1abc9c;
+    --code-bg: #1a1a1a;
+    
+    /* Error Color */
+    --error-color: #e74c3c;
+    --error-bg: rgba(231, 76, 60, 0.1);
 }
 
 /* ==================== WEBVIEW ISOLATION ==================== */

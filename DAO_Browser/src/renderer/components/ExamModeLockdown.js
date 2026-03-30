@@ -41,8 +41,6 @@ class ExamModeLockdown {
     }
 
     init() {
-        console.log('🔒 Exam Mode Lockdown module initialized (minimal restrictions)');
-        
         // Listen for exam session activation
         document.addEventListener('examSessionActivated', (e) => {
             if (e.detail?.session?.role === 'student') {
@@ -75,7 +73,6 @@ class ExamModeLockdown {
         if (window.examModeAPI && typeof window.examModeAPI.onUrlBlocked === 'function') {
             this.urlBlockedCleanup = window.examModeAPI.onUrlBlocked((data) => {
                 if (this.isLocked) {
-                    console.log('[Lockdown] URL blocked event received:', data);
                     this.logActivity({
                         type: 'blocked_url_attempt',
                         url: data.url,
@@ -85,9 +82,6 @@ class ExamModeLockdown {
                     });
                 }
             });
-            console.log('[Lockdown] URL blocked listener registered');
-        } else {
-            console.warn('[Lockdown] examModeAPI.onUrlBlocked not available');
         }
     }
 
@@ -97,19 +91,12 @@ class ExamModeLockdown {
      */
     activateLockdown(session) {
         if (this.isLocked) {
-            console.log('[Lockdown] Already locked, skipping activation');
             return;
         }
         
         this.isLocked = true;
         this.session = session;
         this.windowSwitchCount = 0;
-        
-        console.log('🔒 [Lockdown] Activating exam monitoring...', {
-            session_id: session?.session_id,
-            student_info: session?.student_info,
-            role: session?.role
-        });
         
         // Add lockdown class to body (for CSS styling)
         document.body.classList.add('exam-lockdown-active');
@@ -129,8 +116,6 @@ class ExamModeLockdown {
         
         // Dispatch event for profile switcher to lock
         this.dispatchLockdownEvent(true);
-        
-        console.log('🔒 [Lockdown] Exam monitoring activated successfully');
     }
 
     /**
@@ -138,8 +123,6 @@ class ExamModeLockdown {
      */
     deactivateLockdown() {
         if (!this.isLocked) return;
-        
-        console.log('🔓 [Lockdown] Deactivating exam monitoring...');
         
         // Remove lockdown class from body
         document.body.classList.remove('exam-lockdown-active');
@@ -162,8 +145,6 @@ class ExamModeLockdown {
         
         this.isLocked = false;
         this.session = null;
-        
-        console.log('🔓 [Lockdown] Exam monitoring deactivated');
     }
 
     /**
@@ -237,8 +218,7 @@ class ExamModeLockdown {
             this.isWindowFocused = false;
             this.lastBlurTime = new Date();
             this.windowSwitchCount++;
-            
-            console.log(`[Lockdown] Window lost focus (switch #${this.windowSwitchCount})`);
+
         };
         
         this.focusHandler = () => {
@@ -261,8 +241,6 @@ class ExamModeLockdown {
                 away_duration_seconds: awayDurationSeconds,
                 violation_number: this.windowSwitchCount
             });
-            
-            console.log(`[Lockdown] Window regained focus after ${awayDurationSeconds}s`);
             
             this.lastBlurTime = null;
         };
@@ -318,16 +296,8 @@ class ExamModeLockdown {
      */
     startBackendSync() {
         if (this.syncInterval) {
-            console.log('[Lockdown] Backend sync already running');
             return;
         }
-        
-        console.log('[Lockdown] Starting backend sync...', {
-            backend_url: this.BACKEND_URL,
-            interval_ms: this.SYNC_INTERVAL_MS,
-            session_id: this.session?.session_id,
-            student_name: this.session?.student_info?.name
-        });
         
         // Initial sync immediately
         this.syncToBackend();
@@ -336,8 +306,6 @@ class ExamModeLockdown {
         this.syncInterval = setInterval(() => {
             this.syncToBackend();
         }, this.SYNC_INTERVAL_MS);
-        
-        console.log('[Lockdown] Backend sync started - syncing every 10 seconds');
     }
 
     /**
@@ -349,7 +317,6 @@ class ExamModeLockdown {
             this.syncInterval = null;
         }
         this.pendingLogs = [];
-        console.log('[Lockdown] Backend sync stopped');
     }
 
     /**
@@ -357,7 +324,6 @@ class ExamModeLockdown {
      */
     async syncToBackend() {
         if (!this.isLocked || !this.session) {
-            console.log('[Lockdown] Sync skipped - not locked or no session');
             return;
         }
         
@@ -396,13 +362,6 @@ class ExamModeLockdown {
             last_seen: new Date().toISOString()
         };
         
-        console.log('[Lockdown] Syncing to backend:', this.BACKEND_URL, {
-            session_id: payload.session_id,
-            student: payload.student,
-            logs_count: logsToSend.length,
-            current_url: currentUrl
-        });
-        
         try {
             const response = await fetch(`${this.BACKEND_URL}/log`, {
                 method: 'POST',
@@ -414,15 +373,11 @@ class ExamModeLockdown {
             
             const data = await response.json();
             
-            console.log('[Lockdown] Backend response:', data);
-            
             if (data.received) {
                 // Clear sent logs
                 this.pendingLogs = this.pendingLogs.slice(logsToSend.length);
-                console.log(`[Lockdown] Synced ${logsToSend.length} logs successfully`);
             } else if (data.session_ended) {
                 // Professor ended the exam!
-                console.log('[Lockdown] Session ended by professor!');
                 this.handleRemoteSessionEnd();
             } else {
                 console.warn('[Lockdown] Sync response not received:', data);
@@ -480,39 +435,39 @@ class ExamModeLockdown {
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    background: rgba(0, 0, 0, 0.9);
+                    background: rgba(0, 0, 0, 0.95);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     z-index: 99999;
                 }
                 .ended-modal-content {
-                    background: linear-gradient(135deg, #2a1a3e 0%, #1a1a2e 100%);
+                    background: transparent;
+                    border: 2px solid #2ecc71;
                     padding: 40px 60px;
                     border-radius: 16px;
                     text-align: center;
-                    color: white;
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-                    border: 2px solid #8b5cf6;
+                    color: #e0e0e0;
                 }
                 .ended-icon {
                     font-size: 64px;
                     margin-bottom: 20px;
+                    color: #2ecc71;
                 }
                 .ended-modal-content h2 {
                     font-size: 28px;
                     margin-bottom: 16px;
-                    color: #f59e0b;
+                    color: #2ecc71;
                 }
                 .ended-modal-content p {
                     font-size: 16px;
                     margin-bottom: 8px;
-                    color: #d1d5db;
+                    color: #888888;
                 }
                 .ended-countdown {
                     margin-top: 24px;
                     font-size: 14px;
-                    color: #8b5cf6;
+                    color: #2ecc71;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -521,7 +476,7 @@ class ExamModeLockdown {
                 .countdown-spinner {
                     width: 16px;
                     height: 16px;
-                    border: 2px solid #8b5cf6;
+                    border: 2px solid #2ecc71;
                     border-top-color: transparent;
                     border-radius: 50%;
                     animation: spin 1s linear infinite;

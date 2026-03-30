@@ -385,6 +385,12 @@ class Tab {
         if (!this.url || this.url === 'about:blank' || this.url.startsWith('dao://')) {
             return;
         }
+
+        // Don't track internal file:// pages (history, shortcuts, error, etc.)
+        if (this.url.startsWith('file://')) {
+            console.log('[History] Skipping internal file:// page:', this.url);
+            return;
+        }
         
         try {
             // Get page title (fallback to URL if no title)
@@ -1475,17 +1481,27 @@ const historyBtn = document.getElementById('history-btn');
 // Open history in a new tab
 async function openHistoryPage() {
     console.log('[History] Opening history tab');
-    
+
     try {
         const rendererPath = await window.electronAPI.paths.getPath('renderer');
-        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html`;
-        
+
+        // Get current profile ID to pass to history page
+        let profileId = 1;
+        if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
+            profileId = window.profileSwitcher.currentProfile.id;
+        } else {
+            const storedId = localStorage.getItem('dao_current_profile_id');
+            if (storedId) profileId = parseInt(storedId);
+        }
+
+        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html#profileId=${profileId}`;
+
         // Create a new tab with the history page
         const historyTab = createNewTab(historyPageUrl);
         historyTab.title = 'Browsing History';
         historyTab.tabTitleElement.textContent = 'Browsing History';
-        
-        console.log('[History] History tab opened successfully');
+
+        console.log(`[History] History tab opened for profile ID: ${profileId}`);
     } catch (err) {
         console.error('[History] Failed to open history tab:', err);
     }

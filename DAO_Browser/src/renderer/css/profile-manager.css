@@ -39,9 +39,9 @@
 }
 
 .create-profile-btn {
-    background: var(--accent-blue);
-    color: white;
-    border: none;
+    background: transparent;
+    color: #2ecc71;
+    border: 1px solid #2ecc71;
     border-radius: var(--radius-sm);
     padding: 6px 12px;
     font-size: 12px;
@@ -53,7 +53,9 @@
 }
 
 .create-profile-btn:hover {
-    background: var(--accent-blue-dark);
+    background: #222222;
+    color: #2ecc71;
+    border-color: #2ecc71;
     transform: translateY(-1px);
 }
 
@@ -91,13 +93,15 @@
 }
 
 .profile-list-item.active {
-    background: var(--accent-blue-light);
-    border-left-color: var(--accent-blue);
+    background: transparent;
+    border-left-color: #2ecc71;
+    color: #2ecc71;
 }
 
 .profile-list-item.current-active {
-    background: var(--accent-green-light);
-    border-left-color: var(--accent-green);
+    background: transparent;
+    border-left-color: #2ecc71;
+    color: #2ecc71;
 }
 
 .profile-list-item .profile-avatar {
@@ -135,8 +139,8 @@
 }
 
 .profile-status-badge {
-    background: var(--accent-green);
-    color: white;
+    background: #2ecc71;
+    color: #0a0a0a;
     font-size: 9px;
     padding: 2px 6px;
     border-radius: 10px;

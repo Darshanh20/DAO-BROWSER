@@ -40,7 +40,6 @@ let allowedRequests = 0;
  */
 function setCurrentProfileId(profileId) {
     if (currentProfileId !== profileId) {
-        console.log(`[ExamFilter] Profile changed: ${currentProfileId} → ${profileId}`);
         currentProfileId = profileId;
         // Invalidate cache when profile changes
         cachedSession = null;
@@ -219,8 +218,6 @@ function checkUrlAgainstSession(url, session, resourceType) {
             ? 'AI tool - explicitly blacklisted' 
             : `Blocked site: ${blacklistResult.matchedPattern}`;
         
-        console.log(`🚫 [ExamFilter] BLOCKED (blacklist): ${extractDomain(url)}`);
-        
         return {
             allowed: false,
             blocked: true,
@@ -275,8 +272,6 @@ function checkUrlAgainstSession(url, session, resourceType) {
     
     // 4. Not in whitelist - block by default during exam
     if (whitelist.length > 0) {
-        console.log(`🚫 [ExamFilter] BLOCKED (not whitelisted): ${extractDomain(url)}`);
-        
         return {
             allowed: false,
             blocked: true,

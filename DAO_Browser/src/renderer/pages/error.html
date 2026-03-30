@@ -6,412 +6,358 @@
     <title>Error - D.A.O. Browser</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Import Google Fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');
-
-        /* Design System Variables */
-        :root {
-            --color-bg: #0a0f1e;
-            --color-surface: #0d1530;
-            --color-surface-2: #111c3a;
-            --color-border: #1e2d5a;
-            --color-primary: #3b82f6;
-            --color-primary-glow: #60a5fa;
-            --color-text-primary: #e8edf8;
-            --color-text-secondary: #94a3b8;
-            --color-text-muted: #4a5980;
-            --color-heading: #ffffff;
-            --color-error: #ef4444;
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            color: inherit;
         }
 
-        html, body {
+        html,
+        body {
             width: 100%;
             height: 100%;
         }
 
         body {
-            background: linear-gradient(135deg, var(--color-bg) 0%, #1e2951 50%, var(--color-bg) 100%);
-            background-attachment: fixed;
-            color: var(--color-text-primary);
-            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #0a0a0a;
+            color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
             min-height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Animated background elements */
-        .bg-orb-1 {
-            position: fixed;
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
-            top: -200px;
-            left: -200px;
-            animation: float 20s ease-in-out infinite;
-            z-index: -1;
-        }
-
-        .bg-orb-2 {
-            position: fixed;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(96, 165, 250, 0.1) 0%, transparent 70%);
-            border-radius: 50%;
-            bottom: -150px;
-            right: -150px;
-            animation: float 25s ease-in-out infinite reverse;
-            z-index: -1;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(30px); }
-        }
-
-        .error-wrapper {
-            width: 100%;
-            max-width: 600px;
-            animation: slideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-30px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .error-card {
-            background: rgba(13, 21, 48, 0.6);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--color-border);
-            border-radius: 24px;
-            padding: 60px 40px;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            padding: 20px 40px;
             position: relative;
-            overflow: hidden;
         }
 
-        .error-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+        /* Container for centered content */
+        .error-container {
+            width: 100%;
+            max-width: 560px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
         }
 
-        .error-icon {
-            font-size: 120px;
-            margin-bottom: 30px;
-            display: block;
-            animation: iconBounce 2.5s ease-in-out infinite;
-            color: var(--color-primary-glow);
+        /* Status pill */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            border: 1px solid #1a2a3a;
+            border-radius: 20px;
+            padding: 8px 16px;
+            margin-bottom: 32px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #3b82f6;
         }
 
-        @keyframes iconBounce {
-            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 1; }
-            25% { transform: translateY(-15px) rotate(-5deg); }
-            50% { transform: translateY(0) rotate(0deg); }
-            75% { transform: translateY(-10px) rotate(5deg); }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #3b82f6;
+            border-radius: 50%;
+            flex-shrink: 0;
+            animation: pulse 2s ease-in-out infinite;
         }
 
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Title */
         h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2.8rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, var(--color-heading) 0%, var(--color-text-primary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.5px;
-            color: var(--color-heading);
-        }
-
-        .error-tagline {
-            font-size: 20px;
-            color: var(--color-text-secondary);
-            margin-bottom: 24px;
+            font-size: 42px;
             font-weight: 500;
-            line-height: 1.6;
+            color: #f0f0f0;
+            margin-bottom: 16px;
+            letter-spacing: -0.3px;
         }
 
-        .error-subtext {
+        /* Subtitle */
+        .subtitle {
             font-size: 15px;
-            color: var(--color-text-primary);
+            color: #555555;
             margin-bottom: 40px;
-            line-height: 1.8;
-            max-width: 480px;
+            line-height: 1.6;
+            max-width: 340px;
             margin-left: auto;
             margin-right: auto;
         }
 
-        .error-details {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 40px;
+        /* URL section */
+        .url-section {
+            width: 100%;
+            margin-bottom: 24px;
             text-align: left;
-            font-family: 'Monaco', 'Courier New', monospace;
-            font-size: 12px;
-            color: var(--color-text-secondary);
-            max-height: 120px;
-            overflow-y: auto;
-            word-break: break-all;
-            line-height: 1.6;
         }
 
-        .error-details::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .error-details::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 3px;
-        }
-
-        .error-details::-webkit-scrollbar-thumb {
-            background: var(--color-border);
-            border-radius: 3px;
-        }
-
-        .error-details::-webkit-scrollbar-thumb:hover {
-            background: var(--color-primary-glow);
-        }
-
-        .error-details-label {
+        .section-label {
+            font-size: 11px;
             font-weight: 600;
-            color: var(--color-text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #555555;
+            margin-bottom: 8px;
             display: block;
-            margin-bottom: 6px;
         }
 
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 32px;
+        .url-display {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #666666;
+            padding-left: 16px;
+            border-left: 2px solid #2a2a2a;
+            word-break: break-all;
+            line-height: 1.5;
         }
 
-        button {
-            padding: 12px 28px;
-            border: none;
-            border-radius: 12px;
-            font-size: 15px;
+        /* Error details section */
+        .error-section {
+            width: 100%;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .error-display {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #666666;
+            padding-left: 16px;
+            border-left: 2px solid #3b82f6;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        .error-code {
+            color: #3b82f6;
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Thin divider */
+        .divider {
+            width: 40px;
+            height: 1px;
+            background: #1e1e1e;
+            margin: 0 auto 32px;
+        }
+
+        /* Info row */
+        .info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 48px;
+            text-align: left;
+        }
+
+        .info-icon {
+            font-size: 16px;
+            color: #3b6894;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .info-text {
+            font-size: 13px;
+            color: #3b6894;
+            line-height: 1.5;
+        }
+
+        /* Button */
+        .btn-reload {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-family: 'DM Sans', sans-serif;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-glow) 100%);
-            color: var(--color-heading);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--color-primary-glow) 0%, var(--color-primary) 100%);
-            transform: translateY(-3px);
-            box-shadow: 0 6px 25px rgba(59, 130, 246, 0.5);
-        }
-
-        .btn-primary:active {
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: var(--color-surface-2);
-            color: var(--color-text-primary);
-            border: 1px solid var(--color-border);
-            backdrop-filter: blur(10px);
-        }
-
-        .btn-secondary:hover {
-            background: var(--color-surface);
-            border-color: var(--color-primary-glow);
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(96, 165, 250, 0.15);
-        }
-
-        .btn-secondary:active {
-            transform: translateY(-1px);
-        }
-
-        .tips-section {
-            margin-top: 40px;
-            padding-top: 24px;
-            border-top: 1px solid var(--color-border);
-        }
-
-        .tips-title {
-            font-size: 13px;
-            color: var(--color-text-secondary);
-            margin-bottom: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .tips-list {
-            list-style: none;
+            background: transparent;
+            border: 1px solid #2a2a2a;
+            color: #39ff14;
+            padding: 12px 24px;
+            border-radius: 6px;
             font-size: 14px;
-            color: var(--color-text-primary);
-            line-height: 2;
-        }
-
-        .tips-list li {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tips-list li:before {
-            content: "→";
-            color: var(--color-primary);
-            margin-right: 10px;
             font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            letter-spacing: 0.3px;
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .btn-reload:hover {
+            background: #0a1a00;
+            border-color: #39ff14;
+        }
+
+        .btn-reload:active {
+            opacity: 0.85;
+        }
+
+        /* Footer */
+        .footer {
+            position: absolute;
+            bottom: 24px;
+            left: 0;
+            right: 0;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #2a2a2a;
+            text-align: center;
         }
 
         /* Responsive */
-        @media (max-width: 600px) {
-            .error-card {
-                padding: 40px 24px;
+        @media (max-width: 640px) {
+            body {
+                padding: 20px;
+            }
+
+            .error-container {
+                max-width: 100%;
             }
 
             h1 {
-                font-size: 2.2rem;
+                font-size: 32px;
             }
 
-            .error-tagline {
-                font-size: 18px;
+            .subtitle {
+                font-size: 14px;
+                max-width: 100%;
+                margin-bottom: 32px;
             }
 
-            .error-icon {
-                font-size: 80px;
+            .url-section,
+            .error-section {
+                margin-bottom: 20px;
             }
 
-            .action-buttons {
-                flex-direction: column;
+            .section-label {
+                font-size: 10px;
             }
 
-            button {
-                width: 100%;
-                justify-content: center;
+            .url-display,
+            .error-display {
+                font-size: 12px;
+                padding-left: 12px;
+            }
+
+            .info-row {
+                margin-bottom: 40px;
+            }
+
+            .info-text {
+                font-size: 12px;
+            }
+
+            .btn-reload {
+                padding: 10px 20px;
+                font-size: 13px;
+            }
+
+            .footer {
+                font-size: 10px;
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="bg-orb-1"></div>
-    <div class="bg-orb-2"></div>
+    <div class="error-container">
+        <!-- Status Pill -->
+        <div class="status-pill">
+            <span class="status-dot"></span>
+            Connection Error
+        </div>
 
-    <div class="error-wrapper">
-        <div class="error-card">
-            <i class="fas fa-wifi-slash error-icon"></i>
-            
-            <h1>Connection Lost</h1>
-            <p class="error-tagline" id="quirky-message">The internet gods have spoken.</p>
-            
-            <div class="error-subtext">
-                <div style="margin-bottom: 8px;"><span id="error-code-display">Error Code: N/A</span></div>
-                <div id="error-message-display">Unable to reach this page</div>
-            </div>
+        <!-- Title -->
+        <h1>Page Unavailable</h1>
 
-            <div class="error-details">
-                <span class="error-details-label">📍 Attempted URL:</span>
-                <div id="error-url-display">Unknown</div>
-                <br>
-                <span class="error-details-label">⚠️ Error Details:</span>
-                <div id="error-full-details">An unexpected error occurred</div>
-            </div>
+        <!-- Subtitle -->
+        <p class="subtitle">Unable to establish a connection to this page.</p>
 
-            <div class="action-buttons">
-                <button class="btn-primary" onclick="reloadPage()">
-                    <i class="fas fa-redo"></i>Reload
-                </button>
+        <!-- URL Section -->
+        <div class="url-section">
+            <label class="section-label">Requested URL</label>
+            <div class="url-display" id="error-url-display">Unknown</div>
+        </div>
+
+        <!-- Error Section -->
+        <div class="error-section">
+            <label class="section-label">Error Details</label>
+            <div class="error-display">
+                <span class="error-code" id="error-code-display">ERR_UNKNOWN</span>
+                <span id="error-message-display"></span>
             </div>
         </div>
+
+        <!-- Divider -->
+        <div class="divider"></div>
+
+        <!-- Info Row -->
+        <div class="info-row">
+            <i class="fas fa-circle-info info-icon"></i>
+            <div class="info-text" id="error-hint">Check your internet connection and try again.</div>
+        </div>
+
+        <!-- Reload Button -->
+        <button class="btn-reload" onclick="reloadPage()">
+            <i class="fas fa-rotate-right"></i>
+            Try Again
+        </button>
     </div>
 
+    <!-- Footer -->
+    <div class="footer">D.A.O. Browser</div>
+
     <script>
-        // Quirky messages
-        const quirkyMessages = [
-            "Looks like we took a wrong turn at the internet! 🗺️",
-            "The internet gods have spoken... and they said no. 🙏",
-            "Connection dropped harder than my productivity on Mondays. 📉",
-            "This page went ghosting mode. It's not you, it's definitely it. 👻",
-            "Error 404: Not your fault edition. Probably. 🤔",
-            "We tried to reach that page, but it ghosted us. Rude. 😤",
-            "Plot twist: The internet can't find it either. 🎬"
-        ];
-
-        // Get random quirky message
-        function getRandomQuirkyMessage() {
-            return quirkyMessages[Math.floor(Math.random() * quirkyMessages.length)];
-        }
-
         // Extract URL parameters
         const params = new URLSearchParams(window.location.search);
         const errorCode = params.get('code') || 'UNKNOWN';
         const errorMessage = params.get('message') || 'An unexpected error occurred';
         const errorUrl = params.get('url') || 'Unknown URL';
 
-        // Error code descriptions
-        const errorDescriptions = {
-            '-106': 'Network blocked - Check your firewall or proxy settings',
-            '-105': 'Unknown error - Something unexpected happened',
-            '-104': 'Connection reset - The server hung up on us',
-            '-3': 'Navigation aborted - The page was interrupted',
-            '-2': 'Failed request - Something went wrong with the connection',
-            '-1': 'Net failed - General network failure',
-            '118': 'Activate policy - Network policy issue',
-            '124': 'Address invalid - The address is not valid',
+        // Error hints based on error code
+        const errorHints = {
+            '-106': 'This site may be blocked by your firewall or network settings.',
+            '-105': 'The server could not be found. Check the URL and try again.',
+            '-104': 'The connection was reset. The server may be temporarily unavailable.',
+            '-103': 'Too many redirects. The page may have a configuration issue.',
+            '-102': 'Connection refused. The server is not accepting connections.',
+            '-101': 'Connection reset. Try refreshing the page.',
+            '-100': 'Connection closed. The server ended the connection unexpectedly.',
+            '-3': 'Navigation was cancelled.',
+            '-2': 'The request failed. Check your connection.',
+            '-1': 'Network error. Verify your internet connection.',
+            '-7': 'Connection timed out. The server took too long to respond.',
+            '-21': 'Network changed during the request. Try again.',
+            '-137': 'Name resolution failed. DNS could not resolve this address.',
+            '-118': 'Connection timed out.',
         };
 
         // Update DOM
-        document.getElementById('quirky-message').textContent = getRandomQuirkyMessage();
-        document.getElementById('error-code-display').textContent = `Error Code: ${errorCode}`;
-        document.getElementById('error-message-display').textContent = errorMessage;
         document.getElementById('error-url-display').textContent = errorUrl;
-        
-        const errorDesc = errorDescriptions[errorCode] || errorMessage;
-        document.getElementById('error-full-details').textContent = errorDesc;
+        document.getElementById('error-code-display').textContent = `ERR_${Math.abs(parseInt(errorCode)) || errorCode}`;
+
+        if (errorMessage && errorMessage !== 'An unexpected error occurred') {
+            document.getElementById('error-message-display').textContent = ` - ${errorMessage}`;
+        }
+
+        const hint = errorHints[errorCode] || 'Check your internet connection and try again.';
+        document.getElementById('error-hint').textContent = hint;
 
         // Button function
         function reloadPage() {
             window.location.reload();
         }
 
-        // Allow back button to work
+        // Allow back navigation
         function goBack() {
             if (window.history.length > 1) {
                 window.history.back();

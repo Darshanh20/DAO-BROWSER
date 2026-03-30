@@ -22,14 +22,14 @@
 }
 
 .profile-switcher-button:hover {
-    background: var(--bg-hover);
-    border-color: var(--accent-blue);
+    background: #222222;
+    border-color: #2ecc71;
 }
 
 .profile-switcher-button.active {
-    background: var(--accent-blue);
-    color: white;
-    border-color: var(--accent-blue);
+    background: transparent;
+    color: #2ecc71;
+    border-color: #2ecc71;
 }
 
 .profile-avatar {
@@ -115,8 +115,8 @@
 }
 
 .profile-item.active {
-    background: var(--accent-blue-light);
-    color: var(--accent-blue);
+    background: transparent;
+    color: #2ecc71;
 }
 
 .profile-item .profile-avatar {
@@ -168,7 +168,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--accent-green);
+    background: #2ecc71;
     flex-shrink: 0;
 }
 

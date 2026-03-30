@@ -162,9 +162,6 @@ class SessionManager {
             
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
 
-            console.log(`[ExamMode] Session created: ${sessionId}`);
-            console.log(`[ExamMode] Config saved to: ${configPath}`);
-
             // Also activate the session for the professor
             const professorSession = this.activateSession(config, 'professor', password, profileId);
 
@@ -235,10 +232,6 @@ class SessionManager {
 
             // Set as active session
             this.activeSession = sessionState;
-
-            console.log(`[ExamMode] Session joined: ${config.session_id}`);
-            console.log(`[ExamMode] Student: ${studentInfo.name} (${studentInfo.roll_number})`);
-            console.log(`[ExamMode] Profile: ${profileId}`);
 
             return {
                 success: true,
@@ -323,7 +316,6 @@ class SessionManager {
         // Set as active session
         this.activeSession = sessionState;
 
-        console.log(`[ExamMode] Session activated for ${role}: ${config.session_id} (profile: ${profileId})`);
         return sessionState;
     }
 
@@ -353,9 +345,9 @@ class SessionManager {
     }
 
     /**
-     * Save activity log to Desktop
+     * Mark activity log as submitted (backend sync is now source of truth)
      * @param {number|string} profileId - The profile ID
-     * @returns {Object} - { success, filePath, error }
+     * @returns {Object} - { success }
      */
     saveActivityLog(profileId) {
         const session = this.getActiveSession(profileId);
@@ -363,30 +355,7 @@ class SessionManager {
             return { success: false, error: 'No active session' };
         }
 
-        try {
-            const desktopPath = path.join(os.homedir(), 'Desktop');
-            const rollNumber = session.student_info?.roll_number || 'unknown';
-            const fileName = `activity_log_${session.session_id}_${rollNumber}.json`;
-            const filePath = path.join(desktopPath, fileName);
-
-            const logData = {
-                session_id: session.session_id,
-                student_info: session.student_info,
-                exam_info: session.exam_info,
-                start_time: session.start_time,
-                end_time: new Date().toISOString(),
-                activity_log: session.activity_log || [],
-                submitted_at: new Date().toISOString()
-            };
-
-            fs.writeFileSync(filePath, JSON.stringify(logData, null, 2), 'utf8');
-
-            console.log(`[ExamMode] Activity log saved to: ${filePath}`);
-            return { success: true, filePath: filePath };
-        } catch (error) {
-            console.error('[ExamMode] Failed to save activity log:', error);
-            return { success: false, error: error.message };
-        }
+        return { success: true };
     }
 
     /**

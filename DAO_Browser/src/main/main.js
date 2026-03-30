@@ -5,6 +5,8 @@ const contentFilter = require('./content-filter');
 const { sessionManager } = require('./examMode/sessionManager');
 const configValidator = require('./examMode/configValidator');
 const examUrlFilter = require('./examMode/urlFilter');
+const logSyncer = require('./examMode/logSyncer');
+const { exportExamPDF } = require('./examMode/pdfExporter');
 
 let mainWindow;
 
@@ -122,9 +124,9 @@ function createWindow() {
         }
     });
 
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // Load profile selector landing page on startup
+    mainWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
     mainWindow.maximize();
-    mainWindow.webContents.openDevTools();
 
     // Register the dao-blocked:// protocol to serve the block page
     const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
@@ -395,8 +397,6 @@ ipcMain.handle('summarize:checkService', async () => {
 ipcMain.handle('history:add', async (event, historyData) => {
     const http = require('http');
 
-    console.log('[History] Adding entry:', historyData.url, 'Profile:', historyData.profile_id);
-
     return new Promise((resolve, reject) => {
         const postData = JSON.stringify({
             url: historyData.url,
@@ -429,7 +429,6 @@ ipcMain.handle('history:add', async (event, historyData) => {
                 try {
                     const response = JSON.parse(data);
                     if (res.statusCode === 200) {
-                        console.log('[History] Entry added successfully');
                         resolve(response);
                     } else {
                         console.error('[History] Error response:', response);
@@ -684,7 +683,6 @@ ipcMain.handle('history:getStats', async () => {
 // Set current profile ID for exam mode URL filtering
 // Called by renderer when profile changes
 ipcMain.handle('examMode:setProfileId', async (event, profileId) => {
-    console.log(`[ExamMode IPC] Setting profile ID: ${profileId}`);
     examUrlFilter.setCurrentProfileId(profileId);
     return { success: true };
 });
@@ -714,7 +712,6 @@ ipcMain.handle('examMode:logBlockedAttempt', async (event, blockedInfo, profileI
 
 // Create a new exam session (Professor side)
 ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blacklist, settings, password, profileId) => {
-    console.log(`[ExamMode IPC] Creating session for profile: ${profileId}...`);
     
     // Validate exam info
     const examValidation = configValidator.validateExamInfo(examInfo);
@@ -749,7 +746,6 @@ ipcMain.handle('examMode:createSession', async (event, examInfo, whitelist, blac
 
 // Join an existing exam session (Student side)
 ipcMain.handle('examMode:joinSession', async (event, configPath, password, studentInfo, profileId) => {
-    console.log(`[ExamMode IPC] Joining session for profile: ${profileId}...`);
     
     // Validate student info
     const studentValidation = configValidator.validateStudentInfo(studentInfo);
@@ -762,6 +758,14 @@ ipcMain.handle('examMode:joinSession', async (event, configPath, password, stude
     // Invalidate URL filter cache so it picks up new session
     if (result.success) {
         examUrlFilter.invalidateSessionCache();
+        
+        // Start background log syncer with offline backup support
+        if (result.session) {
+            logSyncer.start(result.session, profileId, () => {
+                // Callback when professor ends session
+                mainWindow.webContents.send('examMode:sessionEndedByProfessor', { profileId });
+            });
+        }
     }
     
     return result;
@@ -769,7 +773,6 @@ ipcMain.handle('examMode:joinSession', async (event, configPath, password, stude
 
 // Load config file (for preview before joining)
 ipcMain.handle('examMode:loadConfig', async (event, configPath) => {
-    console.log('[ExamMode IPC] Loading config...');
     return sessionManager.loadConfig(configPath);
 });
 
@@ -780,8 +783,10 @@ ipcMain.handle('examMode:getActiveSession', async (event, profileId) => {
 
 // End current session
 ipcMain.handle('examMode:endSession', async (event, profileId) => {
-    console.log(`[ExamMode IPC] Ending session for profile: ${profileId}...`);
     const result = sessionManager.endSession(profileId);
+    
+    // Stop background log syncer
+    logSyncer.stop();
     
     // Invalidate URL filter cache
     examUrlFilter.invalidateSessionCache();
@@ -895,17 +900,27 @@ ipcMain.handle('examMode:logActivity', async (event, activityEntry, profileId) =
 
 // Save activity log to Desktop
 ipcMain.handle('examMode:saveActivityLog', async (event, profileId) => {
-    console.log(`[ExamMode IPC] Saving activity log for profile: ${profileId}...`);
     return sessionManager.saveActivityLog(profileId);
+});
+
+// Export exam data to PDF
+ipcMain.handle('export-exam-pdf', async (event, { examData, students, allLogs }) => {
+    return await exportExamPDF(examData, students, allLogs);
+});
+
+// Get connection status for sync indicator
+ipcMain.handle('examMode:getConnectionStatus', async () => {
+    return {
+        status: logSyncer.getConnectionStatus(),
+        lastSyncTime: logSyncer.getLastSyncTime()
+    };
 });
 
 // Set lockdown state for a profile (called when student exam session activates/ends)
 ipcMain.handle('examMode:setLockdownState', async (event, locked, profileId, sessionId = null) => {
-    console.log(`[ExamMode IPC] Setting lockdown state: ${locked} for profile: ${profileId}`);
     
     if (locked) {
         examLockdownProfiles.set(profileId, { locked: true, sessionId });
-        console.log(`[ExamMode Lockdown] Profile ${profileId} is now in lockdown mode`);
     } else {
         examLockdownProfiles.delete(profileId);
         console.log(`[ExamMode Lockdown] Profile ${profileId} lockdown released`);
@@ -918,6 +933,204 @@ ipcMain.handle('examMode:setLockdownState', async (event, locked, profileId, ses
 ipcMain.handle('examMode:isLocked', async (event, profileId) => {
     const lockState = examLockdownProfiles.get(profileId);
     return { locked: lockState?.locked || false, sessionId: lockState?.sessionId };
+});
+
+// ==================== PROFILE MANAGEMENT IPC HANDLERS ====================
+
+// Get all profiles from Python backend
+ipcMain.handle('profile:getAll', async (event) => {
+    try {
+        const response = await fetch('http://localhost:5000/api/profiles');
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log('✅ Profiles loaded:', data.data?.length || 0);
+        return data;
+    } catch (error) {
+        console.error('❌ Error loading profiles:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Get specific profile
+ipcMain.handle('profile:get', async (event, profileId) => {
+    try {
+        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('❌ Error getting profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Create new profile
+ipcMain.handle('profile:create', async (event, name, displayName, avatarColor = '#4A90E2') => {
+    try {
+        const response = await fetch('http://localhost:5000/api/profiles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                display_name: displayName,
+                avatar_color: avatarColor
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            console.log(`✅ Profile created: ${displayName}`);
+        }
+        return data;
+    } catch (error) {
+        console.error('❌ Error creating profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Update profile
+ipcMain.handle('profile:update', async (event, profileId, updates) => {
+    try {
+        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('❌ Error updating profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Delete profile
+ipcMain.handle('profile:delete', async (event, profileId) => {
+    try {
+        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.success) {
+            console.log(`✅ Profile deleted: ${profileId}`);
+        }
+        return data;
+    } catch (error) {
+        console.error('❌ Error deleting profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Activate (switch to) profile
+ipcMain.handle('profile:activate', async (event, profileId) => {
+    try {
+        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}/activate`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        if (data.success) {
+            console.log(`✅ Profile activated: ${profileId}`);
+        }
+        return data;
+    } catch (error) {
+        console.error('❌ Error activating profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Get currently active profile
+ipcMain.handle('profile:getActive', async (event) => {
+    try {
+        const response = await fetch('http://localhost:5000/api/profiles/active');
+        return await response.json();
+    } catch (error) {
+        console.error('❌ Error getting active profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Get profile statistics
+ipcMain.handle('profile:getStats', async (event, profileId) => {
+    try {
+        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}/stats`);
+        return await response.json();
+    } catch (error) {
+        console.error('❌ Error getting profile stats:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Select profile and navigate to main browser window
+ipcMain.handle('profile:select', async (event, profileId) => {
+    try {
+        // Activate the profile in backend
+        const activateResponse = await fetch(`http://localhost:5000/api/profiles/${profileId}/activate`, {
+            method: 'POST'
+        });
+
+        if (!activateResponse.ok) {
+            return { success: false, error: 'Failed to activate profile' };
+        }
+
+        console.log(`🔄 Switching to profile: ${profileId}`);
+
+        // Load the main browser window
+        if (mainWindow) {
+            mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+            mainWindow.show();
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error selecting profile:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Open a new window for a different profile
+ipcMain.handle('profile:openNewWindow', async (event, profileId) => {
+    try {
+        // Get profile info first
+        const profileResponse = await fetch(`http://localhost:5000/api/profiles/${profileId}`);
+        const profileData = await profileResponse.json();
+
+        if (!profileData.success) {
+            return { success: false, error: 'Failed to get profile info' };
+        }
+
+        const profile = profileData.data;
+        console.log(`🪟 Opening new window for profile: ${profile.display_name} (ID: ${profileId})`);
+
+        // Create a new browser window for this profile
+        const newWindow = new BrowserWindow({
+            width: 1400,
+            height: 900,
+            minWidth: 800,
+            minHeight: 600,
+            autoHideMenuBar: true,
+            title: `D.A.O. Browser - ${profile.display_name}`,
+            webPreferences: {
+                preload: path.join(__dirname, '../preload/preload.js'),
+                contextIsolation: true,
+                nodeIntegration: false,
+                webviewTag: true
+            }
+        });
+
+        // Store the profile ID for this window
+        newWindow.profileId = profileId;
+
+        // Load the main browser page with profile ID in hash (so it's available immediately)
+        const indexPath = path.join(__dirname, '../renderer/index.html');
+        newWindow.loadURL(`file://${indexPath}#profileId=${profileId}`);
+        newWindow.maximize();
+
+        return { success: true, profileId };
+    } catch (error) {
+        console.error('❌ Error opening new profile window:', error);
+        return { success: false, error: error.message };
+    }
 });
 
 // Block devtools when lockdown is active

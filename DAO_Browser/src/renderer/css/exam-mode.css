@@ -61,8 +61,8 @@
 }
 
 .role-card:hover {
-    background: var(--bg-hover);
-    border-color: var(--accent-blue);
+    background: #222222;
+    border-color: #2ecc71;
     transform: translateX(4px);
 }
 
@@ -72,7 +72,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+    background: transparent;
+    border: 2px solid #2ecc71;
     border-radius: 12px;
     flex-shrink: 0;
 }
@@ -107,7 +108,7 @@
 }
 
 .role-card:hover .role-card-arrow {
-    color: var(--accent-blue);
+    color: #2ecc71;
     transform: translateX(4px);
 }
 
@@ -895,12 +896,10 @@
 
 .exam-session-banner.professor .exam-status-dot {
     background: #22c55e;
-    box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
 }
 
 .exam-session-banner.student .exam-status-dot {
     background: #ef4444;
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
 }
 
 @keyframes pulse-dot {
@@ -1019,12 +1018,10 @@
 
 .status-dot.green {
     background: #22c55e;
-    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
 }
 
 .status-dot.red {
     background: #ef4444;
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
 }
 
 .status-text {
@@ -1140,8 +1137,8 @@
 }
 
 .confirm-icon.info {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
+    background: rgba(57, 255, 20, 0.15);
+    color: #39ff14;
 }
 
 .confirm-modal-body h3 {
@@ -1181,6 +1178,132 @@
 
 .btn-secondary:hover {
     background: var(--border-subtle);
+}
+
+/* Exam Over Modal */
+.exam-over-modal {
+    max-width: 500px;
+    width: 90%;
+    padding: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+}
+
+.exam-over-modal .modal-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.exam-over-modal .modal-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+}
+
+.exam-over-content {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.exam-over-message {
+    text-align: center;
+}
+
+.exam-over-message p {
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.exam-over-message .text-secondary {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.exam-over-section h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.download-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.download-btn i {
+    font-size: 16px;
+}
+
+.download-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: transparent;
+    border: 1px solid #2ecc71;
+    color: #2ecc71;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #222222;
+    transform: translateY(-1px);
+    border-color: #2ecc71;
+}
+
+.download-btn.btn-secondary {
+    background: var(--bg-element);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+}
+
+.download-btn.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+}
+
+.exam-over-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.exam-over-actions button {
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
 
@@ -1308,17 +1431,15 @@ body.exam-lockdown-active #profile-switcher.exam-disabled {
 
 /* Enhanced student banner - more prominent red styling */
 body.exam-student-mode .exam-session-banner.student {
-    background: linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(127, 29, 29, 0.2) 50%, rgba(239, 68, 68, 0.15) 100%);
+    background: rgba(239, 68, 68, 0.1);
     border-bottom: 2px solid rgba(239, 68, 68, 0.5);
     padding: 10px 16px;
-    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.2);
 }
 
 body.exam-student-mode .exam-session-banner.student .exam-status-text {
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 1px;
-    text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
 }
 
 body.exam-student-mode .exam-session-banner.student .exam-status-dot {
@@ -1331,12 +1452,10 @@ body.exam-student-mode .exam-session-banner.student .exam-status-dot {
     0%, 100% { 
         opacity: 1; 
         transform: scale(1);
-        box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
     }
     50% { 
         opacity: 0.8; 
         transform: scale(1.2);
-        box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
     }
 }
 
@@ -1557,8 +1676,13 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 }
 
 .summary-icon.students {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
+    background: rgba(57, 255, 20, 0.15);
+    color: #39ff14;
+}
+
+.summary-icon.alert {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
 }
 
 .summary-data {
@@ -1645,7 +1769,9 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 }
 
 .student-overview-table .alert-row {
-    background: rgba(239, 68, 68, 0.05);
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-left: 3px solid #ef4444;
+    font-weight: 500;
 }
 
 .student-overview-table .count-cell {
@@ -1655,6 +1781,28 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 
 .student-overview-table .count-cell.high {
     color: #ef4444;
+}
+
+.student-overview-table .alert-cell {
+    text-align: center;
+    font-weight: 600;
+}
+
+.alert-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.alert-badge.normal {
+    color: var(--text-secondary);
+    background: transparent;
 }
 
 .status-badge {
@@ -1724,8 +1872,8 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 }
 
 .type-badge.info {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
+    background: rgba(57, 255, 20, 0.15);
+    color: #39ff14;
 }
 
 /* Professor Actions */
@@ -1787,9 +1935,10 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 }
 
 .btn-live-mode:hover {
-    background: linear-gradient(135deg, #2a5078 0%, #1e3a5f 100%);
-    border-color: #3b82f6;
-    color: #e2e8f0;
+    background: linear-gradient(135deg, #2a3a2a 0%, #1a2a1a 100%);
+    border-color: #39ff14;
+    color: #39ff14;
+    box-shadow: 0 0 12px rgba(57, 255, 20, 0.4);
 }
 
 .btn-live-mode.active {
@@ -1882,8 +2031,8 @@ body.exam-student-mode .window-controls > .icon-btn:first-child {
 }
 
 .live-status-badge.submitted {
-    background: rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
+    background: rgba(57, 255, 20, 0.2);
+    color: #39ff14;
 }
 
 .live-status-badge.unknown {

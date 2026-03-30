@@ -8,6 +8,7 @@ class ExamSessionBanner {
     constructor() {
         this.session = null;
         this.timerInterval = null;
+        this.syncStatusInterval = null;
         this.warningShown = {
             '15': false,
             '10': false,
@@ -72,6 +73,12 @@ class ExamSessionBanner {
         this.userEl = document.getElementById('exam-banner-user');
         this.userDivider = document.getElementById('exam-banner-user-divider');
         
+        // Sync status elements (for students)
+        this.syncStatus = document.getElementById('exam-banner-sync-status');
+        this.syncIcon = document.getElementById('exam-banner-sync-icon');
+        this.syncText = document.getElementById('exam-banner-sync-text');
+        this.syncDivider = document.getElementById('exam-banner-sync-divider');
+        
         // Settings page elements
         this.inactiveView = document.getElementById('exammode-inactive');
         this.professorView = document.getElementById('exammode-professor-active');
@@ -98,6 +105,14 @@ class ExamSessionBanner {
         this.confirmEndBtn = document.getElementById('confirm-end-exam-btn');
         this.cancelSubmitBtn = document.getElementById('cancel-submit-exam-btn');
         this.confirmSubmitBtn = document.getElementById('confirm-submit-exam-btn');
+        
+        // Exam over modal (for download after ending exam)
+        this.examOverModal = document.getElementById('exam-over-download-modal');
+        this.downloadPdfBtn = document.getElementById('download-pdf-btn');
+        this.downloadCsvBtn = document.getElementById('download-csv-btn');
+        this.skipCloseBtn = document.getElementById('skip-close-btn');
+        this.examOverTitle = document.getElementById('exam-over-title');
+        this.examOverDetails = document.getElementById('exam-over-details');
         
         // Toast
         this.toast = document.getElementById('exam-toast');
@@ -140,6 +155,22 @@ class ExamSessionBanner {
         if (this.submitExamModal) {
             this.submitExamModal.addEventListener('click', (e) => {
                 if (e.target === this.submitExamModal) this.hideSubmitExamConfirm();
+            });
+        }
+        
+        // Exam over modal handlers (for professor after ending exam)
+        if (this.downloadPdfBtn) {
+            this.downloadPdfBtn.addEventListener('click', () => this.handleDownloadPdf());
+        }
+        if (this.downloadCsvBtn) {
+            this.downloadCsvBtn.addEventListener('click', () => this.handleDownloadCsv());
+        }
+        if (this.skipCloseBtn) {
+            this.skipCloseBtn.addEventListener('click', () => this.closeExamOverModal());
+        }
+        if (this.examOverModal) {
+            this.examOverModal.addEventListener('click', (e) => {
+                if (e.target === this.examOverModal) this.closeExamOverModal();
             });
         }
     }
@@ -213,6 +244,7 @@ class ExamSessionBanner {
         
         this.session = null;
         this.stopTimer();
+        this.stopSyncStatusUpdates();
         this.hideBanner();
         this.updateSettingsPage();
         
@@ -269,6 +301,21 @@ class ExamSessionBanner {
                 }
             } else {
                 this.sessionInfo.style.display = 'none';
+            }
+        }
+        
+        // Update sync status (student only, hide for professors)
+        if (this.syncStatus && this.syncDivider) {
+            if (isStudent) {
+                this.syncStatus.style.display = 'flex';
+                this.syncDivider.style.display = 'block';
+                // Start sync status updates
+                this.startSyncStatusUpdates();
+            } else {
+                this.syncStatus.style.display = 'none';
+                this.syncDivider.style.display = 'none';
+                // Stop sync status updates
+                this.stopSyncStatusUpdates();
             }
         }
         
@@ -438,6 +485,74 @@ class ExamSessionBanner {
         }
     }
 
+    // ==================== SYNC STATUS ====================
+
+    startSyncStatusUpdates() {
+        this.stopSyncStatusUpdates(); // Clear any existing interval
+        
+        // Update immediately
+        this.updateSyncStatus();
+        
+        // Then update every 3 seconds (less frequent than logs sync at 10s)
+        this.syncStatusInterval = setInterval(() => {
+            this.updateSyncStatus();
+        }, 3000);
+    }
+
+    stopSyncStatusUpdates() {
+        if (this.syncStatusInterval) {
+            clearInterval(this.syncStatusInterval);
+            this.syncStatusInterval = null;
+        }
+    }
+
+    async updateSyncStatus() {
+        try {
+            if (!this.syncStatus || !this.session || this.session.role !== 'student') {
+                return;
+            }
+            
+            const { status, lastSyncTime } = await window.examModeAPI.getConnectionStatus();
+            
+            // Update icon and text based on status
+            if (this.syncIcon && this.syncText) {
+                this.syncIcon.className = 'fa-solid';
+                
+                switch (status) {
+                    case 'synced':
+                        this.syncIcon.classList.add('fa-circle-check', 'status-synced');
+                        this.syncText.textContent = 'Synced';
+                        this.syncText.style.color = '#2ecc71';
+                        break;
+                    case 'syncing':
+                        this.syncIcon.classList.add('fa-spinner', 'fa-spin', 'status-syncing');
+                        this.syncText.textContent = 'Syncing...';
+                        this.syncText.style.color = '#f39c12';
+                        break;
+                    case 'offline':
+                        this.syncIcon.classList.add('fa-circle-exclamation', 'status-offline');
+                        this.syncText.textContent = 'Offline';
+                        this.syncText.style.color = '#e74c3c';
+                        break;
+                    default:
+                        this.syncIcon.classList.add('fa-circle-question');
+                        this.syncText.textContent = 'Unknown';
+                        this.syncText.style.color = '#888888';
+                }
+                
+                // Add tooltip with last sync time
+                if (lastSyncTime) {
+                    const lastSync = new Date(lastSyncTime);
+                    const now = new Date();
+                    const secAgo = Math.floor((now - lastSync) / 1000);
+                    this.syncStatus.title = `Last synced ${secAgo}s ago`;
+                }
+            }
+        } catch (error) {
+            console.warn('[ExamBanner] Error updating sync status:', error);
+        }
+    }
+
     // ==================== END SESSION FLOWS ====================
 
     showEndExamConfirm() {
@@ -471,7 +586,7 @@ class ExamSessionBanner {
             const profileId = this.getCurrentProfileId();
             const sessionId = this.session?.session_id;
             
-            // Notify backend to end session (so students get notified)
+            // Notify backend to end session (so students get notified IMMEDIATELY)
             if (sessionId) {
                 try {
                     await fetch(`http://localhost:5000/api/exam/session/${sessionId}`, {
@@ -487,14 +602,138 @@ class ExamSessionBanner {
             const result = await window.examModeAPI.endSession(profileId);
             
             if (result) {
-                this.showToast('Exam session ended successfully');
-                this.clearSession();
+                // Show download modal BEFORE clearing session (so data is still available)
+                this.showExamOverModal();
             } else {
                 this.showToast('Failed to end session', 'error');
             }
         } catch (error) {
             console.error('[ExamBanner] Error ending session:', error);
             this.showToast('Error ending session', 'error');
+        }
+    }
+
+    /**
+     * Show exam over modal with download options
+     */
+    showExamOverModal() {
+        if (!this.examOverModal) return;
+        
+        try {
+            // Update modal text with exam info
+            if (this.examOverTitle && this.session) {
+                this.examOverTitle.textContent = `${this.session.session_name || 'Exam'} has been ended successfully.`;
+            }
+            
+            if (this.examOverDetails) {
+                const totalStudents = this.session?.student_count || 0;
+                const plural = totalStudents !== 1 ? 'students' : 'student';
+                this.examOverDetails.textContent = `${totalStudents} ${plural} participated in this exam.`;
+            }
+            
+            // Show modal
+            this.examOverModal.classList.remove('hidden');
+            console.log('[ExamBanner] Showing exam over modal with download options');
+        } catch (error) {
+            console.error('[ExamBanner] Error showing exam over modal:', error);
+        }
+    }
+
+    /**
+     * Close exam over modal and clear session
+     */
+    closeExamOverModal() {
+        if (this.examOverModal) {
+            this.examOverModal.classList.add('hidden');
+        }
+        
+        // Now clear the session after user confirms they're done
+        this.showToast('Exam session ended successfully');
+        this.clearSession();
+    }
+
+    /**
+     * Download exam PDF from exam over modal
+     */
+    async handleDownloadPdf() {
+        if (!this.session || !this.downloadPdfBtn) return;
+        
+        try {
+            this.downloadPdfBtn.disabled = true;
+            this.downloadPdfBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Generating...</span>';
+            
+            // Prepare exam data
+            const examData = {
+                sessionId: this.session.session_id,
+                sessionName: this.session.session_name,
+                subject: this.session.subject,
+                createdBy: this.session.professor_name || 'Professor',
+                duration: this.session.duration || 'N/A',
+                createdAt: this.session.created_at || new Date().toISOString()
+            };
+            
+            // Prepare students summary (will be fetched from backend if available)
+            const students = [];
+            
+            // Use shared export helper
+            const result = await window.exportHelpers.downloadExamPDF({
+                sessionId: this.session.session_id,
+                examData,
+                students,
+                allLogs: [],
+                backendUrl: 'http://localhost:5000'
+            });
+            
+            if (result.cancelled) {
+                this.showToast('PDF download cancelled');
+            } else if (result.success) {
+                this.showToast('✅ PDF report downloaded!');
+            } else {
+                this.showToast(`Failed to download PDF: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('[ExamBanner] PDF download error:', error);
+            this.showToast('Failed to download PDF', 'error');
+        } finally {
+            if (this.downloadPdfBtn) {
+                this.downloadPdfBtn.disabled = false;
+                this.downloadPdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> <span>Download PDF Report</span>';
+            }
+        }
+    }
+
+    /**
+     * Download exam CSV from exam over modal
+     */
+    async handleDownloadCsv() {
+        if (!this.session || !this.downloadCsvBtn) return;
+        
+        try {
+            this.downloadCsvBtn.disabled = true;
+            this.downloadCsvBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Preparing...</span>';
+            
+            // Use shared export helper
+            const result = window.exportHelpers.downloadExamCSV({
+                sessionId: this.session.session_id,
+                examData: {
+                    sessionName: this.session.session_name
+                },
+                students: [] // Will be populated from backend if available
+            });
+            
+            if (result.success) {
+                this.showToast('✅ CSV report downloaded!');
+            } else {
+                this.showToast(`Failed to download CSV: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('[ExamBanner] CSV download error:', error);
+            this.showToast('Failed to download CSV', 'error');
+        } finally {
+            if (this.downloadCsvBtn) {
+                this.downloadCsvBtn.disabled = false;
+                this.downloadCsvBtn.innerHTML = '<i class="fa-solid fa-table"></i> <span>Download CSV</span>';
+            }
         }
     }
 
