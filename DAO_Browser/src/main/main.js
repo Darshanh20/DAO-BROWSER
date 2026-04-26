@@ -2,6 +2,10 @@ const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard } = re
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+<<<<<<< Updated upstream
+=======
+const fs = require('fs');
+>>>>>>> Stashed changes
 const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
 const { sessionManager } = require('./examMode/sessionManager');
@@ -254,6 +258,7 @@ function createWindow() {
         }
     });
 
+<<<<<<< Updated upstream
     // Load profile selector landing page on startup
     mainWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
     mainWindow.maximize();
@@ -262,7 +267,23 @@ function createWindow() {
     const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
     protocol.registerFileProtocol('dao-blocked', (request, callback) => {
         callback({ path: blockPagePath });
+=======
+    selectorWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
+    selectorWindow.on('closed', () => {
+        selectorWindow = null;
+>>>>>>> Stashed changes
     });
+}
+
+function registerBlockedProtocolsForSession(targetSession) {
+    if (!targetSession || blockedProtocolsRegisteredSessions.has(targetSession)) {
+        return;
+    }
+
+    const sessionProtocol = targetSession.protocol;
+    if (!sessionProtocol || typeof sessionProtocol.registerFileProtocol !== 'function') {
+        return;
+    }
 
     // Register the dao-exam-blocked:// protocol for exam mode block page
     const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
@@ -350,6 +371,7 @@ async function setupAdBlocker() {
 }
 
 app.whenReady().then(async () => {
+<<<<<<< Updated upstream
     try {
         await startBackendService();
     } catch (error) {
@@ -362,6 +384,36 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
     stopBackendService();
+=======
+    downloadHistoryFilePath = path.join(app.getPath('userData'), 'download-history.json');
+    loadDownloadHistory();
+
+    focusModeManager.setCacheDirectory(app.getPath('userData'));
+    focusModeManager.setNotifier((channel, payload, profileId) => {
+        sendEventToProfileWindows(channel, payload, profileId);
+    });
+
+    // Register the dao-blocked:// protocol to serve the generic error page
+    const blockPagePath = path.join(__dirname, '../renderer/pages/error.html');
+    protocol.registerFileProtocol('dao-blocked', (request, callback) => {
+        callback({ path: blockPagePath });
+    });
+
+    // Register the dao-exam-blocked:// protocol for exam mode block page
+    const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
+    protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
+        callback({ path: examBlockPagePath });
+    });
+
+    // Register the dao-focus-blocked:// protocol for focus mode block page
+    const focusBlockPagePath = path.join(__dirname, '../renderer/pages/focus-blocked.html');
+    protocol.registerFileProtocol('dao-focus-blocked', (request, callback) => {
+        callback({ path: focusBlockPagePath });
+    });
+
+    await setupAdBlocker();
+    createProfileSelectorWindow();
+>>>>>>> Stashed changes
 });
 
 // Quit when all windows are closed, except on macOS
@@ -657,7 +709,11 @@ ipcMain.handle('history:search', async (event, query, limit = 50) => {
         const options = {
             hostname: BACKEND_HOST,
             port: BACKEND_PORT,
+<<<<<<< Updated upstream
             path: `/api/history/search?q=${encodedQuery}&limit=${limit}`,
+=======
+            path: requestPath,
+>>>>>>> Stashed changes
             method: 'GET',
             timeout: 5000
         };
@@ -743,7 +799,11 @@ ipcMain.handle('history:clear', async () => {
         const options = {
             hostname: BACKEND_HOST,
             port: BACKEND_PORT,
+<<<<<<< Updated upstream
             path: '/api/history/clear',
+=======
+            path: requestPath,
+>>>>>>> Stashed changes
             method: 'DELETE',
             timeout: 5000
         };
@@ -786,7 +846,11 @@ ipcMain.handle('history:getStats', async () => {
         const options = {
             hostname: BACKEND_HOST,
             port: BACKEND_PORT,
+<<<<<<< Updated upstream
             path: '/api/history/stats',
+=======
+            path: requestPath,
+>>>>>>> Stashed changes
             method: 'GET',
             timeout: 5000
         };
