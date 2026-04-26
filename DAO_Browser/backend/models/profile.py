@@ -9,15 +9,29 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional, Union
 
+DATA_DIR = os.environ.get('DAO_BACKEND_DATA_DIR')
+if DATA_DIR:
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+def _profiles_base_dir() -> str:
+    if DATA_DIR:
+        return os.path.join(DATA_DIR, 'profiles')
+    return os.path.join(os.path.dirname(__file__), '..', 'profiles')
+
+def _history_db_path() -> str:
+    if DATA_DIR:
+        return os.path.join(DATA_DIR, 'browser_history.db')
+    return os.path.join(os.path.dirname(__file__), '..', 'browser_history.db')
+
 # Profile-specific database paths  
 def get_profile_db_path(profile_id: int) -> str:
     """Get database path for specific profile"""
-    profile_dir = os.path.join(os.path.dirname(__file__), '..', 'profiles', f'profile_{profile_id}')
+    profile_dir = os.path.join(_profiles_base_dir(), f'profile_{profile_id}')
     os.makedirs(profile_dir, exist_ok=True)
     return os.path.join(profile_dir, 'profile_data.db')
 
 # Main profiles database path (stores profile metadata)
-PROFILES_DB_PATH = os.path.join(os.path.dirname(__file__), 'profiles.db')
+PROFILES_DB_PATH = os.path.join(DATA_DIR, 'profiles.db') if DATA_DIR else os.path.join(os.path.dirname(__file__), 'profiles.db')
 
 class Profile:
     """Profile model for managing user profiles"""
@@ -322,7 +336,7 @@ def delete_profile(profile_id: int) -> Dict:
         conn.close()
         
         # Clean up profile directory
-        profile_dir = os.path.join(os.path.dirname(__file__), '..', 'profiles', f'profile_{profile_id}')
+        profile_dir = os.path.join(_profiles_base_dir(), f'profile_{profile_id}')
         if os.path.exists(profile_dir):
             import shutil
             shutil.rmtree(profile_dir)
@@ -382,7 +396,7 @@ def get_profile_stats(profile_id: int) -> Dict:
         }
         
         # Query the main browsing_history database for this profile's history count
-        main_db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'browser_history.db')
+        main_db_path = _history_db_path()
         if os.path.exists(main_db_path):
             conn = sqlite3.connect(main_db_path)
             cursor = conn.cursor()
@@ -505,7 +519,7 @@ def migrate_existing_data_to_profiles():
             
             # Update any history entries that don't have a profile_id
             import sqlite3
-            history_db_path = os.path.join(os.path.dirname(__file__), '..', 'browser_history.db')
+            history_db_path = _history_db_path()
             if os.path.exists(history_db_path):
                 conn = sqlite3.connect(history_db_path)
                 cursor = conn.cursor()

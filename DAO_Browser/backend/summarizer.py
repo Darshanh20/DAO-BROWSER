@@ -11,6 +11,7 @@ from sumy.summarizers.lsa import LsaSummarizer
 from sumy.nlp.stemmers import Stemmer
 from sumy.utils import get_stop_words
 import logging
+import os
 import database  # Import our database module for history tracking
 
 # Import profile API blueprint
@@ -406,12 +407,15 @@ def get_history_statistics():
         }), 500
 
 if __name__ == '__main__':
+    backend_port = int(os.environ.get('DAO_BACKEND_PORT', '5000'))
+    backend_debug = os.environ.get('DAO_BACKEND_DEBUG', 'false').lower() == 'true'
+
     print("=" * 60)
     print("🤖 AI Article Summarization Server")
     print("=" * 60)
-    print("✓ Server starting on http://localhost:5000")
+    print(f"✓ Server starting on http://localhost:{backend_port}")
     print("✓ Using LSA (Latent Semantic Analysis) algorithm")
     print("✓ CORS enabled for Electron app")
     print("=" * 60)
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='127.0.0.1', port=backend_port, debug=backend_debug)

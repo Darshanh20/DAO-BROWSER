@@ -266,6 +266,9 @@ class ProfileService:
     @staticmethod
     def get_profile_directory(profile_id: int) -> str:
         """Get profile-specific directory path"""
+        data_dir = os.environ.get('DAO_BACKEND_DATA_DIR')
+        if data_dir:
+            return os.path.join(data_dir, 'profiles', f'profile_{profile_id}')
         return os.path.join(os.path.dirname(__file__), '..', '..', 'profiles', f'profile_{profile_id}')
     
     @staticmethod

@@ -118,6 +118,13 @@
 - **Node.js** (v18 or higher)
 - **Python** (v3.8 or higher) - For AI summarization backend
 - **npm** (comes with Node.js)
+- **PyInstaller** (`pip install pyinstaller`) - For backend packaging
+
+For reproducible backend build dependencies:
+
+```bash
+pip install -r DAO_Browser/backend/requirements-build.txt
+```
 
 ### Quick Start
 
@@ -151,12 +158,12 @@
 
 ### Starting the Browser
 
-**Option 1: Browser Only (No AI Summarization)**
+**Option 1: Browser Only (Auto-start backend)**
 ```bash
 npm start
 ```
 
-**Option 2: Browser + AI Backend (Recommended)**
+**Option 2: Browser + Manual Backend (Fallback)**
 
 Open **two terminals**:
 
@@ -308,16 +315,17 @@ npm start
 
 ### Building for Production
 ```bash
-# Package for Windows
-npm run build
+# Build Python backend executable (PyInstaller)
+npm run build:backend
 
-# Package for Mac
-npm run build:mac
-
-# Package for Linux
-npm run build:linux
+# Build Windows NSIS installer
+npm run dist:win
 ```
-*Note: Build scripts need to be configured in package.json*
+
+Installer artifacts are generated in:
+
+- `DAO_Browser/release/` - Windows installer (`.exe`)
+- `DAO_Browser/backend/dist/dao_backend/` - packaged backend runtime
 
 ### Debugging
 - **DevTools**: Press `F12` or `Ctrl+Shift+I` in the browser

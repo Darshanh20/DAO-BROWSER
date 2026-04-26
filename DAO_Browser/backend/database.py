@@ -9,7 +9,10 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 # Database file path
-DB_PATH = os.path.join(os.path.dirname(__file__), 'browser_history.db')
+DATA_DIR = os.environ.get('DAO_BACKEND_DATA_DIR')
+if DATA_DIR:
+    os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR or os.path.dirname(__file__), 'browser_history.db')
 
 def get_connection():
     """Create and return a database connection"""
