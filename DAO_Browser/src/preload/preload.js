@@ -28,6 +28,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fetchNews: (url, options) => ipcRenderer.invoke('app:fetch', url, options)
 });
 
+// Expose startup profile selector API
+contextBridge.exposeInMainWorld('profileSelector', {
+    profileSelected: (profileId) => ipcRenderer.invoke('profileSelector:profileSelected', profileId)
+});
+
+// Expose profile window management API
+contextBridge.exposeInMainWorld('profileWindows', {
+    openProfileWindow: (profileId) => ipcRenderer.invoke('profileWindow:open', profileId),
+    getContext: () => ipcRenderer.invoke('profileWindow:getContext')
+});
+
 // Expose summarization API
 contextBridge.exposeInMainWorld('api', {
     summarizeArticle: (articleData) => ipcRenderer.invoke('summarize:article', articleData),
@@ -42,6 +53,26 @@ contextBridge.exposeInMainWorld('historyAPI', {
     deleteHistory: (entryId) => ipcRenderer.invoke('history:delete', entryId),
     clearHistory: (profileId) => ipcRenderer.invoke('history:clear', profileId),
     getStats: (profileId) => ipcRenderer.invoke('history:getStats', profileId)
+});
+
+// Expose downloads API
+contextBridge.exposeInMainWorld('downloadsAPI', {
+    getHistory: (profileId) => ipcRenderer.invoke('downloads:getHistory', profileId),
+    onStarted: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('downloads:started', listener);
+        return () => ipcRenderer.removeListener('downloads:started', listener);
+    },
+    onUpdated: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('downloads:updated', listener);
+        return () => ipcRenderer.removeListener('downloads:updated', listener);
+    },
+    onRedirect: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('downloads:redirect', listener);
+        return () => ipcRenderer.removeListener('downloads:redirect', listener);
+    }
 });
 
 // Expose Exam Mode API
@@ -137,37 +168,36 @@ contextBridge.exposeInMainWorld('examModeAPI', {
     }
 });
 
-// Expose Profile Management API
-contextBridge.exposeInMainWorld('profileAPI', {
-    // Get all profiles
-    getAllProfiles: () => ipcRenderer.invoke('profile:getAll'),
-    
-    // Get single profile
-    getProfile: (profileId) => ipcRenderer.invoke('profile:get', profileId),
-    
-    // Create new profile
-    createProfile: (name, displayName, avatarColor = '#4A90E2') => 
-        ipcRenderer.invoke('profile:create', name, displayName, avatarColor),
-    
-    // Update profile
-    updateProfile: (profileId, updates) => 
-        ipcRenderer.invoke('profile:update', profileId, updates),
-    
-    // Delete profile
-    deleteProfile: (profileId) => ipcRenderer.invoke('profile:delete', profileId),
-    
-    // Activate/switch to profile
-    activateProfile: (profileId) => ipcRenderer.invoke('profile:activate', profileId),
-    
-    // Get currently active profile
-    getActiveProfile: () => ipcRenderer.invoke('profile:getActive'),
-    
-    // Select profile and transition to main browser window
-    selectProfile: (profileId) => ipcRenderer.invoke('profile:select', profileId),
+// Expose Focus Mode API
+contextBridge.exposeInMainWorld('focusModeAPI', {
+    startSession: (profileId) =>
+        ipcRenderer.invoke('focusMode:startSession', profileId),
+    endSession: (profileId) =>
+        ipcRenderer.invoke('focusMode:endSession', profileId),
+    getActiveSession: (profileId) =>
+        ipcRenderer.invoke('focusMode:getActiveSession', profileId),
+    startBreak: (profileId) =>
+        ipcRenderer.invoke('focusMode:startBreak', profileId),
+    getHistory: (profileId, limit = 100) =>
+        ipcRenderer.invoke('focusMode:getHistory', profileId, limit),
+    getBlocklistMeta: () =>
+        ipcRenderer.invoke('focusMode:getBlocklistMeta'),
 
-    // Open a new window for a different profile
-    openNewWindow: (profileId) => ipcRenderer.invoke('profile:openNewWindow', profileId),
-    
-    // Get profile statistics
-    getProfileStats: (profileId) => ipcRenderer.invoke('profile:getStats', profileId)
+    onUrlBlocked: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('focusMode:urlBlocked', listener);
+        return () => ipcRenderer.removeListener('focusMode:urlBlocked', listener);
+    },
+
+    onStateChanged: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('focusMode:stateChanged', listener);
+        return () => ipcRenderer.removeListener('focusMode:stateChanged', listener);
+    },
+
+    onBreakChanged: (callback) => {
+        const listener = (event, data) => callback(data);
+        ipcRenderer.on('focusMode:breakChanged', listener);
+        return () => ipcRenderer.removeListener('focusMode:breakChanged', listener);
+    }
 });

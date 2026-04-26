@@ -20,7 +20,8 @@ from models.profile import (
     update_profile as _update_profile,
     delete_profile as _delete_profile,
     activate_profile as _activate_profile,
-    get_profile_stats as _get_profile_stats
+    get_profile_stats as _get_profile_stats,
+    touch_profile_last_used as _touch_profile_last_used
 )
 
 class ProfileService:
@@ -145,6 +146,11 @@ class ProfileService:
             pass
         
         return result
+
+    @staticmethod
+    def touch_profile(profile_id: int) -> Dict:
+        """Update profile last-used timestamp without changing active profile."""
+        return _touch_profile_last_used(profile_id)
     
     @staticmethod
     def get_current_profile() -> Dict:

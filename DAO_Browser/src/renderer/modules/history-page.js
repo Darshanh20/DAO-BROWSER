@@ -22,6 +22,7 @@ let totalPages = 1;
 let searchQuery = '';
 let searchTimeout;
 let cachedProfileId = null; // Cache the profile ID to avoid repeated fetches
+const pageQueryParams = new URLSearchParams(window.location.search);
 
 // Get profile ID from URL hash (e.g., #profileId=123)
 function getProfileIdFromHash() {
@@ -44,16 +45,14 @@ async function getCurrentProfileId() {
 
     let profileId = 1; // Default fallback
 
-    // FIRST: Check URL hash (most reliable for webview context)
-    const hashProfileId = getProfileIdFromHash();
-    if (hashProfileId && hashProfileId > 0) {
-        profileId = hashProfileId;
-        cachedProfileId = profileId;
-        console.log(`[History Page] Got profile from URL hash: ${profileId}`);
-        return profileId;
+    // Respect profile_id query param when page is opened from a specific profile window
+    const queryProfileId = parseInt(pageQueryParams.get('profile_id'), 10);
+    if (!isNaN(queryProfileId) && queryProfileId > 0) {
+        cachedProfileId = queryProfileId;
+        return queryProfileId;
     }
 
-    // Try to get from ProfileSwitcher instance (for main page context)
+    // Try to get from ProfileSwitcher instance first (most reliable for main page context)
     if (window.profileSwitcher && window.profileSwitcher.currentProfile && window.profileSwitcher.currentProfile.id) {
         profileId = window.profileSwitcher.currentProfile.id;
         cachedProfileId = profileId;
@@ -68,7 +67,7 @@ async function getCurrentProfileId() {
         return profileId;
     }
 
-    // If we got here, none of the methods worked, use default
+    // If we got here, none of the profile-scoped methods worked, use default
     console.warn('[History Page] Using default profile ID: 1');
     cachedProfileId = profileId;
     return profileId;

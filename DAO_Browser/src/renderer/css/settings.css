@@ -1,10 +1,145 @@
 /* ==================== SETTINGS DIALOG STYLES ==================== */
 
+.window-controls {
+    position: relative;
+}
+
+.settings-dropdown {
+    position: absolute;
+    top: 40px;
+    right: 8px;
+    width: 300px;
+    min-width: 280px;
+    max-width: 320px;
+    z-index: 9999;
+    pointer-events: auto;
+}
+
+.settings-dropdown:not(.hidden) {
+    animation: settingsDropdownIn 180ms ease-out;
+}
+
+@keyframes settingsDropdownIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
 .settings-modal {
-    width: 90%;
-    max-width: 800px;
-    max-height: 80vh;
+    width: 300px;
+    min-width: 280px;
+    max-width: 320px;
+    max-height: min(78vh, 620px);
     display: flex !important;
+    background: #292a2d;
+    color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px;
+}
+
+.settings-dropdown .modal-content {
+    margin: 0;
+}
+
+.settings-dropdown .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0 0 10px 0;
+    margin-bottom: 10px;
+}
+
+.settings-dropdown .settings-modal-body {
+    flex-direction: column !important;
+}
+
+.settings-dropdown .settings-menu {
+    display: none !important;
+}
+
+.settings-dropdown .settings-content {
+    padding: 2px 0 0 0;
+}
+
+.settings-dropdown .settings-page {
+    display: block !important;
+    animation: none;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-dropdown .settings-page:last-child {
+    border-bottom: none;
+}
+
+.settings-dropdown .settings-page h3 {
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+}
+
+.settings-dropdown .settings-page h3::after {
+    content: '+';
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.settings-dropdown .settings-page.expanded h3::after {
+    content: '-';
+}
+
+.settings-dropdown .settings-page > :not(h3) {
+    display: none;
+}
+
+.settings-dropdown .settings-page.expanded > :not(h3) {
+    display: block;
+    margin-top: 10px;
+}
+
+.settings-dropdown .setting-item {
+    margin-bottom: 8px;
+}
+
+.settings-dropdown .setting-item label {
+    padding: 8px 8px;
+    border-radius: 8px;
+}
+
+.settings-dropdown .setting-item label:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.settings-dropdown .btn-primary,
+.settings-dropdown .btn-secondary,
+.settings-dropdown .btn-danger,
+.settings-dropdown .btn-warning {
+    width: 100%;
+    justify-content: center;
+}
+
+.settings-dropdown .modal-header h2 {
+    color: #ffffff;
+    font-size: 16px;
+}
+
+.settings-dropdown .close-modal-btn {
+    color: #ffffff;
+}
+
+.settings-dropdown .close-modal-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .settings-modal-body {
@@ -15,11 +150,13 @@
 }
 
 .settings-menu {
-    width: 200px;
-    background: var(--bg-element);
-    border-right: 1px solid var(--border-subtle);
+    width: 170px;
+    background: transparent;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
     overflow-y: auto;
 }
 
@@ -43,16 +180,19 @@
 .settings-menu-item {
     background: transparent;
     border: none;
-    color: var(--text-secondary);
-    padding: 12px 16px;
+    color: #ffffff;
+    padding: 10px 12px;
     text-align: left;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 14px;
+    gap: 8px;
+    font-size: 13px;
     border-left: 3px solid transparent;
+    border-bottom: none;
+    white-space: normal;
+    flex: none;
 }
 
 .settings-menu-item i {
@@ -61,20 +201,21 @@
 }
 
 .settings-menu-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
 }
 
 .settings-menu-item.active {
-    background: transparent;
-    color: #2ecc71;
-    border-left-color: #2ecc71;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border-left-color: #8ab4f8;
 }
 
 .settings-content {
     flex: 1;
-    padding: 24px;
+    padding: 12px;
     overflow-y: auto;
+    color: #ffffff;
 }
 
 .settings-content::-webkit-scrollbar {
@@ -116,13 +257,13 @@
     margin: 0 0 20px 0;
     font-size: 18px;
     font-weight: 600;
-    color: var(--text-primary);
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-subtle);
+    color: #ffffff;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .page-description {
-    color: var(--text-secondary);
+    color: rgba(255, 255, 255, 0.86);
     font-size: 14px;
     margin-bottom: 20px;
     line-height: 1.5;
@@ -138,13 +279,13 @@
     gap: 12px;
     cursor: pointer;
     user-select: none;
-    color: var(--text-secondary);
+    color: rgba(255, 255, 255, 0.92);
     font-size: 14px;
     transition: color 0.2s;
 }
 
 .setting-item label:hover {
-    color: var(--text-primary);
+    color: #ffffff;
 }
 
 .setting-item input[type="checkbox"] {
@@ -181,8 +322,8 @@
 }
 
 .about-content {
-    background: var(--bg-element);
-    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-sm);
     padding: 16px;
     margin-top: 16px;
@@ -191,24 +332,24 @@
 .about-content p {
     margin: 8px 0;
     font-size: 14px;
-    color: var(--text-secondary);
+    color: rgba(255, 255, 255, 0.86);
 }
 
 .about-content strong {
-    color: var(--text-primary);
+    color: #ffffff;
 }
 
 /* Responsive Design */
 @media (max-width: 600px) {
     .settings-modal {
-        max-width: 95%;
-        flex-direction: column;
+        width: min(320px, calc(100vw - 20px));
+        max-width: min(320px, calc(100vw - 20px));
     }
 
     .settings-menu {
         width: 100%;
         border-right: none;
-        border-bottom: 1px solid var(--border-subtle);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         flex-direction: row;
         overflow-x: auto;
         overflow-y: hidden;

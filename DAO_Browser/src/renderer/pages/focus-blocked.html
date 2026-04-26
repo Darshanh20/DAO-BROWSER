@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blocked - Focus Mode</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111f3d;
+            --accent: #38bdf8;
+            --text: #e2e8f0;
+            --muted: #9fb3cc;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: 'Outfit', 'Segoe UI', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 15% 18%, rgba(56, 189, 248, 0.12), transparent 32%),
+                radial-gradient(circle at 84% 74%, rgba(59, 130, 246, 0.16), transparent 34%),
+                var(--bg);
+            padding: 20px;
+        }
+
+        .card {
+            width: min(640px, 100%);
+            border-radius: 16px;
+            background: linear-gradient(165deg, rgba(17, 31, 61, 0.95), rgba(15, 23, 42, 0.95));
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            box-shadow: 0 20px 42px rgba(2, 8, 23, 0.44);
+            padding: 24px;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: clamp(26px, 4vw, 40px);
+            letter-spacing: 0.03em;
+        }
+
+        p {
+            margin: 0 0 14px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .url-box {
+            border-radius: 10px;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: rgba(15, 23, 42, 0.7);
+            padding: 10px 12px;
+            margin: 12px 0;
+            font-size: 14px;
+            color: #c8e7ff;
+            word-break: break-all;
+        }
+
+        .reason {
+            color: #bae6fd;
+            font-weight: 600;
+            margin-bottom: 18px;
+        }
+
+        .tip {
+            border-radius: 10px;
+            padding: 11px 12px;
+            background: rgba(34, 197, 94, 0.14);
+            border: 1px solid rgba(34, 197, 94, 0.36);
+            color: #dcfce7;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <article class="card">
+        <h1>Focus Mode Is On</h1>
+        <p>Focus and do your work. This site is blocked during your active session.</p>
+        <div id="blocked-url" class="url-box">Blocked URL unavailable</div>
+        <div id="blocked-reason" class="reason">This site is banned in Focus Mode.</div>
+        <div class="tip">Need a pause? Use the Take a Break button in the toolbar for a 5-minute break.</div>
+    </article>
+
+    <script>
+        (function init() {
+            const query = new URLSearchParams(window.location.search || '');
+            const url = query.get('url');
+            const reason = query.get('reason');
+
+            if (url) {
+                document.getElementById('blocked-url').textContent = url;
+            }
+
+            if (reason) {
+                document.getElementById('blocked-reason').textContent = reason;
+            }
+        })();
+    </script>
+</body>
+</html>

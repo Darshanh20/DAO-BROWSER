@@ -383,6 +383,33 @@ def activate_profile(profile_id: int) -> Dict:
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+def touch_profile_last_used(profile_id: int) -> Dict:
+    """Update a profile's last_used_at timestamp without switching active profile."""
+    try:
+        conn = get_profiles_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM profiles WHERE id = ?', (profile_id,))
+        profile = cursor.fetchone()
+        if not profile:
+            return {'success': False, 'error': 'Profile not found'}
+
+        cursor.execute('UPDATE profiles SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?', (profile_id,))
+        cursor.execute('SELECT * FROM profiles WHERE id = ?', (profile_id,))
+        updated_profile = dict(cursor.fetchone())
+
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'data': updated_profile,
+            'message': 'Profile last_used_at updated'
+        }
+
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
 def get_profile_stats(profile_id: int) -> Dict:
     """Get statistics for a specific profile"""
     try:
@@ -477,15 +504,23 @@ def migrate_existing_data_to_profiles():
         # Check if profiles exist
         result = get_all_profiles()
         if not result['success'] or len(result['data']) == 0:
-            # Create default profile
-            create_result = create_profile('default', 'Default Profile', '#4A90E2', is_default=True)
-            if not create_result['success']:
-                return {'success': False, 'error': f'Failed to create default profile: {create_result["error"]}'}
-            
-            default_profile_id = create_result['data']['id']
-            # Activate the default profile
+            # Seed two sample profiles for initial testing
+            sample_profiles = [
+                ('alex', 'Alex (Personal)', '#2ecc71'),
+                ('maya', 'Maya (Work)', '#3498db')
+            ]
+
+            created_ids = []
+            for name, display_name, avatar_color in sample_profiles:
+                create_result = create_profile(name, display_name, avatar_color)
+                if create_result['success']:
+                    created_ids.append(create_result['data']['id'])
+                else:
+                    return {'success': False, 'error': f'Failed to create sample profile {display_name}: {create_result["error"]}'}
+
+            default_profile_id = created_ids[0]
             activate_profile(default_profile_id)
-            print(f"✅ Default profile created and activated (ID: {default_profile_id})")
+            print(f"✅ Seeded {len(created_ids)} sample profiles. Active profile ID: {default_profile_id}")
         else:
             # Use existing default profile
             default_profile = None

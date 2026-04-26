@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="css/profile-switcher.css">
     <link rel="stylesheet" href="css/profile-manager.css">
     <link rel="stylesheet" href="css/exam-mode.css">
+    <link rel="stylesheet" href="css/focus-mode.css">
+    <link rel="stylesheet" href="css/address-bar-omnibox.css">
     <script>
         // Remove preload class after page loads to enable smooth transitions
         window.addEventListener('load', () => {
@@ -57,14 +59,16 @@
                 </button>
             </div>
 
-            <!-- Address Bar Pill -->
-            <div class="url-container">
-                <i class="fa-solid fa-lock lock-icon"></i>
-                <input type="text" id="address-bar" placeholder="Search DAO or type a URL">
-                <span class="url-badge">
-                    <i class="fa-solid fa-shield-cat"></i> PROTECTED
-                </span>
-                <i class="fa-regular fa-star bookmark-star"></i>
+            <!-- Address Bar Pill with Omnibox -->
+            <div class="url-container-wrapper">
+                <div class="url-container">
+                    <i class="fa-solid fa-lock lock-icon"></i>
+                    <input type="text" id="address-bar" placeholder="Search DAO or type a URL">
+                    <span class="url-badge">
+                        <i class="fa-solid fa-shield-cat"></i> PROTECTED
+                    </span>
+                    <i class="fa-regular fa-star bookmark-star"></i>
+                </div>
             </div>
 
             <!-- Go Button (Hidden visually, triggered by Enter, kept for logic) -->
@@ -72,9 +76,18 @@
 
             <!-- Window Controls / Extras -->
             <div class="window-controls">
+                <div id="focus-toolbar-widget" class="focus-toolbar-widget hidden" title="Focus Mode Active">
+                    <span class="focus-toolbar-dot"></span>
+                    <span id="focus-toolbar-stopwatch" class="focus-toolbar-stopwatch">00:00:00</span>
+                    <button id="focus-break-btn" class="focus-break-btn" type="button">Take a Break</button>
+                    <span id="focus-break-countdown" class="focus-break-countdown hidden">05:00</span>
+                </div>
                 <button class="icon-btn"><i class="fa-solid fa-puzzle-piece"></i></button>
                 <button id="history-btn" class="icon-btn" title="Browsing History (Ctrl+H)">
                     <i class="fa-solid fa-clock-rotate-left"></i>
+                </button>
+                <button id="downloads-btn" class="icon-btn" title="Downloads">
+                    <i class="fa-solid fa-download"></i>
                 </button>
                 <button id="summarize-btn" class="icon-btn" title="Summarize Article (Ctrl+Shift+S)">
                     <i class="fa-solid fa-file-lines"></i>
@@ -82,8 +95,8 @@
                 <button id="search-btn" class="icon-btn" title="Find in page (Ctrl+F)">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
-                <button id="settings-btn" class="icon-btn" title="Settings & Shortcuts">
-                    <i class="fa-solid fa-gear"></i>
+                <button id="settings-btn" class="icon-btn" title="Menu">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
                 </button>
                 <!-- Profile switcher will be inserted here by ProfileSwitcher.js --> 
             </div>
@@ -241,7 +254,7 @@
         <!-- Settings Dialog - loaded from external module -->
         <div id="settings-dialog-container">
             <!-- Settings Dialog Modal -->
-            <div id="settings-dialog" class="modal hidden">
+            <div id="settings-dialog" class="settings-dropdown hidden">
                 <div class="modal-content settings-modal">
                     <div class="modal-header">
                         <h2>Settings</h2>
@@ -262,6 +275,10 @@
                             <button class="settings-menu-item" data-page="privacy">
                                 <i class="fa-solid fa-shield-halved"></i>
                                 <span>Privacy & Security</span>
+                            </button>
+                            <button class="settings-menu-item" data-page="focusmode">
+                                <i class="fa-solid fa-bullseye"></i>
+                                <span>Focus Mode</span>
                             </button>
                             <button class="settings-menu-item" data-page="exammode">
                                 <i class="fa-solid fa-graduation-cap"></i>
@@ -313,6 +330,39 @@
                                         <input type="checkbox">
                                         <span>Block Tracking Scripts</span>
                                     </label>
+                                </div>
+                            </div>
+
+                            <!-- Focus Mode Page -->
+                            <div id="focusmode-page" class="settings-page">
+                                <h3>Focus Mode</h3>
+                                <p class="page-description">
+                                    Focus Mode blocks social distractions while keeping your browser workflow normal.
+                                    You can take timed breaks and review session history any time.
+                                </p>
+                                <div class="focus-mode-features">
+                                    <div class="feature-item">
+                                        <i class="fa-solid fa-ban"></i>
+                                        <span>Blocks social media domains using StevenBlack hosts list</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fa-solid fa-stopwatch"></i>
+                                        <span>Live stopwatch and break timer in the toolbar</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fa-solid fa-chart-column"></i>
+                                        <span>Tracks visits, blocked attempts, and break sessions</span>
+                                    </div>
+                                </div>
+                                <div class="focus-action-row">
+                                    <button id="launch-focus-mode-btn" class="btn-primary focus-launch-btn">
+                                        <i class="fa-solid fa-bullseye"></i>
+                                        Start Focus Mode
+                                    </button>
+                                    <button id="focus-history-btn" class="btn-secondary focus-history-btn" title="Focus History">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                        Focus History
+                                    </button>
                                 </div>
                             </div>
 
@@ -1234,6 +1284,7 @@
     
     <script src="modules/find-bar.js"></script>
     <script src="modules/settings-dialog.js"></script>
+    <script src="modules/address-bar-omnibox.js"></script>
     <script src="utils/contentExtractor.js"></script>
     <script src="services/profileApi.js"></script>
     <script src="services/profileSettings.js"></script>
@@ -1244,6 +1295,7 @@
     <script src="components/ExamModeLockdown.js"></script>
     <script src="components/ExamLogsPage.js"></script>
     <script src="components/ExamModeManager.js"></script>
+    <script src="components/FocusModeManager.js"></script>
     <script src="renderer.js"></script>
 </body>
 

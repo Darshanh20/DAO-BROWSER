@@ -1,7 +1,5 @@
-const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard, webContents } = require('electron');
 const path = require('path');
-const fs = require('fs');
-const { spawn } = require('child_process');
 const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
 const { sessionManager } = require('./examMode/sessionManager');
@@ -9,8 +7,12 @@ const configValidator = require('./examMode/configValidator');
 const examUrlFilter = require('./examMode/urlFilter');
 const logSyncer = require('./examMode/logSyncer');
 const { exportExamPDF } = require('./examMode/pdfExporter');
+const { focusModeManager } = require('./focusMode/manager');
 
 let mainWindow;
+let selectorWindow;
+const profileWindows = new Map(); // profileId -> BrowserWindow
+const windowProfiles = new Map(); // webContentsId -> { profileId, profileName }
 
 // Ad-Blocker Statistics
 let totalBlocked = 0;
@@ -28,6 +30,11 @@ const examLockdownProfiles = new Map(); // profileId -> { locked: boolean, sessi
 
 // Set of blocked ad domains (loaded from blocklists at startup)
 let blockedDomains = new Set();
+const initializedPartitions = new Set();
+const downloadTrackingSessions = new Set();
+const blockedProtocolsRegisteredSessions = new WeakSet();
+let downloadHistory = [];
+let downloadHistoryFilePath = null;
 
 // Blocklist sources (hosts-file format) — domain-level only, won't break YouTube
 const BLOCKLIST_URLS = [
@@ -232,31 +239,407 @@ function isAdRequest(url) {
     }
 }
 
+function getBrowserWindowForEvent(event) {
+    return BrowserWindow.fromWebContents(event.sender) || mainWindow || null;
+}
+
+function getPartitionForProfile(profileId) {
+    return `persist:${profileId}`;
+}
+
+function sendToRequestWindow(details, channel, payload) {
+    if (!details.webContentsId) {
+        if (mainWindow && mainWindow.webContents) {
+            mainWindow.webContents.send(channel, payload);
+        }
+        return;
+    }
+
+    const targetContents = webContents.fromId(details.webContentsId);
+    if (targetContents && !targetContents.isDestroyed()) {
+        targetContents.send(channel, payload);
+    } else if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send(channel, payload);
+    }
+}
+
+function buildBlockedRedirectUrl(mode, details, meta = {}) {
+    // Central routing for blocked pages:
+    // 1) exam => exam blocked page
+    // 2) focus => focus blocked page
+    // 3) adult/content => generic error page style
+    if (mode === 'exam') {
+        const params = new URLSearchParams({
+            url: details.url,
+            reason: meta.reason || 'Not allowed during exam',
+            blockType: meta.blockType || 'unknown'
+        });
+        return `dao-exam-blocked://blocked?${params.toString()}`;
+    }
+
+    if (mode === 'focus') {
+        const params = new URLSearchParams({
+            url: details.url,
+            reason: meta.reason || 'Blocked during Focus Mode',
+            domain: meta.domain || 'unknown'
+        });
+        return `dao-focus-blocked://blocked?${params.toString()}`;
+    }
+
+    const params = new URLSearchParams({
+        code: 'CONTENT_BLOCKED',
+        message: 'Site blocked by content filter',
+        url: details.url,
+        hint: 'This website is restricted by your protection settings.'
+    });
+    return `dao-blocked://error?${params.toString()}`;
+}
+
+function getProfileIdForRequest(details) {
+    if (!details || !details.webContentsId) {
+        return 1;
+    }
+
+    const targetContents = webContents.fromId(details.webContentsId);
+    if (!targetContents || targetContents.isDestroyed()) {
+        return 1;
+    }
+
+    const host = targetContents.hostWebContents || targetContents;
+    const context = windowProfiles.get(host.id);
+    return Number(context?.profileId) || 1;
+}
+
+function getFallbackFileName(downloadUrl) {
+    try {
+        const parsed = new URL(downloadUrl);
+        const lastSegment = decodeURIComponent(parsed.pathname.split('/').pop() || '');
+        if (lastSegment) {
+            return lastSegment;
+        }
+    } catch (error) {
+        // Fall through to default
+    }
+
+    return 'download';
+}
+
+function getSourceContextFromWebContents(sourceWebContents) {
+    if (!sourceWebContents) {
+        return { hostContents: null, profileId: 1 };
+    }
+
+    const hostContents = sourceWebContents.hostWebContents || sourceWebContents;
+    const profileContext = windowProfiles.get(hostContents.id);
+    return {
+        hostContents,
+        profileId: profileContext?.profileId || 1
+    };
+}
+
+function loadDownloadHistory() {
+    if (!downloadHistoryFilePath) {
+        return;
+    }
+
+    try {
+        if (!fs.existsSync(downloadHistoryFilePath)) {
+            downloadHistory = [];
+            return;
+        }
+
+        const raw = fs.readFileSync(downloadHistoryFilePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        downloadHistory = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error('[Downloads] Failed to load history:', error);
+        downloadHistory = [];
+    }
+}
+
+function saveDownloadHistory() {
+    if (!downloadHistoryFilePath) {
+        return;
+    }
+
+    try {
+        fs.writeFileSync(downloadHistoryFilePath, JSON.stringify(downloadHistory, null, 2), 'utf8');
+    } catch (error) {
+        console.error('[Downloads] Failed to persist history:', error);
+    }
+}
+
+function addDownloadEntry(entry) {
+    downloadHistory.unshift(entry);
+
+    // Keep the persisted history bounded.
+    if (downloadHistory.length > 500) {
+        downloadHistory = downloadHistory.slice(0, 500);
+    }
+
+    saveDownloadHistory();
+}
+
+function updateDownloadEntry(downloadId, updates) {
+    const entry = downloadHistory.find(item => item.id === downloadId);
+    if (!entry) {
+        return;
+    }
+
+    Object.assign(entry, updates);
+    saveDownloadHistory();
+}
+
+function sendDownloadEventToProfileWindows(channel, payload, profileId) {
+    profileWindows.forEach((profileWindow, mappedProfileId) => {
+        if (mappedProfileId !== profileId) {
+            return;
+        }
+
+        if (!profileWindow || profileWindow.isDestroyed()) {
+            return;
+        }
+
+        profileWindow.webContents.send(channel, payload);
+
+        // Forward to guest webviews hosted by this profile window so internal pages
+        // (like downloads.html opened in a webview tab) receive live updates too.
+        const hostContentsId = profileWindow.webContents.id;
+        webContents.getAllWebContents().forEach((contents) => {
+            if (contents.isDestroyed()) {
+                return;
+            }
+
+            if (contents.hostWebContents && contents.hostWebContents.id === hostContentsId) {
+                contents.send(channel, payload);
+            }
+        });
+    });
+}
+
+function sendEventToProfileWindows(channel, payload, profileId) {
+    profileWindows.forEach((profileWindow, mappedProfileId) => {
+        if (mappedProfileId !== profileId) {
+            return;
+        }
+
+        if (!profileWindow || profileWindow.isDestroyed()) {
+            return;
+        }
+
+        profileWindow.webContents.send(channel, payload);
+
+        const hostContentsId = profileWindow.webContents.id;
+        webContents.getAllWebContents().forEach((contents) => {
+            if (contents.isDestroyed()) {
+                return;
+            }
+
+            if (contents.hostWebContents && contents.hostWebContents.id === hostContentsId) {
+                contents.send(channel, payload);
+            }
+        });
+    });
+}
+
+function showFocusIntroWindow() {
+    return new Promise((resolve) => {
+        const introWindow = new BrowserWindow({
+            fullscreen: true,
+            frame: false,
+            transparent: false,
+            alwaysOnTop: true,
+            resizable: false,
+            skipTaskbar: true,
+            backgroundColor: '#061024',
+            webPreferences: {
+                contextIsolation: true,
+                nodeIntegration: false
+            }
+        });
+
+        const introPath = path.join(__dirname, '../renderer/pages/focus-intro.html');
+        introWindow.loadFile(introPath);
+
+        const closeIntro = () => {
+            if (!introWindow.isDestroyed()) {
+                introWindow.close();
+            }
+            resolve();
+        };
+
+        introWindow.once('ready-to-show', () => {
+            introWindow.show();
+            setTimeout(closeIntro, 2600);
+        });
+
+        introWindow.on('closed', () => {
+            resolve();
+        });
+    });
+}
+
+function attachDownloadTracking(targetSession) {
+    if (!targetSession || downloadTrackingSessions.has(targetSession)) {
+        return;
+    }
+
+    downloadTrackingSessions.add(targetSession);
+
+    targetSession.on('will-download', (event, item, sourceWebContents) => {
+        const { hostContents, profileId } = getSourceContextFromWebContents(sourceWebContents);
+        const downloadId = `dl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        const fileUrl = item.getURL();
+        const fileName = item.getFilename() || getFallbackFileName(fileUrl);
+        const startedAt = new Date().toISOString();
+
+        const downloadEntry = {
+            id: downloadId,
+            profileId,
+            fileName,
+            fileUrl,
+            status: 'downloading',
+            timestamp: startedAt
+        };
+
+        addDownloadEntry(downloadEntry);
+
+        if (hostContents && !hostContents.isDestroyed()) {
+            hostContents.send('downloads:started', downloadEntry);
+            hostContents.send('downloads:redirect', downloadEntry);
+        }
+
+        sendDownloadEventToProfileWindows('downloads:updated', downloadEntry, profileId);
+
+        item.on('done', (doneEvent, state) => {
+            const isCompleted = state === 'completed';
+            const updatedEntry = {
+                status: isCompleted ? 'completed' : 'failed'
+            };
+
+            if (!isCompleted) {
+                updatedEntry.error = state || 'Download failed';
+            }
+
+            updateDownloadEntry(downloadId, updatedEntry);
+
+            const payload = {
+                ...downloadEntry,
+                ...updatedEntry
+            };
+
+            if (hostContents && !hostContents.isDestroyed()) {
+                hostContents.send('downloads:updated', payload);
+            }
+
+            sendDownloadEventToProfileWindows('downloads:updated', payload, profileId);
+        });
+    });
+}
+
+async function callProfileApi(apiPath, method = 'GET', body = null) {
+    const http = require('http');
+
+    return new Promise((resolve, reject) => {
+        const postData = body ? JSON.stringify(body) : null;
+        const options = {
+            hostname: 'localhost',
+            port: 5000,
+            path: apiPath,
+            method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            timeout: 5000
+        };
+
+        if (postData) {
+            options.headers['Content-Length'] = Buffer.byteLength(postData);
+        }
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                try {
+                    const parsed = data ? JSON.parse(data) : {};
+                    resolve(parsed);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Profile API request timed out'));
+        });
+
+        if (postData) {
+            req.write(postData);
+        }
+        req.end();
+    });
+}
+
+async function getProfileById(profileId) {
+    const result = await callProfileApi(`/api/profiles/${profileId}`);
+    if (!result.success) {
+        throw new Error(result.error || 'Profile not found');
+    }
+    return result.data;
+}
+
+async function activateProfile(profileId) {
+    try {
+        await callProfileApi(`/api/profiles/${profileId}/activate`, 'POST');
+    } catch (error) {
+        console.warn(`[ProfileWindow] Failed to activate profile ${profileId}:`, error.message);
+    }
+}
+
+async function touchProfile(profileId) {
+    try {
+        await callProfileApi(`/api/profiles/${profileId}/touch`, 'POST');
+    } catch (error) {
+        console.warn(`[ProfileWindow] Failed to update last_used_at for profile ${profileId}:`, error.message);
+    }
+}
+
 // Register custom protocol scheme BEFORE app is ready
 // This allows safe redirects from HTTPS to our block page
 protocol.registerSchemesAsPrivileged([
     { scheme: 'dao-blocked', privileges: { standard: true, secure: true } },
-    { scheme: 'dao-exam-blocked', privileges: { standard: true, secure: true } }
+    { scheme: 'dao-exam-blocked', privileges: { standard: true, secure: true } },
+    { scheme: 'dao-focus-blocked', privileges: { standard: true, secure: true } }
 ]);
 
-function createWindow() {
-    mainWindow = new BrowserWindow({
-        width: 1400,
-        height: 900,
-        minWidth: 800,
+function createProfileSelectorWindow() {
+    if (selectorWindow && !selectorWindow.isDestroyed()) {
+        selectorWindow.focus();
+        return;
+    }
+
+    selectorWindow = new BrowserWindow({
+        width: 1100,
+        height: 760,
+        minWidth: 900,
         minHeight: 600,
         autoHideMenuBar: true,
+        title: 'D.A.O. Browser - Select Profile',
         webPreferences: {
             preload: path.join(__dirname, '../preload/preload.js'),
             contextIsolation: true,
-            nodeIntegration: false,
-            webviewTag: true
+            nodeIntegration: false
         }
     });
 
-    // Load profile selector landing page on startup
-    mainWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
     mainWindow.maximize();
+    mainWindow.webContents.openDevTools();
 
     // Register the dao-blocked:// protocol to serve the block page
     const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
@@ -264,14 +647,183 @@ function createWindow() {
         callback({ path: blockPagePath });
     });
 
-    // Register the dao-exam-blocked:// protocol for exam mode block page
+    const blockPagePath = path.join(__dirname, '../renderer/pages/error.html');
     const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
-    protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
-        callback({ path: examBlockPagePath });
+    const focusBlockPagePath = path.join(__dirname, '../renderer/pages/focus-blocked.html');
+
+    const tryRegister = (scheme, filePath) => {
+        try {
+            sessionProtocol.registerFileProtocol(scheme, (request, callback) => {
+                callback({ path: filePath });
+            });
+        } catch (error) {
+            const message = String(error?.message || '').toLowerCase();
+            if (!message.includes('register') && !message.includes('already')) {
+                console.warn(`[Protocol] Failed to register ${scheme} for session:`, error.message || error);
+            }
+        }
+    };
+
+    tryRegister('dao-blocked', blockPagePath);
+    tryRegister('dao-exam-blocked', examBlockPagePath);
+    tryRegister('dao-focus-blocked', focusBlockPagePath);
+
+    blockedProtocolsRegisteredSessions.add(targetSession);
+}
+
+function attachRequestInterception(targetSession) {
+    if (!targetSession || initializedPartitions.has(targetSession)) {
+        return;
+    }
+
+    initializedPartitions.add(targetSession);
+    registerBlockedProtocolsForSession(targetSession);
+    attachDownloadTracking(targetSession);
+    targetSession.webRequest.onBeforeRequest((details, callback) => {
+        // 0. Check EXAM MODE FIRST (highest priority)
+        const examResult = examUrlFilter.checkUrl(details.url, details.resourceType);
+        if (examResult.examActive && examResult.blocked) {
+            // For navigation requests, redirect to exam blocked page
+            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+                // Send IPC event to the originating renderer to log the blocked URL
+                console.log('[ExamFilter] Blocked URL:', details.url, 'Reason:', examResult.reason);
+                sendToRequestWindow(details, 'examMode:urlBlocked', {
+                    type: 'blocked_url_attempt',
+                    url: details.url,
+                    reason: examResult.reason || 'Not allowed during exam',
+                    blockType: examResult.blockType || 'unknown',
+                    timestamp: new Date().toISOString()
+                });
+
+                callback({
+                    redirectURL: buildBlockedRedirectUrl('exam', details, {
+                        reason: examResult.reason,
+                        blockType: examResult.blockType
+                    })
+                });
+            } else {
+                // Cancel sub-resources silently
+                callback({ cancel: true });
+            }
+            return;
+        }
+
+        // 1.5 Check Focus Mode social blocklist (after exam mode, before other filters)
+        const requestProfileId = getProfileIdForRequest(details);
+        const focusResult = focusModeManager.checkRequest(details.url, details.resourceType, requestProfileId);
+        if (focusResult.focusActive && focusResult.blocked) {
+            focusModeManager.logBlockedAttempt(requestProfileId, details.url, focusResult.reason).catch(() => {});
+
+            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+                sendToRequestWindow(details, 'focusMode:urlBlocked', {
+                    type: 'blocked_url_attempt',
+                    url: details.url,
+                    reason: focusResult.reason,
+                    domain: focusResult.domain,
+                    timestamp: new Date().toISOString()
+                });
+
+                callback({
+                    redirectURL: buildBlockedRedirectUrl('focus', details, {
+                        reason: focusResult.reason,
+                        domain: focusResult.domain
+                    })
+                });
+            } else {
+                callback({ cancel: true });
+            }
+            return;
+        }
+
+        if ((details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') && focusResult.focusActive) {
+            focusModeManager.logVisit(requestProfileId, details.url).catch(() => {});
+        }
+
+        // 2. Check content filter (redirect to block page)
+        const contentResult = contentFilter.checkRequest(details.url);
+        if (contentResult === 'blocked') {
+            // For navigation requests, redirect to custom protocol block page
+            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+                callback({ redirectURL: buildBlockedRedirectUrl('adult', details) });
+            } else {
+                callback({ cancel: true });
+            }
+            return;
+        }
+
+        // 3. Check ad-blocker
+        if (adBlockerEnabled && isAdRequest(details.url)) {
+            sessionBlocked++;
+            totalBlocked++;
+            if (sessionBlocked % 10 === 0) {
+                console.log(`🚫 Blocked ${sessionBlocked} ads this session`);
+            }
+            callback({ cancel: true });
+        } else {
+            callback({ cancel: false });
+        }
+    });
+}
+
+async function createOrFocusProfileWindow(profileId) {
+    const existing = profileWindows.get(profileId);
+    if (existing && !existing.isDestroyed()) {
+        existing.focus();
+        return { success: true, focusedExisting: true };
+    }
+
+    const profile = await getProfileById(profileId);
+    const partition = getPartitionForProfile(profileId);
+    const profileWindow = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 800,
+        minHeight: 600,
+        autoHideMenuBar: true,
+        title: `D.A.O. Browser - ${profile.display_name}`,
+        webPreferences: {
+            preload: path.join(__dirname, '../preload/preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            webviewTag: true,
+            partition
+        }
     });
 
-    // Setup ad-blocker
-    setupAdBlocker();
+    mainWindow = profileWindow;
+    profileWindows.set(profileId, profileWindow);
+    windowProfiles.set(profileWindow.webContents.id, {
+        profileId,
+        profileName: profile.display_name
+    });
+
+    attachRequestInterception(session.fromPartition(partition));
+
+    await activateProfile(profileId);
+    await profileWindow.loadFile(path.join(__dirname, '../renderer/index.html'), {
+        query: {
+            profileId: String(profileId),
+            profileName: profile.display_name
+        }
+    });
+    profileWindow.maximize();
+
+    profileWindow.on('focus', async () => {
+        mainWindow = profileWindow;
+        await activateProfile(profileId);
+    });
+
+    profileWindow.on('closed', async () => {
+        profileWindows.delete(profileId);
+        windowProfiles.delete(profileWindow.webContents.id);
+        await touchProfile(profileId);
+    });
+
+    if (selectorWindow && !selectorWindow.isDestroyed()) {
+        selectorWindow.close();
+    }
+
+    return { success: true, focusedExisting: false };
 }
 
 async function setupAdBlocker() {
@@ -284,63 +836,8 @@ async function setupAdBlocker() {
     // Register content filter IPC handlers
     contentFilter.registerIpcHandlers();
 
-    // Intercept all network requests in the default session
-    session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
-        // 0. Check EXAM MODE FIRST (highest priority)
-        const examResult = examUrlFilter.checkUrl(details.url, details.resourceType);
-        if (examResult.examActive && examResult.blocked) {
-            // For navigation requests, redirect to exam blocked page
-            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
-                const params = new URLSearchParams({
-                    url: details.url,
-                    reason: examResult.reason || 'Not allowed during exam',
-                    blockType: examResult.blockType || 'unknown'
-                });
-                
-                // Send IPC event to renderer to log the blocked URL
-                console.log('[ExamFilter] Blocked URL:', details.url, 'Reason:', examResult.reason);
-                if (mainWindow && mainWindow.webContents) {
-                    mainWindow.webContents.send('examMode:urlBlocked', {
-                        type: 'blocked_url_attempt',
-                        url: details.url,
-                        reason: examResult.reason || 'Not allowed during exam',
-                        blockType: examResult.blockType || 'unknown',
-                        timestamp: new Date().toISOString()
-                    });
-                }
-                
-                callback({ redirectURL: `dao-exam-blocked://blocked?${params.toString()}` });
-            } else {
-                // Cancel sub-resources silently
-                callback({ cancel: true });
-            }
-            return;
-        }
-        
-        // 1. Check content filter (redirect to block page)
-        const contentResult = contentFilter.checkRequest(details.url);
-        if (contentResult === 'blocked') {
-            // For navigation requests, redirect to custom protocol block page
-            if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
-                callback({ redirectURL: `dao-blocked://blocked?url=${encodeURIComponent(details.url)}` });
-            } else {
-                callback({ cancel: true });
-            }
-            return;
-        }
-
-        // 2. Check ad-blocker
-        if (adBlockerEnabled && isAdRequest(details.url)) {
-            sessionBlocked++;
-            totalBlocked++;
-            if (sessionBlocked % 10 === 0) {
-                console.log(`🚫 Blocked ${sessionBlocked} ads this session`);
-            }
-            callback({ cancel: true });
-        } else {
-            callback({ cancel: false });
-        }
-    });
+    attachRequestInterception(session.defaultSession);
+    attachDownloadTracking(session.defaultSession);
 
     // Downloads are now allowed during exam mode
     // URL filtering (Phase 2) handles blocking non-whitelisted download sources
@@ -349,24 +846,17 @@ async function setupAdBlocker() {
     console.log('✅ Ad-Blocker + Content Filter + Exam Mode Filter initialized');
 }
 
-app.whenReady().then(async () => {
-    try {
-        await startBackendService();
-    } catch (error) {
-        console.error('[Backend] Startup failed:', error.message);
-        dialog.showErrorBox('Backend Startup Error', `Failed to start backend service: ${error.message}`);
-    }
-
-    createWindow();
-});
-
-app.on('before-quit', () => {
-    stopBackendService();
-});
+app.whenReady().then(createWindow);
 
 // Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+        createProfileSelectorWindow();
+    }
 });
 
 // IPC Handlers for Ad-Blocker Statistics
@@ -389,6 +879,96 @@ ipcMain.handle('adBlocker:resetSession', () => {
     sessionBlocked = 0;
     console.log('Session stats reset');
     return sessionBlocked;
+});
+
+// Profile window management IPC
+ipcMain.handle('profileSelector:profileSelected', async (event, profileId) => {
+    try {
+        const numericProfileId = Number(profileId);
+        if (!numericProfileId || Number.isNaN(numericProfileId)) {
+            return { success: false, error: 'Invalid profile ID' };
+        }
+
+        return await createOrFocusProfileWindow(numericProfileId);
+    } catch (error) {
+        console.error('[ProfileSelector] Failed to open profile window:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('profileWindow:open', async (event, profileId) => {
+    try {
+        const numericProfileId = Number(profileId);
+        if (!numericProfileId || Number.isNaN(numericProfileId)) {
+            return { success: false, error: 'Invalid profile ID' };
+        }
+
+        return await createOrFocusProfileWindow(numericProfileId);
+    } catch (error) {
+        console.error('[ProfileWindow] Failed to open profile window:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('profileWindow:getContext', async (event) => {
+    let context = windowProfiles.get(event.sender.id);
+
+    if (!context && event.sender.hostWebContents) {
+        context = windowProfiles.get(event.sender.hostWebContents.id);
+    }
+
+    if (!context) {
+        return { success: false, error: 'Window profile context not found' };
+    }
+
+    return {
+        success: true,
+        data: context
+    };
+});
+
+// ==================== FOCUS MODE IPC HANDLERS ====================
+
+ipcMain.handle('focusMode:startSession', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    const startResult = await focusModeManager.startSession(numericProfileId);
+
+    if (!startResult.success) {
+        return startResult;
+    }
+
+    if (!startResult.alreadyActive) {
+        await showFocusIntroWindow();
+    }
+
+    return startResult;
+});
+
+ipcMain.handle('focusMode:endSession', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.endSession(numericProfileId);
+});
+
+ipcMain.handle('focusMode:getActiveSession', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.getActiveSession(numericProfileId);
+});
+
+ipcMain.handle('focusMode:startBreak', async (event, profileId) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.startBreak(numericProfileId);
+});
+
+ipcMain.handle('focusMode:getHistory', async (event, profileId, limit = 100) => {
+    const numericProfileId = Number(profileId) || 1;
+    return focusModeManager.getHistory(numericProfileId, limit);
+});
+
+ipcMain.handle('focusMode:getBlocklistMeta', async () => {
+    return {
+        success: true,
+        data: focusModeManager.getBlocklistMeta()
+    };
 });
 
 // IPC Handler for fetching (bypasses CORS)
@@ -423,6 +1003,24 @@ ipcMain.handle('app:getPath', (event, pathType) => {
         return path.join(__dirname, '../renderer');
     }
     return path.join(__dirname, '../');
+});
+
+// ==================== DOWNLOAD TRACKING ====================
+
+ipcMain.handle('downloads:getHistory', async (event, profileId = null) => {
+    const numericProfileId = Number(profileId);
+
+    if (numericProfileId && !Number.isNaN(numericProfileId)) {
+        return {
+            success: true,
+            data: downloadHistory.filter(item => Number(item.profileId) === numericProfileId)
+        };
+    }
+
+    return {
+        success: true,
+        data: downloadHistory
+    };
 });
 
 // IPC Handler for Article Summarization
@@ -649,14 +1247,19 @@ ipcMain.handle('history:getAll', async (event, page = 1, limit = 50, profileId =
 });
 
 // IPC Handler to search history
-ipcMain.handle('history:search', async (event, query, limit = 50) => {
+ipcMain.handle('history:search', async (event, query, limit = 50, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
         const encodedQuery = encodeURIComponent(query);
+        let requestPath = `/api/history/search?q=${encodedQuery}&limit=${limit}`;
+        if (profileId) {
+            requestPath += `&profile_id=${profileId}`;
+        }
+
         const options = {
-            hostname: BACKEND_HOST,
-            port: BACKEND_PORT,
+            hostname: 'localhost',
+            port: 5000,
             path: `/api/history/search?q=${encodedQuery}&limit=${limit}`,
             method: 'GET',
             timeout: 5000
@@ -736,13 +1339,18 @@ ipcMain.handle('history:delete', async (event, entryId) => {
 });
 
 // IPC Handler to clear all history
-ipcMain.handle('history:clear', async () => {
+ipcMain.handle('history:clear', async (event, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
+        let requestPath = '/api/history/clear';
+        if (profileId) {
+            requestPath += `?profile_id=${profileId}`;
+        }
+
         const options = {
-            hostname: BACKEND_HOST,
-            port: BACKEND_PORT,
+            hostname: 'localhost',
+            port: 5000,
             path: '/api/history/clear',
             method: 'DELETE',
             timeout: 5000
@@ -779,13 +1387,18 @@ ipcMain.handle('history:clear', async () => {
 });
 
 // IPC Handler to get history stats
-ipcMain.handle('history:getStats', async () => {
+ipcMain.handle('history:getStats', async (event, profileId = null) => {
     const http = require('http');
 
     return new Promise((resolve, reject) => {
+        let requestPath = '/api/history/stats';
+        if (profileId) {
+            requestPath += `?profile_id=${profileId}`;
+        }
+
         const options = {
-            hostname: BACKEND_HOST,
-            port: BACKEND_PORT,
+            hostname: 'localhost',
+            port: 5000,
             path: '/api/history/stats',
             method: 'GET',
             timeout: 5000
@@ -906,7 +1519,10 @@ ipcMain.handle('examMode:joinSession', async (event, configPath, password, stude
         if (result.session) {
             logSyncer.start(result.session, profileId, () => {
                 // Callback when professor ends session
-                mainWindow.webContents.send('examMode:sessionEndedByProfessor', { profileId });
+                const targetWindow = profileWindows.get(profileId);
+                if (targetWindow && !targetWindow.isDestroyed()) {
+                    targetWindow.webContents.send('examMode:sessionEndedByProfessor', { profileId });
+                }
             });
         }
     }
@@ -969,7 +1585,8 @@ ipcMain.handle('examMode:getSessionsDirectory', async () => {
 
 // Show save dialog for session file download
 ipcMain.handle('examMode:showSaveDialog', async (event, defaultFileName) => {
-    const result = await dialog.showSaveDialog(mainWindow, {
+    const targetWindow = getBrowserWindowForEvent(event);
+    const result = await dialog.showSaveDialog(targetWindow, {
         title: 'Save Exam Session File',
         defaultPath: defaultFileName,
         filters: [
@@ -992,8 +1609,9 @@ ipcMain.handle('examMode:saveFileToPath', async (event, sourcePath, destPath) =>
 });
 
 // Show open dialog for session file upload
-ipcMain.handle('examMode:showOpenDialog', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+ipcMain.handle('examMode:showOpenDialog', async (event) => {
+    const targetWindow = getBrowserWindowForEvent(event);
+    const result = await dialog.showOpenDialog(targetWindow, {
         title: 'Select Exam Session File',
         filters: [
             { name: 'JSON Files', extensions: ['json'] },
@@ -1005,8 +1623,9 @@ ipcMain.handle('examMode:showOpenDialog', async () => {
 });
 
 // Show open dialog for multiple log files (Professor logs view)
-ipcMain.handle('examMode:showOpenDialogMultiple', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+ipcMain.handle('examMode:showOpenDialogMultiple', async (event) => {
+    const targetWindow = getBrowserWindowForEvent(event);
+    const result = await dialog.showOpenDialog(targetWindow, {
         title: 'Select Student Log Files',
         filters: [
             { name: 'Activity Log Files', extensions: ['json'] },
