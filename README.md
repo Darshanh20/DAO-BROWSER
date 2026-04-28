@@ -9,7 +9,7 @@
 
 **Distraction-free, Ad-free, Optimized Web Browser**
 
-*A modern Chromium-based browser with AI-powered article summarization, exam mode, and privacy features*
+*A modern Chromium-based browser with AI-powered article summarization, focus mode, exam mode, and privacy features*
 
 [Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Tech Stack](#-tech-stack) • [Development](#-development)
 
@@ -19,14 +19,16 @@
 
 ## About
 
-**D.A.O. (Distraction-free, Ad-free, Optimized)** is a privacy-focused web browser built with Electron, featuring intelligent content management, AI-powered article summarization, multi-profile support, and exam mode for secure testing environments. Designed for users who value clean browsing experiences without ads, trackers, or distractions.
+**D.A.O. (Distraction-free, Ad-free, Optimized)** is a privacy-focused web browser built with Electron, featuring intelligent content management, AI-powered article summarization, multi-profile support, focus mode for productivity, and exam mode for secure testing environments. Designed for users who value clean browsing experiences without ads, trackers, or distractions.
 
 ### Why D.A.O.?
 
-- **Ad-Free Browsing**: Built-in ad-blocker using EasyList filter (100,000+ rules)
+- **Ad-Free Browsing**: Built-in ad-blocker using community-maintained filter lists
 - **AI Summarization**: Extract and summarize article content using NLP
-- **Multi-Profile Support**: Separate browsing data for different users/contexts
-- **Exam Mode**: Secure lockdown mode for online exams
+- **Multi-Profile Support**: Separate browsing data for different users/contexts with profile isolation
+- **Focus Mode**: Block social media and distractions during productive sessions
+- **Exam Mode**: Secure lockdown mode for online exams with real-time monitoring
+- **Content Filter**: Block inappropriate/NSFW websites
 - **Modern Dark UI**: Sleek, professional interface
 - **Fast & Lightweight**: Minimal resource usage with efficient rendering
 - **Privacy First**: WebView isolation and tracker blocking
@@ -36,7 +38,7 @@
 ## Features
 
 ### Ad-Blocker & Privacy Shield
-- **EasyList Integration**: Industry-standard filter list with 100,000+ blocking rules
+- **Community Filter Lists**: Uses Peter Lowe's ad servers list (~3,500 domains) and fallback domains
 - **Real-time Blocking**: Blocks ads, trackers, and malicious scripts before they load
 - **Shield Statistics**: Live counter showing blocked elements per page
 - **Toggle Control**: Enable/disable ad-blocker per session from settings
