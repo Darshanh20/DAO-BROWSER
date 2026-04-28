@@ -57,27 +57,6 @@
 - **Profile Switching**: Quick profile switcher in the toolbar
 - **Persistent Settings**: Profile-specific preferences and data
 
-### Browsing History
-- **Full History Tracking**: Automatic recording of visited pages
-- **Profile-Aware**: History is separated by profile
-- **Search & Filter**: Search history by URL or page title
-- **Statistics**: View total visits, unique sites, and time spent
-- **Auto-Refresh**: History page automatically updates when new pages are visited
-- **Keyboard Shortcut**: `Ctrl+H` to open history
-
-### Exam Mode
-- **Secure Lockdown**: Restrict browsing to allowed URLs only during exams
-- **URL Filtering**: Configure allowed domains for exam sessions
-- **Session Tracking**: Log exam activity for monitoring
-- **Profile Integration**: Exam mode works with the profile system
-- **Visual Indicators**: Clear exam mode banner and status
-
-### Content Filtering
-- **Site Blocking**: Block inappropriate or unwanted websites
-- **Custom Block Lists**: Add sites to block list
-- **Clean Block Page**: Professional blocked site notification
-- **Safe Browsing**: Protection from harmful content
-
 ### Find in Page
 - **Fast Search**: Real-time text search within web pages
 - **Match Navigation**: Jump between matches with up/down arrows
@@ -111,6 +90,41 @@
 | `Ctrl+Shift+S` | Summarize article |
 | `Alt+Left` | Navigate back |
 | `Alt+Right` | Navigate forward |
+
+### Content Filtering
+- **NSFW Blocking**: Blocks inappropriate websites using Steven Black's porn-only list (~26,000 domains)
+- **Custom Block Lists**: Add sites to block list
+- **Clean Block Page**: Professional blocked site notification
+- **Safe Browsing**: Protection from harmful content
+- **Independent Toggle**: Separate from ad-blocker with its own statistics
+
+### Focus Mode
+- **Social Media Blocking**: Blocks social media sites during focus sessions using Steven Black's list
+- **AI Tools Allowlist**: Permits access to AI tools (ChatGPT, Claude, etc.) during focus mode
+- **Session Tracking**: Log visited sites and blocked attempts
+- **Break System**: Take 5-minute breaks with automatic resume
+- **Session Reports**: View focus time, sites visited, blocked attempts, and breaks taken
+- **Motivational Messages**: Get encouraging feedback after each session
+
+### Exam Mode
+- **Professor Dashboard**: Create exam sessions with whitelist/blacklist configuration
+- **Student Lockdown**: Secure browsing with URL filtering and activity logging
+- **Real-time Sync**: Student activity synced to professor dashboard every 10 seconds
+- **AI Tools Blacklist**: Option to block AI tools during exams
+- **Password Protection**: Secure session creation with password validation
+- **Activity Logging**: Track URL visits, blocked attempts, window switches, DevTools attempts
+- **PDF Export**: Generate comprehensive exam reports with student activity logs
+- **Offline Backup**: Activity logs saved locally if backend is unavailable
+- **Session Banner**: Visual countdown timer and sync status indicator
+- **Profile Integration**: Exam mode works with the profile system
+
+### Browsing History
+- **Full History Tracking**: Automatic recording of visited pages
+- **Profile-Aware**: History is separated by profile
+- **Search & Filter**: Search history by URL or page title
+- **Statistics**: View total visits, unique sites, and time spent
+- **Auto-Refresh**: History page automatically updates when new pages are visited
+- **Keyboard Shortcut**: `Ctrl+H` to open history
 
 ---
 
@@ -148,11 +162,12 @@ pip install -r DAO_Browser/backend/requirements-build.txt
    python -c "import nltk; nltk.download('punkt')"
    ```
 
-3. **Download Ad-Blocker Filter List**
+3. **Start the Browser**
    ```bash
-   # Download EasyList.txt to DAO_Browser/ directory
-   # Or visit: https://easylist.to/easylist/easylist.txt
+   npm start
    ```
+
+The browser will automatically start the Python backend service on port 5000.
 
 ---
 
@@ -231,20 +246,29 @@ npm start
 - **HTML5/CSS3** - User interface
 - **Font Awesome** 6.4.0 - Icon library
 - **WebView API** - Isolated content rendering
+- **PDFKit** - PDF report generation for exam exports
 
 ### Backend (API & AI)
 - **Python** 3.x - Backend runtime
 - **Flask** 3.0.0 - HTTP server framework
-- **Flask-CORS** - Cross-origin request handling
-- **SQLite** - Local database for history and profiles
+- **Flask-CORS** 4.0.0 - Cross-origin request handling
+- **SQLite** - Local database for history, profiles, and exam sessions
 - **NLTK** 3.8.1 - Natural Language Toolkit
 - **Sumy** 0.11.0 - Text summarization library
 - **LSA Algorithm** - Latent Semantic Analysis for summarization
+- **NumPy** 2.2.2 - Numerical computing
+- **SciPy** 1.15.1 - Scientific computing
 
-### Ad-Blocking
-- **EasyList** - Community-maintained filter list (100,000+ rules)
+### Ad-Blocking & Content Filtering
+- **Peter Lowe's Ad Servers List** - Community-maintained ad domain list (~3,500 domains)
+- **Steven Black's Lists** - Social media and NSFW domain blocklists
 - **Custom Parser** - JavaScript filter list parser
 - **Regex Matching** - Pattern-based URL blocking
+
+### Build & Packaging
+- **PyInstaller** - Python backend packaging
+- **electron-builder** 25.1.8 - Windows installer generation
+- **NSIS** - Windows installer format
 
 ---
 
@@ -254,50 +278,76 @@ npm start
 DAO_Browser/
 ├── src/
 │   ├── main/
-│   │   └── main.js                    # Electron main process
+│   │   ├── main.js                    # Electron main process
+│   │   ├── content-filter.js          # NSFW content filtering
+│   │   ├── focusMode/
+│   │   │   └── manager.js            # Focus mode session management
+│   │   └── examMode/
+│   │       ├── sessionManager.js      # Exam session state management
+│   │       ├── configValidator.js     # Exam configuration validation
+│   │       ├── urlFilter.js           # URL filtering for exam mode
+│   │       ├── patternMatcher.js     # URL pattern matching utilities
+│   │       ├── logSyncer.js           # Backend log synchronization
+│   │       └── pdfExporter.js         # PDF report generation
 │   ├── preload/
 │   │   └── preload.js                 # Secure IPC bridge
 │   └── renderer/
 │       ├── index.html                 # Main browser UI
 │       ├── renderer.js                # Browser logic (tabs, navigation)
-│       ├── styles.css                 # Main styles
 │       ├── css/
 │       │   ├── theme.css              # Dark theme variables
 │       │   ├── settings.css           # Settings dialog styles
 │       │   ├── find-bar.css           # Find bar styles
 │       │   ├── summary-panel.css      # Summary panel styles
-│       │   └── exam-mode.css          # Exam mode styles
+│       │   ├── exam-mode.css          # Exam mode styles
+│       │   ├── focus-mode.css          # Focus mode styles
+│       │   └── profile-*.css          # Profile-related styles
 │       ├── components/
-│       │   ├── ProfileSwitcher.js     # Profile management
+│       │   ├── ProfileManager.js      # Profile management UI
+│       │   ├── ProfileSelector.js      # Profile selection landing page
+│       │   ├── ProfileSwitcher.js     # Profile switcher in toolbar
 │       │   ├── ExamModeManager.js     # Exam mode controller
-│       │   ├── ExamModeLockdown.js    # Exam URL filtering
-│       │   └── ExamSessionBanner.js   # Exam status banner
+│       │   ├── ExamModeLockdown.js    # Exam lockdown enforcement
+│       │   ├── ExamSessionBanner.js   # Exam status banner
+│       │   ├── ExamLogsPage.js        # Professor exam logs viewer
+│       │   └── FocusModeManager.js    # Focus mode UI
 │       ├── modules/
 │       │   ├── settings-dialog.js     # Settings UI
 │       │   ├── find-bar.js            # Find in page
 │       │   ├── history-page.js        # History page logic
-│       │   └── shortcuts-page.js      # Shortcuts page
+│       │   ├── shortcuts-page.js      # Shortcuts page
+│       │   ├── address-bar-omnibox.js # Address bar with omnibox
+│       │   ├── downloads-page.js     # Downloads management
+│       │   └── theme-dialog.js        # Theme customization
 │       ├── pages/
+│       │   ├── profile-selector.html  # Profile selection landing
 │       │   ├── history.html           # Browsing history page
 │       │   ├── shortcuts.html         # Keyboard shortcuts page
 │       │   ├── error.html             # Connection error page
 │       │   ├── blocked.html           # Site blocked page
-│       │   └── exam-blocked.html      # Exam mode blocked page
-│       └── utils/
-│           └── contentExtractor.js    # Article extraction
+│       │   ├── exam-blocked.html      # Exam mode blocked page
+│       │   ├── focus-blocked.html     # Focus mode blocked page
+│       │   ├── focus-intro.html       # Focus mode intro
+│       │   ├── focus-stats.html       # Focus mode statistics
+│       │   └── focus-history.html     # Focus mode history
+│       └── examMode/
+│           └── exportHelpers.js       # Shared export utilities
 ├── backend/
 │   ├── summarizer.py                  # Flask API server
 │   ├── database.py                    # SQLite database operations
 │   ├── requirements.txt               # Python dependencies
-│   ├── browser_history.db             # History database
+│   ├── requirements-build.txt         # Build dependencies
+│   ├── browser_history.db             # History database (created at runtime)
 │   ├── api/
 │   │   ├── profiles.py                # Profile API endpoints
 │   │   └── exam.py                    # Exam mode API endpoints
-│   └── models/
-│       ├── profile.py                 # Profile data model
-│       └── exam_session.py            # Exam session model
+│   ├── models/
+│   │   ├── profile.py                 # Profile data model
+│   │   └── exam_session.py            # Exam session model
+│   └── migrations/
+│       ├── 001_add_profiles.sql      # Profile system migration
+│       └── 002_add_integrity_check.sql # Exam log integrity check
 ├── package.json                       # Node dependencies
-├── EasyList.txt                       # Ad-blocker filter list
 └── README.md                          # This file
 ```
 
