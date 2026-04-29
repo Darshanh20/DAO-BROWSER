@@ -109,6 +109,20 @@ a:hover {
     text-decoration: underline;
 }
 
+/* Tab Bar Drag-and-Drop Highlight */
+#tabs-container {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#tabs-container.drag-over {
+    background: linear-gradient(135deg,
+        rgba(100, 200, 255, 0.1) 0%,
+        rgba(100, 200, 255, 0.05) 100%);
+    border: 2px dashed var(--color-primary, #64c8ff);
+    box-shadow: 0 0 12px rgba(100, 200, 255, 0.3);
+    border-radius: 6px;
+}
+
 /* Lists */
 ul, ol {
     color: var(--color-text-primary);
@@ -384,9 +398,13 @@ blockquote {
 }
 
 /* Address Bar Area */
-.url-container {
+.url-container-wrapper {
     flex: 1;
     max-width: 800px;
+    position: relative;
+}
+
+.url-container {
     height: 38px;
     background-color: var(--bg-dark);
     border-radius: var(--radius-lg);
@@ -396,6 +414,7 @@ blockquote {
     padding: 0 4px;
     border: 1px solid var(--border-subtle);
     transition: border-color 0.2s;
+    position: relative;
 }
 
 .url-container:focus-within {
@@ -1084,7 +1103,7 @@ input:checked+.slider:before {
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .clock-widget {
         position: relative;
         top: auto;

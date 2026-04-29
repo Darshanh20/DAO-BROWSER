@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Downloads - D.A.O. Browser</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+        :root {
+            --bg: #0a0a0a;
+            --surface: #121212;
+            --surface-2: #1b1b1b;
+            --border: #2d2d2d;
+            --text: #e6e6e6;
+            --muted: #8a8a8a;
+            --accent: #39ff14;
+            --ok: #2adf6f;
+            --warn: #ff5f5f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            color: inherit;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: linear-gradient(180deg, #141414 0%, #101010 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 28px;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .downloads-container {
+            padding: 24px 28px 40px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .downloads-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .download-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .download-main {
+            min-width: 0;
+        }
+
+        .file-name {
+            font-weight: 600;
+            font-size: 0.98rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-url {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 0.84rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .download-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .status {
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            border: 1px solid transparent;
+        }
+
+        .status-downloading {
+            color: var(--accent);
+            border-color: rgba(57, 255, 20, 0.4);
+            background: rgba(57, 255, 20, 0.08);
+        }
+
+        .status-completed {
+            color: var(--ok);
+            border-color: rgba(42, 223, 111, 0.4);
+            background: rgba(42, 223, 111, 0.1);
+        }
+
+        .status-failed {
+            color: var(--warn);
+            border-color: rgba(255, 95, 95, 0.4);
+            background: rgba(255, 95, 95, 0.1);
+        }
+
+        .download-time {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .empty {
+            margin-top: 40px;
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 36px 18px;
+            background: var(--surface-2);
+        }
+
+        .empty i {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        @media (max-width: 700px) {
+            .download-item {
+                grid-template-columns: 1fr;
+            }
+
+            .download-meta {
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Downloads</h1>
+        <p>Track active and completed downloads in real time.</p>
+    </header>
+
+    <main class="downloads-container">
+        <div id="downloads-list" class="downloads-list"></div>
+        <div id="downloads-empty" class="empty" style="display: none;">
+            <i class="fa-solid fa-download"></i>
+            No downloads yet.
+        </div>
+    </main>
+
+    <script src="../modules/downloads-page.js"></script>
+</body>
+</html>

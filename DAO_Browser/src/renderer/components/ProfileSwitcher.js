@@ -228,7 +228,7 @@ class ProfileSwitcher {
                         <div class="profile-info">
                             <div class="profile-name">${this.escapeHtml(profile.display_name)}</div>
                             <div class="profile-meta">
-                                ${isActive ? 'Active' : 'Last used: ' + this.formatDate(profile.last_used_at)}
+                                ${isActive ? 'Current Window' : 'Last used: ' + this.formatDate(profile.last_used_at)}
                             </div>
                         </div>
                         ${isActive ? '<div class="profile-status-indicator"></div>' : ''}
@@ -283,25 +283,31 @@ class ProfileSwitcher {
         if (this.isLoading) return;
 
         try {
+            if (!profileId || profileId === this.currentProfile?.id) {
+                return;
+            }
+
             this.setLoading(true);
+
+            // Open or focus isolated profile window in main process
+            const result = await window.profileWindows.openProfileWindow(profileId);
 
             // Show switching state
             this.nameEl.textContent = 'Opening...';
 
-            // Open a new window for the selected profile
-            const result = await window.profileAPI.openNewWindow(profileId);
-
             if (result.success) {
-                console.log(`✅ Opened new window for profile ID: ${profileId}`);
-                this.showNotification('Opening profile in new window...', 'success');
+                const selectedProfile = this.profiles.find((profile) => profile.id === profileId);
+                const profileName = selectedProfile?.display_name || 'selected profile';
+                console.log(`✅ Opened/focused profile window: ${profileName} (ID: ${profileId})`);
+                this.showNotification(`Opened ${profileName} in a separate window`, 'success');
 
                 // Restore current profile display (we're staying in this window)
                 this.updateCurrentProfileDisplay();
             } else {
-                throw new Error(result.error || 'Failed to open new window');
+                throw new Error(result.error || 'Failed to open profile window');
             }
         } catch (error) {
-            console.error('Failed to switch profile:', error);
+            console.error('Failed to open profile window:', error);
             this.showNotification('Failed to open profile window', 'error');
 
             // Restore original display

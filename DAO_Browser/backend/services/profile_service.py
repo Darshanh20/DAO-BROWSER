@@ -20,7 +20,8 @@ from models.profile import (
     update_profile as _update_profile,
     delete_profile as _delete_profile,
     activate_profile as _activate_profile,
-    get_profile_stats as _get_profile_stats
+    get_profile_stats as _get_profile_stats,
+    touch_profile_last_used as _touch_profile_last_used
 )
 
 class ProfileService:
@@ -145,6 +146,11 @@ class ProfileService:
             pass
         
         return result
+
+    @staticmethod
+    def touch_profile(profile_id: int) -> Dict:
+        """Update profile last-used timestamp without changing active profile."""
+        return _touch_profile_last_used(profile_id)
     
     @staticmethod
     def get_current_profile() -> Dict:
@@ -266,6 +272,9 @@ class ProfileService:
     @staticmethod
     def get_profile_directory(profile_id: int) -> str:
         """Get profile-specific directory path"""
+        data_dir = os.environ.get('DAO_BACKEND_DATA_DIR')
+        if data_dir:
+            return os.path.join(data_dir, 'profiles', f'profile_{profile_id}')
         return os.path.join(os.path.dirname(__file__), '..', '..', 'profiles', f'profile_{profile_id}')
     
     @staticmethod

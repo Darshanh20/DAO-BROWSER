@@ -26,6 +26,12 @@ class SettingsDialog {
     }
 
     init() {
+        // Mount dropdown under toolbar controls so absolute positioning anchors to top-right trigger area
+        const controlsContainer = document.querySelector('.window-controls');
+        if (this.dialog && controlsContainer && this.dialog.parentElement !== controlsContainer) {
+            controlsContainer.appendChild(this.dialog);
+        }
+
         // Close button
         if (this.closeBtn) {
             this.closeBtn.addEventListener('click', () => this.close());
@@ -47,11 +53,20 @@ class SettingsDialog {
 
         // Close on outside click
         document.addEventListener('click', (e) => {
-            if (this.dialog && !this.dialog.classList.contains('hidden') && 
-                e.target === this.dialog) {
+            const settingsBtn = document.getElementById('settings-btn');
+            if (this.dialog && !this.dialog.classList.contains('hidden') &&
+                !this.dialog.contains(e.target) &&
+                !(settingsBtn && settingsBtn.contains(e.target))) {
                 this.close();
             }
         });
+
+        // Prevent clicks inside dropdown from bubbling to global outside-click handlers
+        if (this.dialog) {
+            this.dialog.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
 
         // Close on Escape
         document.addEventListener('keydown', (e) => {
@@ -59,6 +74,52 @@ class SettingsDialog {
                 this.close();
             }
         });
+
+        // Setup dropdown accordion behavior for section titles
+        this.setupAccordion();
+    }
+
+    setupAccordion() {
+        if (!this.dialog) return;
+
+        const pages = this.dialog.querySelectorAll('.settings-page');
+        pages.forEach(page => {
+            const heading = page.querySelector('h3');
+            if (!heading) return;
+
+            heading.setAttribute('role', 'button');
+            heading.setAttribute('tabindex', '0');
+
+            const toggle = () => {
+                page.classList.toggle('expanded');
+            };
+
+            heading.addEventListener('click', (e) => {
+                e.preventDefault();
+                toggle();
+            });
+
+            heading.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggle();
+                }
+            });
+        });
+
+        this.resetAccordionState();
+    }
+
+    resetAccordionState() {
+        if (!this.dialog) return;
+
+        const pages = this.dialog.querySelectorAll('.settings-page');
+        pages.forEach(page => page.classList.remove('expanded'));
+
+        const generalPage = this.dialog.querySelector('#general-page');
+        if (generalPage) {
+            generalPage.classList.add('expanded');
+        }
     }
 
     // Settings persistence methods - now profile-aware
@@ -131,6 +192,7 @@ class SettingsDialog {
             this.dialog.classList.remove('hidden');
             // Reset to general page
             this.switchPage('general');
+            this.resetAccordionState();
             // Reload settings to ensure UI is in sync
             this.applySettings();
         }

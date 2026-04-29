@@ -3,3 +3,6 @@ flask-cors==4.0.0
 sumy==0.11.0
 nltk==3.8.1
 requests==2.31.0
+numpy==2.2.2
+scipy==1.15.1
+chardet==5.2.0

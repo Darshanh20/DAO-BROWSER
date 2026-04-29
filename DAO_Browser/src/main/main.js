@@ -1,5 +1,11 @@
 const { app, BrowserWindow, ipcMain, session, protocol, dialog, clipboard } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { spawn } = require('child_process');
+<<<<<<< Updated upstream
+=======
+const fs = require('fs');
+>>>>>>> Stashed changes
 const fetch = require('cross-fetch');
 const contentFilter = require('./content-filter');
 const { sessionManager } = require('./examMode/sessionManager');
@@ -14,6 +20,11 @@ let mainWindow;
 let totalBlocked = 0;
 let sessionBlocked = 0;
 let adBlockerEnabled = true;
+let backendProcess = null;
+
+const BACKEND_HOST = '127.0.0.1';
+const BACKEND_PORT = Number(process.env.DAO_BACKEND_PORT || 5000);
+const BACKEND_BASE_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}`;
 
 // Exam Mode Lockdown State
 // Tracks which profiles are in lockdown mode (student exam session active)
@@ -39,6 +50,129 @@ const FALLBACK_DOMAINS = [
     'serving-sys.com', 'moatads.com', 'adsrvr.org', 'taboola.com',
     'outbrain.com', 'revcontent.com', 'mgid.com', 'zergnet.com'
 ];
+
+function getBackendDataDir() {
+    return path.join(app.getPath('userData'), 'backend-data');
+}
+
+function getBackendCommand() {
+    if (app.isPackaged) {
+        const exePath = path.join(process.resourcesPath, 'backend', 'dao_backend', 'dao_backend.exe');
+        return {
+            command: exePath,
+            args: [],
+            cwd: path.dirname(exePath)
+        };
+    }
+
+    const appRoot = app.getAppPath();
+    const backendScript = path.join(appRoot, 'backend', 'summarizer.py');
+    const venvCandidates = process.platform === 'win32'
+        ? [
+            path.join(appRoot, '..', 'venv', 'Scripts', 'python.exe'),
+            path.join(appRoot, 'venv', 'Scripts', 'python.exe')
+        ]
+        : [
+            path.join(appRoot, '..', 'venv', 'bin', 'python3'),
+            path.join(appRoot, 'venv', 'bin', 'python3')
+        ];
+
+    const pythonExecutable = process.env.DAO_BACKEND_PYTHON || venvCandidates.find(candidate => fs.existsSync(candidate)) || 'python';
+    return {
+        command: pythonExecutable,
+        args: [backendScript],
+        cwd: path.dirname(backendScript)
+    };
+}
+
+function checkBackendHealth(timeoutMs = 2000) {
+    const http = require('http');
+
+    return new Promise((resolve) => {
+        const req = http.request({
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
+            path: '/health',
+            method: 'GET',
+            timeout: timeoutMs
+        }, (res) => {
+            resolve(res.statusCode === 200);
+        });
+
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => {
+            req.destroy();
+            resolve(false);
+        });
+        req.end();
+    });
+}
+
+async function waitForBackendReady(maxWaitMs = 20000) {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+        if (await checkBackendHealth(1000)) {
+            return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    return false;
+}
+
+async function startBackendService() {
+    const alreadyRunning = await checkBackendHealth(1000);
+    if (alreadyRunning) {
+        console.log(`[Backend] Existing backend detected at ${BACKEND_BASE_URL}`);
+        return;
+    }
+
+    const backendDataDir = getBackendDataDir();
+    fs.mkdirSync(backendDataDir, { recursive: true });
+
+    const { command, args, cwd } = getBackendCommand();
+    if (app.isPackaged && !fs.existsSync(command)) {
+        throw new Error(`Backend executable not found: ${command}`);
+    }
+
+    console.log(`[Backend] Starting backend: ${command} ${args.join(' ')}`);
+    backendProcess = spawn(command, args, {
+        cwd,
+        env: {
+            ...process.env,
+            DAO_BACKEND_DATA_DIR: backendDataDir,
+            DAO_BACKEND_PORT: String(BACKEND_PORT)
+        },
+        stdio: 'pipe',
+        windowsHide: true
+    });
+
+    backendProcess.stdout.on('data', (data) => {
+        console.log(`[Backend] ${String(data).trim()}`);
+    });
+
+    backendProcess.stderr.on('data', (data) => {
+        console.error(`[Backend Error] ${String(data).trim()}`);
+    });
+
+    backendProcess.on('exit', (code) => {
+        console.log(`[Backend] Process exited with code ${code}`);
+        backendProcess = null;
+    });
+
+    const ready = await waitForBackendReady(25000);
+    if (!ready) {
+        throw new Error(`Backend did not become ready at ${BACKEND_BASE_URL}`);
+    }
+
+    console.log(`[Backend] Service ready at ${BACKEND_BASE_URL}`);
+}
+
+function stopBackendService() {
+    if (backendProcess && !backendProcess.killed) {
+        console.log('[Backend] Stopping backend process');
+        backendProcess.kill();
+    }
+}
 
 // Parse hosts-file format and extract domains
 function parseHostsFile(text) {
@@ -124,6 +258,7 @@ function createWindow() {
         }
     });
 
+<<<<<<< Updated upstream
     // Load profile selector landing page on startup
     mainWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
     mainWindow.maximize();
@@ -132,7 +267,23 @@ function createWindow() {
     const blockPagePath = path.join(__dirname, '../renderer/pages/blocked.html');
     protocol.registerFileProtocol('dao-blocked', (request, callback) => {
         callback({ path: blockPagePath });
+=======
+    selectorWindow.loadFile(path.join(__dirname, '../renderer/pages/profile-selector.html'));
+    selectorWindow.on('closed', () => {
+        selectorWindow = null;
+>>>>>>> Stashed changes
     });
+}
+
+function registerBlockedProtocolsForSession(targetSession) {
+    if (!targetSession || blockedProtocolsRegisteredSessions.has(targetSession)) {
+        return;
+    }
+
+    const sessionProtocol = targetSession.protocol;
+    if (!sessionProtocol || typeof sessionProtocol.registerFileProtocol !== 'function') {
+        return;
+    }
 
     // Register the dao-exam-blocked:// protocol for exam mode block page
     const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
@@ -219,7 +370,51 @@ async function setupAdBlocker() {
     console.log('✅ Ad-Blocker + Content Filter + Exam Mode Filter initialized');
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+<<<<<<< Updated upstream
+    try {
+        await startBackendService();
+    } catch (error) {
+        console.error('[Backend] Startup failed:', error.message);
+        dialog.showErrorBox('Backend Startup Error', `Failed to start backend service: ${error.message}`);
+    }
+
+    createWindow();
+});
+
+app.on('before-quit', () => {
+    stopBackendService();
+=======
+    downloadHistoryFilePath = path.join(app.getPath('userData'), 'download-history.json');
+    loadDownloadHistory();
+
+    focusModeManager.setCacheDirectory(app.getPath('userData'));
+    focusModeManager.setNotifier((channel, payload, profileId) => {
+        sendEventToProfileWindows(channel, payload, profileId);
+    });
+
+    // Register the dao-blocked:// protocol to serve the generic error page
+    const blockPagePath = path.join(__dirname, '../renderer/pages/error.html');
+    protocol.registerFileProtocol('dao-blocked', (request, callback) => {
+        callback({ path: blockPagePath });
+    });
+
+    // Register the dao-exam-blocked:// protocol for exam mode block page
+    const examBlockPagePath = path.join(__dirname, '../renderer/pages/exam-blocked.html');
+    protocol.registerFileProtocol('dao-exam-blocked', (request, callback) => {
+        callback({ path: examBlockPagePath });
+    });
+
+    // Register the dao-focus-blocked:// protocol for focus mode block page
+    const focusBlockPagePath = path.join(__dirname, '../renderer/pages/focus-blocked.html');
+    protocol.registerFileProtocol('dao-focus-blocked', (request, callback) => {
+        callback({ path: focusBlockPagePath });
+    });
+
+    await setupAdBlocker();
+    createProfileSelectorWindow();
+>>>>>>> Stashed changes
+});
 
 // Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
@@ -299,8 +494,8 @@ ipcMain.handle('summarize:article', async (event, articleData) => {
         });
 
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
             path: '/summarize',
             method: 'POST',
             headers: {
@@ -349,7 +544,7 @@ ipcMain.handle('summarize:article', async (event, articleData) => {
 
         req.on('error', (error) => {
             console.error('[Summarization] Request error:', error.message);
-            reject(new Error('Failed to connect to summarization service. Make sure the Python server is running on port 5000.'));
+            reject(new Error(`Failed to connect to summarization service at ${BACKEND_BASE_URL}.`));
         });
 
         req.on('timeout', () => {
@@ -370,8 +565,8 @@ ipcMain.handle('summarize:checkService', async () => {
 
     return new Promise((resolve) => {
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
             path: '/health',
             method: 'GET',
             timeout: 2000
@@ -410,8 +605,8 @@ ipcMain.handle('history:add', async (event, historyData) => {
         });
 
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
             path: '/api/history/add',
             method: 'POST',
             headers: {
@@ -471,8 +666,8 @@ ipcMain.handle('history:getAll', async (event, page = 1, limit = 50, profileId =
         }
         
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
             path: path,
             method: 'GET',
             timeout: 5000
@@ -515,9 +710,13 @@ ipcMain.handle('history:search', async (event, query, limit = 50) => {
     return new Promise((resolve, reject) => {
         const encodedQuery = encodeURIComponent(query);
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
+<<<<<<< Updated upstream
             path: `/api/history/search?q=${encodedQuery}&limit=${limit}`,
+=======
+            path: requestPath,
+>>>>>>> Stashed changes
             method: 'GET',
             timeout: 5000
         };
@@ -558,8 +757,8 @@ ipcMain.handle('history:delete', async (event, entryId) => {
 
     return new Promise((resolve, reject) => {
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
             path: `/api/history/${entryId}`,
             method: 'DELETE',
             timeout: 5000
@@ -601,9 +800,13 @@ ipcMain.handle('history:clear', async () => {
 
     return new Promise((resolve, reject) => {
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
+<<<<<<< Updated upstream
             path: '/api/history/clear',
+=======
+            path: requestPath,
+>>>>>>> Stashed changes
             method: 'DELETE',
             timeout: 5000
         };
@@ -644,9 +847,13 @@ ipcMain.handle('history:getStats', async () => {
 
     return new Promise((resolve, reject) => {
         const options = {
-            hostname: 'localhost',
-            port: 5000,
+            hostname: BACKEND_HOST,
+            port: BACKEND_PORT,
+<<<<<<< Updated upstream
             path: '/api/history/stats',
+=======
+            path: requestPath,
+>>>>>>> Stashed changes
             method: 'GET',
             timeout: 5000
         };
@@ -943,7 +1150,7 @@ ipcMain.handle('examMode:isLocked', async (event, profileId) => {
 // Get all profiles from Python backend
 ipcMain.handle('profile:getAll', async (event) => {
     try {
-        const response = await fetch('http://localhost:5000/api/profiles');
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles`);
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`);
         }
@@ -959,7 +1166,7 @@ ipcMain.handle('profile:getAll', async (event) => {
 // Get specific profile
 ipcMain.handle('profile:get', async (event, profileId) => {
     try {
-        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`);
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles/${profileId}`);
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`);
         }
@@ -973,7 +1180,7 @@ ipcMain.handle('profile:get', async (event, profileId) => {
 // Create new profile
 ipcMain.handle('profile:create', async (event, name, displayName, avatarColor = '#4A90E2') => {
     try {
-        const response = await fetch('http://localhost:5000/api/profiles', {
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -996,7 +1203,7 @@ ipcMain.handle('profile:create', async (event, name, displayName, avatarColor = 
 // Update profile
 ipcMain.handle('profile:update', async (event, profileId, updates) => {
     try {
-        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`, {
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles/${profileId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updates)
@@ -1011,7 +1218,7 @@ ipcMain.handle('profile:update', async (event, profileId, updates) => {
 // Delete profile
 ipcMain.handle('profile:delete', async (event, profileId) => {
     try {
-        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}`, {
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles/${profileId}`, {
             method: 'DELETE'
         });
         const data = await response.json();
@@ -1028,7 +1235,7 @@ ipcMain.handle('profile:delete', async (event, profileId) => {
 // Activate (switch to) profile
 ipcMain.handle('profile:activate', async (event, profileId) => {
     try {
-        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}/activate`, {
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles/${profileId}/activate`, {
             method: 'POST'
         });
         const data = await response.json();
@@ -1045,7 +1252,7 @@ ipcMain.handle('profile:activate', async (event, profileId) => {
 // Get currently active profile
 ipcMain.handle('profile:getActive', async (event) => {
     try {
-        const response = await fetch('http://localhost:5000/api/profiles/active');
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles/active`);
         return await response.json();
     } catch (error) {
         console.error('❌ Error getting active profile:', error);
@@ -1056,7 +1263,7 @@ ipcMain.handle('profile:getActive', async (event) => {
 // Get profile statistics
 ipcMain.handle('profile:getStats', async (event, profileId) => {
     try {
-        const response = await fetch(`http://localhost:5000/api/profiles/${profileId}/stats`);
+        const response = await fetch(`${BACKEND_BASE_URL}/api/profiles/${profileId}/stats`);
         return await response.json();
     } catch (error) {
         console.error('❌ Error getting profile stats:', error);
@@ -1068,7 +1275,7 @@ ipcMain.handle('profile:getStats', async (event, profileId) => {
 ipcMain.handle('profile:select', async (event, profileId) => {
     try {
         // Activate the profile in backend
-        const activateResponse = await fetch(`http://localhost:5000/api/profiles/${profileId}/activate`, {
+        const activateResponse = await fetch(`${BACKEND_BASE_URL}/api/profiles/${profileId}/activate`, {
             method: 'POST'
         });
 
@@ -1095,7 +1302,7 @@ ipcMain.handle('profile:select', async (event, profileId) => {
 ipcMain.handle('profile:openNewWindow', async (event, profileId) => {
     try {
         // Get profile info first
-        const profileResponse = await fetch(`http://localhost:5000/api/profiles/${profileId}`);
+        const profileResponse = await fetch(`${BACKEND_BASE_URL}/api/profiles/${profileId}`);
         const profileData = await profileResponse.json();
 
         if (!profileData.success) {

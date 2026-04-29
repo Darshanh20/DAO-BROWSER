@@ -27,6 +27,125 @@ console.log('contentArea:', contentArea);
 let tabs = [];
 let activeTabId = null;
 let nextTabId = 1;
+let lastNavigationState = { back: null, forward: null };
+let windowProfileContext = {
+    profileId: 1,
+    profileName: 'Default Profile'
+};
+
+// ==================== TAB BAR DRAG-AND-DROP SUPPORT ====================
+let tabBarDragActive = false;
+
+tabsContainer.addEventListener('dragover', (e) => {
+    // Must prevent default to allow drop
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+
+    // Only activate if dragging a URI
+    const hasUri = e.dataTransfer.types.includes('text/uri-list') ||
+                   e.dataTransfer.types.includes('text/plain');
+
+    if (hasUri && !tabBarDragActive) {
+        tabBarDragActive = true;
+        tabsContainer.classList.add('drag-over');
+        console.log('[Tab Drag] Drag over tab bar - highlighting');
+    }
+});
+
+tabsContainer.addEventListener('dragleave', (e) => {
+    // Only remove highlight if leaving the tab container itself
+    if (e.target === tabsContainer) {
+        tabBarDragActive = false;
+        tabsContainer.classList.remove('drag-over');
+        console.log('[Tab Drag] Left tab bar - removing highlight');
+    }
+});
+
+tabsContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    tabBarDragActive = false;
+    tabsContainer.classList.remove('drag-over');
+
+    // Get the URL from drag data
+    const url = e.dataTransfer.getData('text/uri-list') ||
+                e.dataTransfer.getData('text/plain');
+
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        console.log('[Tab Drag] Drop detected, opening URL:', url);
+        const newTab = createNewTab(url);
+        switchToTab(newTab.id);
+    } else if (url) {
+        console.warn('[Tab Drag] Dropped URL is not HTTP(S):', url);
+    }
+});
+
+// Clean up highlight if drag ends without drop
+tabsContainer.addEventListener('dragend', () => {
+    tabBarDragActive = false;
+    tabsContainer.classList.remove('drag-over');
+});
+
+const bootstrapQuery = new URLSearchParams(window.location.search);
+const queryProfileId = Number(bootstrapQuery.get('profileId'));
+const queryProfileName = bootstrapQuery.get('profileName');
+if (queryProfileId && !Number.isNaN(queryProfileId)) {
+    windowProfileContext.profileId = queryProfileId;
+}
+if (queryProfileName) {
+    windowProfileContext.profileName = queryProfileName;
+}
+
+function getWindowProfilePartition() {
+    return `persist:${windowProfileContext.profileId || 1}`;
+}
+
+async function initializeWindowProfileContext() {
+    try {
+        if ((!windowProfileContext.profileId || windowProfileContext.profileId === 1) &&
+            window.profileWindows && typeof window.profileWindows.getContext === 'function') {
+            const contextResult = await window.profileWindows.getContext();
+            if (contextResult.success && contextResult.data?.profileId) {
+                windowProfileContext = {
+                    profileId: Number(contextResult.data.profileId),
+                    profileName: contextResult.data.profileName || 'Profile'
+                };
+            }
+        }
+    } catch (error) {
+        console.warn('[ProfileContext] Failed to resolve profile context:', error);
+    }
+
+    localStorage.setItem('dao_current_profile_id', String(windowProfileContext.profileId));
+    document.title = `D.A.O. Browser - ${windowProfileContext.profileName}`;
+
+    if (window.examModeAPI) {
+        window.examModeAPI.setProfileId(String(windowProfileContext.profileId)).catch((error) => {
+            console.warn('[ProfileContext] Failed to sync profile ID to exam mode:', error);
+        });
+    }
+
+    // Update omnibox profile if available
+    if (window.updateOmniboxProfile) {
+        window.updateOmniboxProfile(windowProfileContext.profileId);
+    }
+}
+
+// ==================== WEBVIEW POSTMESSAGE HANDLER ====================
+// Listen for messages from webviews about Ctrl+F and other events
+window.addEventListener('message', (event) => {
+    if (event.source === window) return; // Ignore own messages
+
+    if (event.data && event.data.type === 'WEBVIEW_CTRL_F') {
+        console.log('[WebView Ctrl+F] Received Ctrl+F from webview, opening find bar');
+        if (window.findBar) {
+            window.findBar.open();
+        } else {
+            console.warn('[WebView Ctrl+F] window.findBar not available yet');
+        }
+    }
+});
 
 // ==================== URL SIMPLIFICATION ====================
 function simplifyURL(url) {
@@ -97,7 +216,7 @@ class Tab {
         this.navigationId = 0; // Unique ID for each real navigation
         this.documentLoadComplete = false; // Lock loader after main document loads
         this.lastHistoryStateUrl = null; // Track history API changes to distinguish from real nav
-        
+
         // Summary state per tab
         this.summaryOpen = false;
         this.summaryData = null;
@@ -110,6 +229,7 @@ class Tab {
         this.webview.id = `webview-${id}`;
         this.webview.classList.add('webview-tab');
         this.webview.style.display = 'none';
+<<<<<<< HEAD
 <<<<<<< HEAD
         this.webview.src = this.url;
         
@@ -124,11 +244,15 @@ class Tab {
         
 =======
         
+=======
+        this.webview.setAttribute('partition', getWindowProfilePartition());
+
+>>>>>>> a5830817ae8b8a147dac3711e7280bb2be53cd10
         // Initially set to about:blank, will navigate after preload is set
         this.webview.src = 'about:blank';
 >>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
         contentArea.appendChild(this.webview);
-        
+
         // Set preload script then navigate to actual URL
         this.setupWebviewPreloadAndNavigate(this.url);
 
@@ -181,15 +305,18 @@ class Tab {
         try {
             const preloadPath = await window.electronAPI.paths.getPath('renderer');
             const preloadScript = preloadPath.replace(/\\/g, '/').replace('/renderer', '/preload/preload.js');
-            
+            const partition = getWindowProfilePartition();
+
             // Set webview attributes for proper API access
+            this.webview.setAttribute('partition', partition);
             this.webview.setAttribute('preload', `file:///${preloadScript}`);
             this.webview.setAttribute('nodeintegration', 'false');
             this.webview.setAttribute('nodeintegrationinsubframes', 'false');
             this.webview.setAttribute('webpreferences', 'contextIsolation=true');
-            
+
             console.log(`Webview preload set: ${preloadScript}`);
-            
+            console.log(`Webview partition set: ${partition}`);
+
             // Now navigate to the target URL if it's not about:blank
             if (targetUrl && targetUrl !== 'about:blank') {
                 this.webview.src = targetUrl;
@@ -205,6 +332,7 @@ class Tab {
     }
 
     setupWebviewListeners() {
+<<<<<<< HEAD
         // Listen for Ctrl+F from webview (via IPC)
         this.webview.addEventListener('ipc-message', (event) => {
             if (event.channel === 'webview-ctrl-f') {
@@ -212,6 +340,23 @@ class Tab {
                 if (window.findBar) {
                     window.findBar.open();
                 }
+=======
+        // Force target=_blank and window.open links into the current tab.
+        // This prevents OS-level handling prompts for custom in-app blocked pages.
+        this.webview.addEventListener('new-window', (e) => {
+            try {
+                if (typeof e.preventDefault === 'function') {
+                    e.preventDefault();
+                }
+
+                if (e.url) {
+                    this.documentLoadComplete = false;
+                    this.mainFrameNavigating = true;
+                    this.webview.src = e.url;
+                }
+            } catch (error) {
+                console.warn('[WebView] Failed to intercept new-window:', error);
+>>>>>>> a5830817ae8b8a147dac3711e7280bb2be53cd10
             }
         });
 
@@ -220,20 +365,20 @@ class Tab {
         this.webview.addEventListener('will-navigate', (e) => {
             // This is a REAL navigation - increase navigation ID to invalidate stale events
             const newUrl = e.url;
-            
+
             if (this.id === activeTabId && !this.documentLoadComplete) {
                 // Only prepare for loader if document isn't already complete
                 const urlChanged = (this.previousUrl !== newUrl);
-                
+
                 if (urlChanged && e.isMainFrame) {
                     console.log(`🔄 [${this.id}] REAL document navigation: ${this.previousUrl || 'start'} → ${newUrl}`);
-                    
+
                     // Increment navigation ID to ignore stale events from previous navigation
                     this.navigationId++;
                     this.mainFrameNavigating = true;
                     this.navigationStartTime = Date.now();
                     this.documentLoadComplete = false; // Reset for new navigation
-                    
+
                 } else {
                     console.log(`⤵️ [${this.id}] SPA route change detected (same base URL), ignoring`);
                     this.mainFrameNavigating = false;
@@ -246,7 +391,7 @@ class Tab {
             this.previousUrl = this.url;
             this.url = e.url;
             this.lastHistoryStateUrl = e.url;
-            
+
             if (this.id === activeTabId) {
                 const displayUrl = this.convertUrlForDisplay(e.url);
                 updateAddressBar(displayUrl);
@@ -259,7 +404,7 @@ class Tab {
         this.webview.addEventListener('did-navigate-in-page', (e) => {
             this.url = e.url;
             this.lastHistoryStateUrl = e.url; // Track that history API was used
-            
+
             if (this.id === activeTabId) {
                 const displayUrl = this.convertUrlForDisplay(e.url);
                 updateAddressBar(displayUrl);
@@ -282,11 +427,11 @@ class Tab {
         // 2. Real navigation detected (mainFrameNavigating = true)
         // 3. Loader not already showing
         this.webview.addEventListener('did-start-loading', () => {
-            if (this.id === activeTabId && 
-                this.mainFrameNavigating && 
-                !this.documentLoadComplete && 
+            if (this.id === activeTabId &&
+                this.mainFrameNavigating &&
+                !this.documentLoadComplete &&
                 this.loaderState === 'idle') {
-                
+
                 console.log(`⏳ [${this.id}] Showing loader - starting document load`);
                 this.loaderState = 'loading';
                 this.isLoading = true;
@@ -300,22 +445,34 @@ class Tab {
         this.webview.addEventListener('dom-ready', () => {
             if (this.id === activeTabId && this.loaderState === 'loading' && this.mainFrameNavigating) {
                 console.log(`✅ [${this.id}] Main document ready - LOCKING loader`);
-                
+
                 // Lock the document - no more loader restarts allowed
                 this.documentLoadComplete = true;
                 this.completeLoading();
             }
+<<<<<<< HEAD
             
 <<<<<<< HEAD
 =======
+=======
+
+>>>>>>> a5830817ae8b8a147dac3711e7280bb2be53cd10
             // Add to browsing history
             this.addToHistory();
-            
+
             // Inject Ctrl+F handler into webview
             console.log(`[WebView ${this.id}] DOM ready, injecting Ctrl+F handler...`);
             this.injectCtrlFHandler();
+<<<<<<< HEAD
             
 >>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
+=======
+
+            // Inject link drag handler into webview
+            console.log(`[WebView ${this.id}] DOM ready, injecting link drag handler...`);
+            this.injectLinkDragHandler();
+
+>>>>>>> a5830817ae8b8a147dac3711e7280bb2be53cd10
             // Always update navigation buttons
             updateNavigationButtons();
         });
@@ -335,7 +492,7 @@ class Tab {
                 // Complete the loader on error
                 this.documentLoadComplete = true;
                 this.completeLoading();
-                
+
                 try {
                     const rendererPath = await window.electronAPI.paths.getPath('renderer');
                     const errorPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/error.html?code=${e.errorCode}&message=${encodeURIComponent(e.errorDescription)}&url=${encodeURIComponent(e.validatedURL)}`;
@@ -352,32 +509,32 @@ class Tab {
     completeLoading() {
         // Only complete if loader is actually loading
         if (this.loaderState !== 'loading') return;
-        
+
         this.loaderState = 'complete';
         this.isLoading = false;
         this.mainFrameNavigating = false;
         this.documentLoadComplete = true; // LOCK: No more loader restarts for this navigation
-        
+
         console.log(`🔒 [${this.id}] Document load locked - no further loader restarts allowed`);
-        
+
         progressBar.classList.remove('loading');
         progressBar.classList.add('complete');
         loadingSpinner.classList.remove('visible');
-        
+
         // Fade out and hide
         setTimeout(() => {
             progressBar.classList.remove('active');
             progressBar.classList.remove('complete');
             this.loaderState = 'idle'; // Reset for next navigation
         }, 600);
-        
+
         // Check if current URL is blank and show welcome screen
         if (this.url === 'about:blank') {
             welcomeScreen.style.display = 'flex';
         } else {
             welcomeScreen.style.display = 'none';
         }
-        
+
         // Update navigation buttons
         updateNavigationButtons();
     }
@@ -387,6 +544,10 @@ class Tab {
         if (url && url.startsWith('file://')) {
             // Extract the path after file://
             const filePath = url.replace('file://', '');
+            // Check if it's a downloads page
+            if (filePath.includes('downloads.html')) {
+                return 'dao://downloads';
+            }
             // Check if it's a shortcuts page
             if (filePath.includes('shortcuts.html')) {
                 return 'dao://shortcuts';
@@ -416,11 +577,11 @@ class Tab {
             console.log('[History] Skipping internal file:// page:', this.url);
             return;
         }
-        
+
         try {
             // Get page title (fallback to URL if no title)
             const title = this.title && this.title !== 'New Tab' ? this.title : this.url;
-            
+
             // Try to get favicon
             let faviconUrl = '';
             try {
@@ -429,10 +590,16 @@ class Tab {
             } catch (e) {
                 console.log('[History] Could not extract favicon URL');
             }
-            
+
             // Get current profile ID - use multiple sources for reliability
-            let profileId = 1;  // Default profile
-            
+            let profileId = windowProfileContext.profileId || 1;
+
+            // Prefer window profile context because each window is profile-scoped
+            if (windowProfileContext.profileId) {
+                profileId = windowProfileContext.profileId;
+                console.log(`[History] Using window profile context ID: ${profileId}`);
+            }
+
             // Try to get from ProfileSwitcher instance first (most reliable)
             if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
                 profileId = window.profileSwitcher.currentProfile.id;
@@ -447,9 +614,9 @@ class Tab {
                     console.log(`[History] Using default profile ID: ${profileId}`);
                 }
             }
-            
+
             console.log(`[History] Adding entry: ${title} (URL: ${this.url}, Profile: ${profileId})`);
-            
+
             // Add to history via backend
             const result = await window.historyAPI.addHistory({
                 url: this.url,
@@ -458,7 +625,7 @@ class Tab {
                 visit_duration: 0,
                 profile_id: profileId
             });
-            
+
             if (result.success) {
                 console.log(`[History] Successfully added: ${title} (Profile: ${profileId})`);
             } else {
@@ -471,17 +638,17 @@ class Tab {
     }
 
     injectCtrlFHandler() {
-        // Inject Ctrl+F handler into webview's isolated context
+        // Inject Ctrl+F handler and popup interception into webview context
         const script = `
             (function() {
                 console.log('[WebView Ctrl+F] Handler injection started');
-                
+
                 // Send Ctrl+F event to parent window
                 document.addEventListener('keydown', function(e) {
                     if (e.ctrlKey && e.key === 'f') {
                         console.log('[WebView Ctrl+F] Ctrl+F pressed, sending to parent');
                         e.preventDefault();
-                        
+
                         // Use postMessage to communicate with parent
                         window.parent.postMessage(
                             { type: 'WEBVIEW_CTRL_F', tabId: '${this.id}' },
@@ -489,11 +656,37 @@ class Tab {
                         );
                     }
                 });
-                
+
+                // Force popup flows into same tab to avoid OS-level external protocol dialogs.
+                try {
+                    const originalOpen = window.open;
+                    window.open = function(url) {
+                        if (url) {
+                            window.location.href = url;
+                        }
+                        return null;
+                    };
+
+                    document.addEventListener('click', function(ev) {
+                        const anchor = ev.target && ev.target.closest ? ev.target.closest('a[target="_blank"]') : null;
+                        if (!anchor || !anchor.href) {
+                            return;
+                        }
+
+                        ev.preventDefault();
+                        window.location.href = anchor.href;
+                    }, true);
+
+                    // Keep reference to avoid aggressive dead-code removal in some sites
+                    window.__daoOriginalOpen = originalOpen;
+                } catch (popupError) {
+                    console.warn('[WebView Popup Intercept] Failed:', popupError);
+                }
+
                 console.log('[WebView Ctrl+F] Handler injection complete');
             })();
         `;
-        
+
         try {
             this.webview.executeJavaScript(script);
             console.log(`[WebView ${this.id}] Ctrl+F handler injected successfully`);
@@ -502,7 +695,66 @@ class Tab {
         }
     }
 
+<<<<<<< HEAD
 >>>>>>> 50717754f4b9e6ff24b194e251d5d513ad57f633
+=======
+    injectLinkDragHandler() {
+        // Inject dragstart handler on all <a> tags in webview
+        const script = `
+            (function() {
+                console.log('[WebView Link Drag] Handler injection started');
+
+                // Track active drag to prevent multiple registrations
+                let dragHandlersInjected = false;
+
+                function setupLinkDragListeners() {
+                    if (dragHandlersInjected) return;
+                    dragHandlersInjected = true;
+
+                    document.addEventListener('dragstart', function(e) {
+                        const link = e.target.closest('a[href]');
+                        if (link && link.href) {
+                            console.log('[WebView Link Drag] Dragging link:', link.href);
+                            e.dataTransfer.effectAllowed = 'copy';
+                            e.dataTransfer.setData('text/uri-list', link.href);
+                            e.dataTransfer.setData('text/plain', link.href);
+                            // Optional: Set a custom drag image
+                            const dragImage = new Image();
+                            dragImage.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3Ctext x="0" y="20" font-size="20"%3E%F0%9F%94—%3C/text%3E%3C/svg%3E';
+                            e.dataTransfer.setDragImage(dragImage, 12, 12);
+                        }
+                    }, true);
+
+                    console.log('[WebView Link Drag] Handler injection complete');
+                }
+
+                // Setup immediately if DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', setupLinkDragListeners);
+                } else {
+                    setupLinkDragListeners();
+                }
+
+                // Re-inject on dynamic content loads (for SPAs)
+                const observer = new MutationObserver(() => {
+                    setupLinkDragListeners();
+                });
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            })();
+        `;
+
+        try {
+            this.webview.executeJavaScript(script);
+            console.log(`[WebView ${this.id}] Link drag handler injected successfully`);
+        } catch (error) {
+            console.error(`[WebView ${this.id}] Failed to inject link drag handler:`, error);
+        }
+    }
+
+>>>>>>> a5830817ae8b8a147dac3711e7280bb2be53cd10
     close() {
         // Clear any pending loading timeout and reset flags
         if (this.loadingStopTimeout) {
@@ -512,7 +764,7 @@ class Tab {
         this.mainFrameNavigating = false;
         this.isLoading = false;
         this.loaderState = 'idle';
-        
+
         if (tabs.length === 1) {
             // Don't close the last tab, just reset it
             this.webview.src = 'about:blank';
@@ -654,17 +906,27 @@ async function updateNavigationButtons() {
             const canGoForward = await activeTab.webview.canGoForward();
             backBtn.disabled = !canGoBack;
             forwardBtn.disabled = !canGoForward;
-            console.log(`Navigation buttons updated - Back: ${canGoBack}, Forward: ${canGoForward}`);
+
+            if (lastNavigationState.back !== canGoBack || lastNavigationState.forward !== canGoForward) {
+                console.log(`Navigation buttons updated - Back: ${canGoBack}, Forward: ${canGoForward}`);
+                lastNavigationState = { back: canGoBack, forward: canGoForward };
+            }
         } catch (error) {
             console.error('Error updating navigation buttons:', error);
             // Fallback: disable buttons if there's an error
             backBtn.disabled = true;
             forwardBtn.disabled = true;
+            lastNavigationState = { back: false, forward: false };
         }
     } else {
         // No active tab, disable both buttons
         backBtn.disabled = true;
         forwardBtn.disabled = true;
+
+        if (lastNavigationState.back !== false || lastNavigationState.forward !== false) {
+            console.log('Navigation buttons updated - Back: false, Forward: false');
+            lastNavigationState = { back: false, forward: false };
+        }
     }
 }
 
@@ -759,7 +1021,29 @@ document.addEventListener('keydown', async (e) => {
     // Ctrl+F - Find in page
     if (e.ctrlKey && e.key === 'f') {
         e.preventDefault();
+<<<<<<< HEAD
         if (window.findBar) {
+=======
+
+        // Ensure findBar is initialized
+        if (!window.findBar) {
+            console.warn('[Ctrl+F] window.findBar not yet available, waiting for initialization...');
+
+            // Wait for findBar to be initialized (max 2 seconds)
+            let attempts = 0;
+            const checkFindBar = setInterval(() => {
+                attempts++;
+                if (window.findBar) {
+                    clearInterval(checkFindBar);
+                    window.findBar.open();
+                    console.log('[Ctrl+F] FindBar initialized, opening...');
+                } else if (attempts > 20) {
+                    clearInterval(checkFindBar);
+                    console.error('[Ctrl+F] Timeout waiting for findBar initialization');
+                }
+            }, 100);
+        } else {
+>>>>>>> a5830817ae8b8a147dac3711e7280bb2be53cd10
             window.findBar.open();
         } else {
             console.warn('[Ctrl+F] FindBar not initialized yet');
@@ -893,7 +1177,7 @@ if (shieldPopup) {
 if (shieldToggle) {
     shieldToggle.addEventListener('change', async (e) => {
         const isEnabled = e.target.checked;
-        // In a real app we might pass enabled state, 
+        // In a real app we might pass enabled state,
         // but current backend just toggles. So we sync them.
 
         // Let's assume toggle returns the NEW state
@@ -957,23 +1241,23 @@ setInterval(() => {
 // Function to open internal pages in a new tab
 async function openPageInNewTab(pageUrl, pageTitle = 'New Page') {
     const tab = createNewTab();
-    
+
     try {
         // Get the renderer path from main process
         const rendererPath = await window.electronAPI.paths.getPath('renderer');
-        
+
         // Construct the absolute file path
         const fullPath = `file://${rendererPath.replace(/\\/g, '/')}/${pageUrl}`;
-        
+
         console.log(`📖 Opening page in new tab`);
         console.log(`   Title: ${pageTitle}`);
         console.log(`   URL: ${fullPath}`);
-        
+
         // Navigate the webview to the page
         tab.webview.src = fullPath;
         tab.title = pageTitle;
         tab.tabTitleElement.textContent = pageTitle;
-        
+
         // Update address bar to show the page is loaded
         updateAddressBar(`dao://internal/${pageUrl}`);
     } catch (error) {
@@ -990,11 +1274,41 @@ if (settingsBtn) {
     settingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (window.settingsDialog) {
-            window.settingsDialog.open();
+            const settingsDialogEl = document.getElementById('settings-dialog');
+            if (settingsDialogEl && !settingsDialogEl.classList.contains('hidden')) {
+                window.settingsDialog.close();
+            } else {
+                window.settingsDialog.open();
+            }
         }
     });
 }
 
+<<<<<<< HEAD
+=======
+// Open find bar
+if (searchBtn) {
+    searchBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (!window.findBar) {
+            console.warn('[Search Button] window.findBar not initialized, waiting...');
+            let attempts = 0;
+            const checkFindBar = setInterval(() => {
+                attempts++;
+                if (window.findBar) {
+                    clearInterval(checkFindBar);
+                    window.findBar.open();
+                }
+                if (attempts > 20) clearInterval(checkFindBar);
+            }, 100);
+        } else {
+            window.findBar.open();
+        }
+    });
+}
+
+>>>>>>> a5830817ae8b8a147dac3711e7280bb2be53cd10
 // Close when pressing Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -1009,12 +1323,15 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize with first tab
 console.log('About to create first tab...');
-try {
-    createNewTab();
-    console.log('First tab created successfully');
-} catch (error) {
-    console.error('Error creating first tab:', error);
-}
+(async () => {
+    try {
+        await initializeWindowProfileContext();
+        createNewTab();
+        console.log('First tab created successfully');
+    } catch (error) {
+        console.error('Error creating first tab:', error);
+    }
+})();
 
 // Periodically update navigation button states to keep them in sync with webview history
 setInterval(() => {
@@ -1029,33 +1346,33 @@ setInterval(() => {
  */
 function resetBrowserForProfileSwitch(profileName) {
     console.log(`[Profile Switch] Resetting browser for profile: ${profileName}`);
-    
+
     // Close all existing tabs
     while (tabs.length > 0) {
         const tab = tabs[0];
-        
+
         // Remove webview from DOM
         if (tab.webview && tab.webview.parentNode) {
             tab.webview.remove();
         }
-        
+
         // Remove tab element from DOM
         if (tab.tabElement && tab.tabElement.parentNode) {
             tab.tabElement.remove();
         }
-        
+
         // Remove from array
         tabs.shift();
     }
-    
+
     // Reset state
     activeTabId = null;
-    
+
     // Clear address bar
     if (addressBar) {
         addressBar.value = '';
     }
-    
+
     // Hide loading indicators
     if (progressBar) {
         progressBar.classList.remove('active', 'loading');
@@ -1063,20 +1380,20 @@ function resetBrowserForProfileSwitch(profileName) {
     if (loadingSpinner) {
         loadingSpinner.classList.remove('visible');
     }
-    
+
     // Close summary panel
     if (typeof closeSummaryPanel === 'function') {
         closeSummaryPanel();
     }
-    
+
     // Show welcome screen
     if (welcomeScreen) {
         welcomeScreen.style.display = 'flex';
     }
-    
+
     // Create a fresh new tab
     createNewTab();
-    
+
     console.log(`[Profile Switch] Browser reset complete for profile: ${profileName}`);
 }
 
@@ -1103,20 +1420,20 @@ const locationDisplayEl = document.getElementById('location-display');
 // 1. Live Clock & Date Update
 function updateClockAndDate() {
     const now = new Date();
-    
+
     // Format time as HH:MM:SS
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-    
+
     if (liveTimeEl) {
         liveTimeEl.textContent = `${hours}:${minutes}:${seconds}`;
     }
-    
+
     // Format date as "Day, Month Date"
     const options = { weekday: 'long', month: 'long', day: 'numeric' };
     const dateString = now.toLocaleDateString('en-US', options);
-    
+
     if (liveDateEl) {
         liveDateEl.textContent = dateString;
     }
@@ -1129,7 +1446,7 @@ setInterval(updateClockAndDate, 1000);
 // 2. Geolocation - Request Permission & Display Location
 function initializeLocation() {
     if (!locationDisplayEl) return;
-    
+
     // Check if location is already saved in localStorage
     const savedLocation = localStorage.getItem('dao_user_location');
     if (savedLocation) {
@@ -1137,29 +1454,29 @@ function initializeLocation() {
         console.log('Location loaded from localStorage:', savedLocation);
         return;
     }
-    
+
     // Request geolocation permission
     if ('geolocation' in navigator) {
         locationDisplayEl.textContent = '📍 Detecting location...';
         locationDisplayEl.style.cursor = 'pointer';
         locationDisplayEl.title = 'Click to update location';
-        
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
                 console.log(`Geolocation granted: ${latitude}, ${longitude}`);
-                
+
                 // Use reverse geocoding via free API to get location name
                 reverseGeocodeLocation(latitude, longitude);
             },
             (error) => {
                 console.warn('Geolocation permission denied or error:', error.message);
-                
+
                 // Fallback to IP-based location or default
                 locationDisplayEl.textContent = '📍 Enable location to see your city';
                 locationDisplayEl.style.cursor = 'pointer';
                 locationDisplayEl.title = 'Click to enable location access';
-                
+
                 // Add click handler to retry
                 locationDisplayEl.addEventListener('click', initializeLocation);
             },
@@ -1181,34 +1498,34 @@ async function reverseGeocodeLocation(latitude, longitude) {
         const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
         );
-        
+
         if (!response.ok) throw new Error('Geocoding failed');
-        
+
         const data = await response.json();
-        
+
         // Extract city/town and country
         const city = data.address?.city || data.address?.town || data.address?.village || 'Unknown';
         const country = data.address?.country || 'Unknown';
         const locationText = `📍 ${city}, ${country}`;
-        
+
         // Save to localStorage
         localStorage.setItem('dao_user_location', locationText);
-        
+
         if (locationDisplayEl) {
             locationDisplayEl.textContent = locationText;
             locationDisplayEl.style.cursor = 'pointer';
             locationDisplayEl.title = 'Click to update location';
             locationDisplayEl.addEventListener('click', initializeLocation);
         }
-        
+
         console.log('Location updated:', locationText);
     } catch (error) {
         console.error('Geocoding error:', error);
-        
+
         // Fallback: show coordinates
         const fallbackLocation = `📍 Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)}`;
         localStorage.setItem('dao_user_location', fallbackLocation);
-        
+
         if (locationDisplayEl) {
             locationDisplayEl.textContent = fallbackLocation;
             locationDisplayEl.style.cursor = 'pointer';
@@ -1221,13 +1538,13 @@ async function reverseGeocodeLocation(latitude, longitude) {
 // 3. Quick Notes - localStorage persistence
 function initializeQuickNotes() {
     if (!quickNotesEl) return;
-    
+
     // Load saved notes from localStorage
     const savedNotes = localStorage.getItem('dao_quick_notes');
     if (savedNotes) {
         quickNotesEl.value = savedNotes;
     }
-    
+
     // Auto-save on input (debounced)
     let saveTimeout;
     quickNotesEl.addEventListener('input', () => {
@@ -1242,13 +1559,13 @@ function initializeQuickNotes() {
 // 4. Today's Focus - localStorage persistence
 function initializeTodaysFocus() {
     if (!todayFocusEl) return;
-    
+
     // Load saved focus from localStorage
     const savedFocus = localStorage.getItem('dao_today_focus');
     if (savedFocus) {
         todayFocusEl.value = savedFocus;
     }
-    
+
     // Auto-save on input (debounced)
     let saveTimeout;
     todayFocusEl.addEventListener('input', () => {
@@ -1269,7 +1586,7 @@ initializeTodaysFocus();
 function checkAndResetFocusDaily() {
     const lastResetDate = localStorage.getItem('dao_last_reset_date');
     const today = new Date().toDateString();
-    
+
     if (lastResetDate !== today) {
         // New day detected, clear today's focus but keep notes
         localStorage.setItem('dao_today_focus', '');
@@ -1319,26 +1636,26 @@ function loadQuickLinks() {
 // Render quick links to the page
 function renderQuickLinks() {
     quickLinksContainer.innerHTML = '';
-    
+
     allLinks.forEach((link, index) => {
         const isCustom = index >= DEFAULT_LINKS.length;
         const linkCard = document.createElement('div');
         linkCard.className = 'quick-link-card';
         linkCard.style.cursor = 'pointer';
-        
+
         let cardHTML = `
             <div class="quick-link-icon">${link.icon}</div>
             <div class="quick-link-name">${link.name}</div>
         `;
-        
+
         // Add remove button for custom links only
         if (isCustom) {
             cardHTML += `<button class="quick-link-remove" data-index="${index}" title="Remove link">×</button>`;
         }
-        
+
         linkCard.innerHTML = cardHTML;
         quickLinksContainer.appendChild(linkCard);
-        
+
         // Add click event to open link in new tab
         linkCard.addEventListener('click', (e) => {
             // Don't trigger if clicking the remove button
@@ -1346,7 +1663,7 @@ function renderQuickLinks() {
                 createNewTab(link.url);
             }
         });
-        
+
         // Add remove event listener
         if (isCustom) {
             const removeBtn = linkCard.querySelector('.quick-link-remove');
@@ -1381,12 +1698,12 @@ function addQuickLink(name, url) {
 // Validate and normalize URL format
 function normalizeAndValidateUrl(urlString) {
     let url = urlString.trim();
-    
+
     // If URL doesn't start with http:// or https://, add https://
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
     }
-    
+
     try {
         new URL(url);
         return url; // Return the normalized URL
@@ -1426,27 +1743,27 @@ addLinkModal.addEventListener('click', (e) => {
 // Form submission
 addLinkForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    
+
     const name = linkNameInput.value.trim();
     let url = linkUrlInput.value.trim();
-    
+
     // Clear previous errors
     formError.style.display = 'none';
     formError.textContent = '';
-    
+
     // Validation
     if (!name) {
         formError.textContent = 'Website name is required';
         formError.style.display = 'block';
         return;
     }
-    
+
     if (!url) {
         formError.textContent = 'URL is required';
         formError.style.display = 'block';
         return;
     }
-    
+
     // Validate and normalize URL
     const validatedUrl = normalizeAndValidateUrl(url);
     if (!validatedUrl) {
@@ -1454,14 +1771,14 @@ addLinkForm.addEventListener('submit', (e) => {
         formError.style.display = 'block';
         return;
     }
-    
+
     // Check for duplicate names
     if (allLinks.some(link => link.name.toLowerCase() === name.toLowerCase())) {
         formError.textContent = 'A link with this name already exists';
         formError.style.display = 'block';
         return;
     }
-    
+
     // Add the link with the validated URL
     addQuickLink(name, validatedUrl);
     closeAddLinkModalFunc();
@@ -1473,6 +1790,54 @@ loadQuickLinks();
 // ==================== HISTORY FEATURE ====================
 
 const historyBtn = document.getElementById('history-btn');
+const downloadsBtn = document.getElementById('downloads-btn');
+const DOWNLOADS_CACHE_KEY = 'dao_download_history_cache';
+const DOWNLOADS_CACHE_GLOBAL_KEY = 'dao_download_history_cache_global';
+
+async function refreshDownloadsCache() {
+    if (!window.downloadsAPI || typeof window.downloadsAPI.getHistory !== 'function') {
+        return;
+    }
+
+    try {
+        const scopedResult = await window.downloadsAPI.getHistory(windowProfileContext.profileId);
+        if (scopedResult && scopedResult.success && Array.isArray(scopedResult.data)) {
+            localStorage.setItem(DOWNLOADS_CACHE_KEY, JSON.stringify(scopedResult.data));
+        }
+
+        const globalResult = await window.downloadsAPI.getHistory();
+        if (globalResult && globalResult.success && Array.isArray(globalResult.data)) {
+            localStorage.setItem(DOWNLOADS_CACHE_GLOBAL_KEY, JSON.stringify(globalResult.data));
+        }
+    } catch (error) {
+        console.warn('[Downloads] Failed to refresh cache:', error);
+    }
+}
+
+function findInternalTabByPage(pageName) {
+    return tabs.find(tab => typeof tab.url === 'string' && tab.url.includes(`/pages/${pageName}`));
+}
+
+async function openDownloadsPage() {
+    try {
+        await refreshDownloadsCache();
+
+        const existingDownloadsTab = findInternalTabByPage('downloads.html');
+        if (existingDownloadsTab) {
+            switchToTab(existingDownloadsTab.id);
+            return;
+        }
+
+        const rendererPath = await window.electronAPI.paths.getPath('renderer');
+        const downloadsPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/downloads.html?profile_id=${windowProfileContext.profileId}`;
+
+        const downloadsTab = createNewTab(downloadsPageUrl);
+        downloadsTab.title = 'Downloads';
+        downloadsTab.tabTitleElement.textContent = 'Downloads';
+    } catch (error) {
+        console.error('[Downloads] Failed to open downloads page:', error);
+    }
+}
 
 // Open history in a new tab
 async function openHistoryPage() {
@@ -1480,18 +1845,7 @@ async function openHistoryPage() {
 
     try {
         const rendererPath = await window.electronAPI.paths.getPath('renderer');
-
-        // Get current profile ID to pass to history page
-        let profileId = 1;
-        if (window.profileSwitcher && window.profileSwitcher.currentProfile) {
-            profileId = window.profileSwitcher.currentProfile.id;
-        } else {
-            const storedId = localStorage.getItem('dao_current_profile_id');
-            if (storedId) profileId = parseInt(storedId);
-        }
-
-        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html#profileId=${profileId}`;
-
+        const historyPageUrl = `file://${rendererPath.replace(/\\/g, '/')}/pages/history.html?profile_id=${windowProfileContext.profileId}`;
         // Create a new tab with the history page
         const historyTab = createNewTab(historyPageUrl);
         historyTab.title = 'Browsing History';
@@ -1511,6 +1865,42 @@ if (historyBtn) {
     });
 } else {
     console.error('[History] ❌ History button element not found!');
+}
+
+if (downloadsBtn) {
+    downloadsBtn.addEventListener('click', () => {
+        console.log('[Downloads] Button clicked');
+        openDownloadsPage();
+    });
+} else {
+    console.error('[Downloads] ❌ Downloads button element not found!');
+}
+
+if (window.downloadsAPI && typeof window.downloadsAPI.onRedirect === 'function') {
+    window.downloadsAPI.onRedirect(() => {
+        refreshDownloadsCache().catch(() => {
+            // Ignore cache refresh errors; page can still load via IPC fallback.
+        });
+        openDownloadsPage();
+    });
+}
+
+// Keep cache synchronized so downloads page (including cache fallback mode)
+// reflects status transitions like downloading -> completed in near real-time.
+if (window.downloadsAPI && typeof window.downloadsAPI.onStarted === 'function') {
+    window.downloadsAPI.onStarted(() => {
+        refreshDownloadsCache().catch(() => {
+            // Ignore cache refresh errors.
+        });
+    });
+}
+
+if (window.downloadsAPI && typeof window.downloadsAPI.onUpdated === 'function') {
+    window.downloadsAPI.onUpdated(() => {
+        refreshDownloadsCache().catch(() => {
+            // Ignore cache refresh errors.
+        });
+    });
 }
 
 // ==================== ARTICLE SUMMARIZATION FEATURE ====================
@@ -1554,17 +1944,17 @@ async function checkSummarizationService() {
 function openSummaryPanel() {
     summaryPanel.classList.remove('hidden');
     summaryPanelOpen = true;
-    
+
     // Add active state to button
     if (summarizeBtn) {
         summarizeBtn.classList.add('active');
     }
-    
+
     // Adjust content area to make room for panel
     if (contentArea) {
         contentArea.style.width = '70%';
     }
-    
+
     // Save state to current tab
     const activeTab = getActiveTab();
     if (activeTab) {
@@ -1576,17 +1966,17 @@ function openSummaryPanel() {
 function closeSummaryPanel() {
     summaryPanel.classList.add('hidden');
     summaryPanelOpen = false;
-    
+
     // Remove active state from button
     if (summarizeBtn) {
         summarizeBtn.classList.remove('active');
     }
-    
+
     // Restore content area to full width
     if (contentArea) {
         contentArea.style.width = '100%';
     }
-    
+
     // Save state to current tab
     const activeTab = getActiveTab();
     if (activeTab) {
@@ -1685,7 +2075,7 @@ async function extractArticleFromWebview() {
 
                 // Clone and clean
                 const clone = articleElement.cloneNode(true);
-                
+
                 // Remove unwanted elements
                 excludeSelectors.forEach(selector => {
                     clone.querySelectorAll(selector).forEach(el => el.remove());
@@ -1733,7 +2123,7 @@ async function summarizeArticle() {
 
     try {
         isSummarizing = true;
-        
+
         // Open panel and show loading
         openSummaryPanel();
         showSummaryLoading();
@@ -1767,14 +2157,14 @@ async function summarizeArticle() {
         }
 
         console.log('Summary generated successfully:', result.data);
-        
+
         // Save to current tab
         const activeTab = getActiveTab();
         if (activeTab) {
             activeTab.summaryData = result.data;
             activeTab.articleData = lastArticleData;
         }
-        
+
         // Display summary
         showSummaryContent(result.data);
 
@@ -1795,16 +2185,16 @@ async function copySummaryToClipboard() {
             .join('\n');
 
         await navigator.clipboard.writeText(summaryText);
-        
+
         // Show feedback
         const originalIcon = copySummaryBtn.querySelector('i');
         const originalClass = originalIcon.className;
         originalIcon.className = 'fa-solid fa-check';
-        
+
         setTimeout(() => {
             originalIcon.className = originalClass;
         }, 2000);
-        
+
     } catch (error) {
         console.error('Failed to copy summary:', error);
         alert('Failed to copy summary to clipboard');
@@ -1823,7 +2213,7 @@ if (closeSummaryBtn) {
     closeSummaryBtn.addEventListener('click', () => {
         closeSummaryPanel();
         lastArticleData = null; // Clear cached data when closing
-        
+
         // Clear from current tab
         const activeTab = getActiveTab();
         if (activeTab) {
@@ -1855,7 +2245,7 @@ checkSummarizationService();
 // Initialize profile components
 function initializeProfileComponents() {
     console.log('[ProfileSystem] Initializing profile components...');
-    
+
     try {
         // Initialize ProfileSwitcher
         if (typeof ProfileSwitcher !== 'undefined') {
@@ -1864,7 +2254,7 @@ function initializeProfileComponents() {
         } else {
             console.warn('[ProfileSystem] ProfileSwitcher class not found');
         }
-        
+
         // Initialize ProfileManager
         if (typeof ProfileManager !== 'undefined') {
             window.profileManager = new ProfileManager();
@@ -1872,16 +2262,49 @@ function initializeProfileComponents() {
         } else {
             console.warn('[ProfileSystem] ProfileManager class not found');
         }
-        
+
         console.log('[ProfileSystem] Profile components initialization complete');
     } catch (error) {
         console.error('[ProfileSystem] Error initializing profile components:', error);
     }
 }
 
+// ==================== ADDRESS BAR OMNIBOX INITIALIZATION ====================
+let omnibox = null;
+
+function initializeAddressBarOmnibox() {
+    try {
+        // Create omnibox instance
+        omnibox = new AddressBarOmnibox(
+            '#address-bar',
+            '.url-container-wrapper'
+        );
+
+        console.log('[Renderer] Address bar omnibox initialized');
+    } catch (error) {
+        console.error('[Renderer] Failed to initialize address bar omnibox:', error);
+    }
+}
+
+/**
+ * Update omnibox profile (called when profile context changes)
+ */
+function updateOmniboxProfile(profileId) {
+    if (omnibox) {
+        omnibox.setProfileId(profileId);
+    }
+}
+
+// Expose globally so ProfileSwitcher can call it
+window.updateOmniboxProfile = updateOmniboxProfile;
+
 // Initialize profile components when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeProfileComponents);
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeProfileComponents();
+        initializeAddressBarOmnibox();
+    });
 } else {
     initializeProfileComponents();
+    initializeAddressBarOmnibox();
 }

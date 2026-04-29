@@ -1,10 +1,12 @@
 {
   "name": "dao_browser",
   "version": "1.0.0",
-  "description": "",
+  "description": "D.A.O. Browser desktop app",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build:backend": "cd backend && pyinstaller --noconfirm --clean summarizer.spec",
+    "dist:win": "npm run build:backend && electron-builder --win nsis"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +14,7 @@
   "type": "commonjs",
   "devDependencies": {
     "electron": "^40.1.0",
+    "electron-builder": "^25.1.8",
     "electron-reload": "^2.0.0-alpha.1"
   },
   "dependencies": {
@@ -19,5 +22,45 @@
     "cross-fetch": "^4.1.0",
     "dotenv": "^17.2.3",
     "pdfkit": "^0.18.0"
+  },
+  "build": {
+    "appId": "com.dao.browser",
+    "productName": "DAO Browser",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "resources/**/*",
+      "data/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/dist/dao_backend",
+        "to": "backend/dao_backend"
+      },
+      {
+        "from": "data/filter-lists",
+        "to": "data/filter-lists"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "DAO-Browser-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

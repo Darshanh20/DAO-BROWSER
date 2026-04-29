@@ -9,15 +9,29 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional, Union
 
+DATA_DIR = os.environ.get('DAO_BACKEND_DATA_DIR')
+if DATA_DIR:
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+def _profiles_base_dir() -> str:
+    if DATA_DIR:
+        return os.path.join(DATA_DIR, 'profiles')
+    return os.path.join(os.path.dirname(__file__), '..', 'profiles')
+
+def _history_db_path() -> str:
+    if DATA_DIR:
+        return os.path.join(DATA_DIR, 'browser_history.db')
+    return os.path.join(os.path.dirname(__file__), '..', 'browser_history.db')
+
 # Profile-specific database paths  
 def get_profile_db_path(profile_id: int) -> str:
     """Get database path for specific profile"""
-    profile_dir = os.path.join(os.path.dirname(__file__), '..', 'profiles', f'profile_{profile_id}')
+    profile_dir = os.path.join(_profiles_base_dir(), f'profile_{profile_id}')
     os.makedirs(profile_dir, exist_ok=True)
     return os.path.join(profile_dir, 'profile_data.db')
 
 # Main profiles database path (stores profile metadata)
-PROFILES_DB_PATH = os.path.join(os.path.dirname(__file__), 'profiles.db')
+PROFILES_DB_PATH = os.path.join(DATA_DIR, 'profiles.db') if DATA_DIR else os.path.join(os.path.dirname(__file__), 'profiles.db')
 
 class Profile:
     """Profile model for managing user profiles"""
@@ -322,7 +336,7 @@ def delete_profile(profile_id: int) -> Dict:
         conn.close()
         
         # Clean up profile directory
-        profile_dir = os.path.join(os.path.dirname(__file__), '..', 'profiles', f'profile_{profile_id}')
+        profile_dir = os.path.join(_profiles_base_dir(), f'profile_{profile_id}')
         if os.path.exists(profile_dir):
             import shutil
             shutil.rmtree(profile_dir)
@@ -369,6 +383,33 @@ def activate_profile(profile_id: int) -> Dict:
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+def touch_profile_last_used(profile_id: int) -> Dict:
+    """Update a profile's last_used_at timestamp without switching active profile."""
+    try:
+        conn = get_profiles_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM profiles WHERE id = ?', (profile_id,))
+        profile = cursor.fetchone()
+        if not profile:
+            return {'success': False, 'error': 'Profile not found'}
+
+        cursor.execute('UPDATE profiles SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?', (profile_id,))
+        cursor.execute('SELECT * FROM profiles WHERE id = ?', (profile_id,))
+        updated_profile = dict(cursor.fetchone())
+
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'data': updated_profile,
+            'message': 'Profile last_used_at updated'
+        }
+
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
 def get_profile_stats(profile_id: int) -> Dict:
     """Get statistics for a specific profile"""
     try:
@@ -382,7 +423,7 @@ def get_profile_stats(profile_id: int) -> Dict:
         }
         
         # Query the main browsing_history database for this profile's history count
-        main_db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'browser_history.db')
+        main_db_path = _history_db_path()
         if os.path.exists(main_db_path):
             conn = sqlite3.connect(main_db_path)
             cursor = conn.cursor()
@@ -463,15 +504,23 @@ def migrate_existing_data_to_profiles():
         # Check if profiles exist
         result = get_all_profiles()
         if not result['success'] or len(result['data']) == 0:
-            # Create default profile
-            create_result = create_profile('default', 'Default Profile', '#4A90E2', is_default=True)
-            if not create_result['success']:
-                return {'success': False, 'error': f'Failed to create default profile: {create_result["error"]}'}
-            
-            default_profile_id = create_result['data']['id']
-            # Activate the default profile
+            # Seed two sample profiles for initial testing
+            sample_profiles = [
+                ('alex', 'Alex (Personal)', '#2ecc71'),
+                ('maya', 'Maya (Work)', '#3498db')
+            ]
+
+            created_ids = []
+            for name, display_name, avatar_color in sample_profiles:
+                create_result = create_profile(name, display_name, avatar_color)
+                if create_result['success']:
+                    created_ids.append(create_result['data']['id'])
+                else:
+                    return {'success': False, 'error': f'Failed to create sample profile {display_name}: {create_result["error"]}'}
+
+            default_profile_id = created_ids[0]
             activate_profile(default_profile_id)
-            print(f"✅ Default profile created and activated (ID: {default_profile_id})")
+            print(f"✅ Seeded {len(created_ids)} sample profiles. Active profile ID: {default_profile_id}")
         else:
             # Use existing default profile
             default_profile = None
@@ -505,7 +554,7 @@ def migrate_existing_data_to_profiles():
             
             # Update any history entries that don't have a profile_id
             import sqlite3
-            history_db_path = os.path.join(os.path.dirname(__file__), '..', 'browser_history.db')
+            history_db_path = _history_db_path()
             if os.path.exists(history_db_path):
                 conn = sqlite3.connect(history_db_path)
                 cursor = conn.cursor()

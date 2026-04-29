@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Mode Starting</title>
+    <style>
+        :root {
+            --bg-a: #040b1d;
+            --bg-b: #0a1733;
+            --ring-a: #67e8f9;
+            --ring-b: #93c5fd;
+            --text: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Outfit', 'Segoe UI', sans-serif;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(103, 232, 249, 0.12), transparent 35%),
+                radial-gradient(circle at 82% 72%, rgba(147, 197, 253, 0.16), transparent 36%),
+                linear-gradient(145deg, var(--bg-a), var(--bg-b));
+            color: var(--text);
+        }
+
+        .intro-wrap {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+        }
+
+        .ring-shell {
+            position: relative;
+            width: min(44vw, 360px);
+            aspect-ratio: 1;
+            display: grid;
+            place-items: center;
+        }
+
+        .ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 3px solid rgba(148, 163, 184, 0.14);
+            box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.06) inset;
+        }
+
+        .ring::before,
+        .ring::after {
+            content: '';
+            position: absolute;
+            inset: 8%;
+            border-radius: 50%;
+            border: 3px solid transparent;
+        }
+
+        .ring::before {
+            border-top-color: var(--ring-a);
+            border-right-color: var(--ring-a);
+            filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.48));
+            animation: spinClockwise 3.6s linear infinite;
+        }
+
+        .ring::after {
+            inset: 18%;
+            border-bottom-color: var(--ring-b);
+            border-left-color: var(--ring-b);
+            filter: drop-shadow(0 0 12px rgba(147, 197, 253, 0.5));
+            animation: spinCounterClockwise 2.8s linear infinite;
+        }
+
+        .center-text {
+            position: relative;
+            text-align: center;
+            animation: textPulse 1.8s ease-in-out infinite;
+        }
+
+        .center-text h1 {
+            margin: 0;
+            font-size: clamp(30px, 4.2vw, 58px);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .center-text p {
+            margin: 12px 0 0;
+            font-size: clamp(13px, 1.3vw, 18px);
+            color: rgba(226, 232, 240, 0.85);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        @keyframes spinClockwise {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spinCounterClockwise {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        @keyframes textPulse {
+            0%,
+            100% { opacity: 0.85; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
+        }
+    </style>
+</head>
+<body>
+    <div class="intro-wrap">
+        <div class="ring-shell">
+            <div class="ring"></div>
+            <div class="center-text">
+                <h1>Focus Mode</h1>
+                <p>Session Started</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -219,6 +219,26 @@ def activate_profile(profile_id):
             'error': 'Internal server error'
         }), 500
 
+@profiles_bp.route('/<int:profile_id>/touch', methods=['POST'])
+def touch_profile(profile_id):
+    """Update profile last-used timestamp without changing active profile."""
+    try:
+        logger.info(f"Touching profile last_used_at: {profile_id}")
+
+        result = ProfileService.touch_profile(profile_id)
+
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Error touching profile {profile_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
 @profiles_bp.route('/active', methods=['GET'])
 def get_active_profile():
     """
